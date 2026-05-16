@@ -193,6 +193,21 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Print infra parameters
+        run: |
+          echo "VpcId:           ${{ needs.read-infra-outputs.outputs.vpc_id }}"
+          echo "PublicSubnetA:   ${{ needs.read-infra-outputs.outputs.public_subnet_a }}"
+          echo "PublicSubnetB:   ${{ needs.read-infra-outputs.outputs.public_subnet_b }}"
+          echo "PrivateSubnetA:  ${{ needs.read-infra-outputs.outputs.private_subnet_a }}"
+          echo "PrivateSubnetB:  ${{ needs.read-infra-outputs.outputs.private_subnet_b }}"
+          echo "AppSgId:         ${{ needs.read-infra-outputs.outputs.app_sg_id }}"
+          echo "RedisEndpoint:   ${{ needs.read-infra-outputs.outputs.redis_endpoint }}"
+          echo "RedisPort:       ${{ needs.read-infra-outputs.outputs.redis_port }}"
+          echo "FrontendBucket:  ${{ needs.read-infra-outputs.outputs.frontend_bucket }}"
+          echo "JobQueueUrl:     ${{ needs.read-infra-outputs.outputs.job_queue_url }}"
+          echo "OddsQueueUrl:    ${{ needs.read-infra-outputs.outputs.odds_queue_url }}"
+          echo "ImageUri:        ${{ needs.build-backend.outputs.image_uri }}"
+
       - name: Deploy comp stack
         run: |
           aws cloudformation deploy \
