@@ -198,6 +198,8 @@ jobs:
           aws cloudformation deploy \
             --template-file infra/comp.yml \
             --stack-name parlaypal-comp-${{ env.ENV }} \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset \
             --parameter-overrides \
                 Environment=${{ env.ENV }} \
                 BackendImageUri=${{ needs.build-backend.outputs.image_uri }} \
@@ -214,9 +216,7 @@ jobs:
                 JobQueueUrl=${{ needs.read-infra-outputs.outputs.job_queue_url }} \
                 OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
                 ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
-                TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --no-fail-on-empty-changeset
+                TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }}
 
   # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
   deploy-frontend:
