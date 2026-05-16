@@ -1,0 +1,390 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: parlaypal compute stack — ECS, ALB, CloudFront. Reads outputs from data and bus stacks.
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [prod, staging]
+    Default: prod
+
+  # Passed in by comp-cd.yml at deploy time
+  BackendImageUri:
+    Type: String
+    Description: Full ECR image URI including tag (e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/parlaypal-backend:abc1234)
+
+  # From data-cd outputs
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet::Id
+  AppSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  DatabaseEndpoint:
+    Type: String
+  DatabasePort:
+    Type: String
+  DatabaseSecretArn:
+    Type: String
+  RedisEndpoint:
+    Type: String
+  RedisPort:
+    Type: String
+  FrontendBucketArn:
+    Type: String
+  FrontendBucketName:
+    Type: String
+
+  # From bus-cd outputs
+  JobQueueUrl:
+    Type: String
+  OddsRefreshQueueUrl:
+    Type: String
+
+  # App secrets — store in GitHub Actions secrets, injected at deploy time
+  ApiFootballKey:
+    Type: String
+    NoEcho: true
+  TheOddsApiKey:
+    Type: String
+    NoEcho: true
+  DraftKingsAffiliateUrl:
+    Type: String
+    Default: "#"
+  FanDuelAffiliateUrl:
+    Type: String
+    Default: "#"
+  BetMgmAffiliateUrl:
+    Type: String
+    Default: "#"
+
+  DesiredCount:
+    Type: Number
+    Default: 1
+
+  TaskCpu:
+    Type: String
+    Default: "256"
+
+  TaskMemory:
+    Type: String
+    Default: "512"
+
+Resources:
+
+  # ── ECR ──────────────────────────────────────────────────────────────────
+
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    Properties:
+      RepositoryName: !Sub parlaypal-backend-${Environment}
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        # Keep only the 10 most recent images to cap storage costs
+        LifecyclePolicyText: |
+          {
+            "rules": [{
+              "rulePriority": 1,
+              "description": "Keep last 10 images",
+              "selection": {"tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 10},
+              "action": {"type": "expire"}
+            }]
+          }
+
+  # ── IAM ───────────────────────────────────────────────────────────────────
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub parlaypal-${Environment}-ecs-execution
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadSecrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub parlaypal-${Environment}-ecs-task
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: "*"
+
+  # ── ALB ───────────────────────────────────────────────────────────────────
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Internet-facing ALB
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  ALBIngressToApp:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroupId
+      IpProtocol: tcp
+      FromPort: 8000
+      ToPort: 8000
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub parlaypal-${Environment}
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub parlaypal-api-${Environment}
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 8000
+      TargetType: ip
+      HealthCheckPath: /api/health
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 2
+
+  HTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # ── ECS ───────────────────────────────────────────────────────────────────
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub parlaypal-${Environment}
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 1
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/parlaypal-${Environment}
+      RetentionInDays: 14
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub parlaypal-backend-${Environment}
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: backend
+          Image: !Ref BackendImageUri
+          PortMappings:
+            - ContainerPort: 8000
+          Environment:
+            - Name: DATABASE_URL
+              Value: !Sub "postgresql+asyncpg://parlaypal@${DatabaseEndpoint}:${DatabasePort}/parlaypal"
+            - Name: REDIS_URL
+              Value: !Sub "redis://${RedisEndpoint}:${RedisPort}"
+            - Name: ARQ_QUEUE_URL
+              Value: !Ref JobQueueUrl
+            - Name: ODDS_REFRESH_QUEUE_URL
+              Value: !Ref OddsRefreshQueueUrl
+            - Name: API_FOOTBALL_KEY
+              Value: !Ref ApiFootballKey
+            - Name: THE_ODDS_API_KEY
+              Value: !Ref TheOddsApiKey
+            - Name: DRAFTKINGS_AFFILIATE_URL
+              Value: !Ref DraftKingsAffiliateUrl
+            - Name: FANDUEL_AFFILIATE_URL
+              Value: !Ref FanDuelAffiliateUrl
+            - Name: BETMGM_AFFILIATE_URL
+              Value: !Ref BetMgmAffiliateUrl
+          Secrets:
+            - Name: DB_SECRET
+              ValueFrom: !Ref DatabaseSecretArn
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: backend
+
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: HTTPListener
+    Properties:
+      ServiceName: !Sub parlaypal-backend-${Environment}
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+          SecurityGroups:
+            - !Ref AppSecurityGroupId
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: backend
+          ContainerPort: 8000
+          TargetGroupArn: !Ref TargetGroup
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+
+  # ── CloudFront (frontend) ─────────────────────────────────────────────────
+
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub parlaypal-${Environment}-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucketName
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucketArn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Frontend
+            DomainName: !Sub "${FrontendBucketName}.s3.${AWS::Region}.amazonaws.com"
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+          - Id: APIBackend
+            DomainName: !GetAtt LoadBalancer.DNSName
+            CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: S3Frontend
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized managed policy
+          Compress: true
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: APIBackend
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
+            AllowedMethods: [GET, HEAD, OPTIONS]
+        CustomErrorResponses:
+          # Route all 404s to index.html for Vue Router to handle
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+Outputs:
+  ECRRepositoryUri:
+    Value: !GetAtt ECRRepository.RepositoryUri
+    Export:
+      Name: !Sub parlaypal-${Environment}-ECRRepositoryUri
+
+  ECSClusterName:
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub parlaypal-${Environment}-ECSClusterName
+
+  ECSServiceName:
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub parlaypal-${Environment}-ECSServiceName
+
+  ALBDnsName:
+    Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Sub parlaypal-${Environment}-ALBDnsName
+
+  CloudFrontDomain:
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub parlaypal-${Environment}-CloudFrontDomain
+
+  CloudFrontDistributionId:
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub parlaypal-${Environment}-CloudFrontDistributionId

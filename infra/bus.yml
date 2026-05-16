@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: parlaypal bus stack — SQS queues for async/background work
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [prod, staging]
+    Default: prod
+
+  # How long a failed message sits in the DLQ before expiring (seconds)
+  DLQRetentionSeconds:
+    Type: Number
+    Default: 1209600  # 14 days
+
+  # How many times a message can fail before routing to DLQ
+  MaxReceiveCount:
+    Type: Number
+    Default: 3
+
+Resources:
+
+  # ── Job Queue (ARQ background tasks) ─────────────────────────────────────
+
+  JobQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub parlaypal-jobs-dlq-${Environment}
+      MessageRetentionPeriod: !Ref DLQRetentionSeconds
+
+  JobQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub parlaypal-jobs-${Environment}
+      # ARQ polls frequently; visibility timeout should exceed max job runtime
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 86400
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt JobQueueDLQ.Arn
+        maxReceiveCount: !Ref MaxReceiveCount
+
+  # ── Odds Refresh Queue (triggered on a schedule via EventBridge) ──────────
+
+  OddsRefreshDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub parlaypal-odds-refresh-dlq-${Environment}
+      MessageRetentionPeriod: 86400
+
+  OddsRefreshQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub parlaypal-odds-refresh-${Environment}
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 3600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OddsRefreshDLQ.Arn
+        maxReceiveCount: !Ref MaxReceiveCount
+
+  # ── EventBridge rule: kick off odds refresh every 5 minutes ───────────────
+
+  OddsRefreshScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SendToOddsRefreshQueue
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt OddsRefreshQueue.Arn
+
+  OddsRefreshSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub parlaypal-odds-refresh-${Environment}
+      ScheduleExpression: rate(5 minutes)
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt OddsRefreshQueue.Arn
+        RoleArn: !GetAtt OddsRefreshScheduleRole.Arn
+        Input: '{"source":"scheduler","task":"refresh_odds"}'
+
+  # ── SNS topic for operational alerts ──────────────────────────────────────
+
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub parlaypal-alerts-${Environment}
+
+Outputs:
+  JobQueueUrl:
+    Value: !Ref JobQueue
+    Export:
+      Name: !Sub parlaypal-${Environment}-JobQueueUrl
+
+  JobQueueArn:
+    Value: !GetAtt JobQueue.Arn
+    Export:
+      Name: !Sub parlaypal-${Environment}-JobQueueArn
+
+  JobDLQUrl:
+    Value: !Ref JobQueueDLQ
+    Export:
+      Name: !Sub parlaypal-${Environment}-JobDLQUrl
+
+  JobDLQArn:
+    Value: !GetAtt JobQueueDLQ.Arn
+    Export:
+      Name: !Sub parlaypal-${Environment}-JobDLQArn
+
+  OddsRefreshQueueUrl:
+    Value: !Ref OddsRefreshQueue
+    Export:
+      Name: !Sub parlaypal-${Environment}-OddsRefreshQueueUrl
+
+  OddsRefreshQueueArn:
+    Value: !GetAtt OddsRefreshQueue.Arn
+    Export:
+      Name: !Sub parlaypal-${Environment}-OddsRefreshQueueArn
+
+  AlertsTopicArn:
+    Value: !Ref AlertsTopic
+    Export:
+      Name: !Sub parlaypal-${Environment}-AlertsTopicArn

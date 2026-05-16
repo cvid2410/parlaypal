@@ -1,0 +1,272 @@
+name: comp-cd
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - infra/comp.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: prod
+        type: choice
+        options: [prod, staging]
+
+concurrency:
+  group: comp-cd-${{ github.event.inputs.environment || 'prod' }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ENV: ${{ github.event.inputs.environment || 'prod' }}
+
+jobs:
+
+  # ── 1. Read outputs from data-cd and bus-cd stacks ───────────────────────
+  read-infra-outputs:
+    name: Read infra stack outputs
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      vpc_id:             ${{ steps.data.outputs.vpc_id }}
+      public_subnet_a:    ${{ steps.data.outputs.public_subnet_a }}
+      public_subnet_b:    ${{ steps.data.outputs.public_subnet_b }}
+      private_subnet_a:   ${{ steps.data.outputs.private_subnet_a }}
+      private_subnet_b:   ${{ steps.data.outputs.private_subnet_b }}
+      app_sg_id:          ${{ steps.data.outputs.app_sg_id }}
+      db_endpoint:        ${{ steps.data.outputs.db_endpoint }}
+      db_port:            ${{ steps.data.outputs.db_port }}
+      db_secret_arn:      ${{ steps.data.outputs.db_secret_arn }}
+      redis_endpoint:     ${{ steps.data.outputs.redis_endpoint }}
+      redis_port:         ${{ steps.data.outputs.redis_port }}
+      frontend_bucket:    ${{ steps.data.outputs.frontend_bucket }}
+      frontend_bucket_arn: ${{ steps.data.outputs.frontend_bucket_arn }}
+      job_queue_url:      ${{ steps.bus.outputs.job_queue_url }}
+      odds_queue_url:     ${{ steps.bus.outputs.odds_queue_url }}
+      ecr_uri:            ${{ steps.comp.outputs.ecr_uri }}
+      cf_distribution_id: ${{ steps.comp.outputs.cf_distribution_id }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read data stack outputs
+        id: data
+        run: |
+          OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name parlaypal-data-${{ env.ENV }} \
+            --query "Stacks[0].Outputs" --output json)
+          get() { echo $OUTPUTS | jq -r ".[] | select(.OutputKey==\"$1\") | .OutputValue"; }
+          echo "vpc_id=$(get VpcId)"                       >> $GITHUB_OUTPUT
+          echo "public_subnet_a=$(get PublicSubnetA)"      >> $GITHUB_OUTPUT
+          echo "public_subnet_b=$(get PublicSubnetB)"      >> $GITHUB_OUTPUT
+          echo "private_subnet_a=$(get PrivateSubnetA)"    >> $GITHUB_OUTPUT
+          echo "private_subnet_b=$(get PrivateSubnetB)"    >> $GITHUB_OUTPUT
+          echo "app_sg_id=$(get AppSecurityGroupId)"       >> $GITHUB_OUTPUT
+          echo "db_endpoint=$(get DatabaseEndpoint)"       >> $GITHUB_OUTPUT
+          echo "db_port=$(get DatabasePort)"               >> $GITHUB_OUTPUT
+          echo "db_secret_arn=$(get DatabaseSecretArn)"    >> $GITHUB_OUTPUT
+          echo "redis_endpoint=$(get RedisEndpoint)"       >> $GITHUB_OUTPUT
+          echo "redis_port=$(get RedisPort)"               >> $GITHUB_OUTPUT
+          echo "frontend_bucket=$(get FrontendBucketName)" >> $GITHUB_OUTPUT
+          echo "frontend_bucket_arn=$(get FrontendBucketArn)" >> $GITHUB_OUTPUT
+
+      - name: Read bus stack outputs
+        id: bus
+        run: |
+          OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name parlaypal-bus-${{ env.ENV }} \
+            --query "Stacks[0].Outputs" --output json)
+          get() { echo $OUTPUTS | jq -r ".[] | select(.OutputKey==\"$1\") | .OutputValue"; }
+          echo "job_queue_url=$(get JobQueueUrl)"              >> $GITHUB_OUTPUT
+          echo "odds_queue_url=$(get OddsRefreshQueueUrl)"     >> $GITHUB_OUTPUT
+
+      # comp stack may not exist on first deploy — tolerate the error
+      - name: Read comp stack outputs (if exists)
+        id: comp
+        continue-on-error: true
+        run: |
+          OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name parlaypal-comp-${{ env.ENV }} \
+            --query "Stacks[0].Outputs" --output json 2>/dev/null || echo "[]")
+          get() { echo $OUTPUTS | jq -r ".[] | select(.OutputKey==\"$1\") | .OutputValue"; }
+          echo "ecr_uri=$(get ECRRepositoryUri)"                   >> $GITHUB_OUTPUT
+          echo "cf_distribution_id=$(get CloudFrontDistributionId)" >> $GITHUB_OUTPUT
+
+  # ── 2. Build & push backend Docker image ─────────────────────────────────
+  build-backend:
+    name: Build & push backend image
+    runs-on: ubuntu-latest
+    needs: read-infra-outputs
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image_uri: ${{ steps.push.outputs.image_uri }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Bootstrap ECR repo on first deploy (comp stack not yet deployed)
+      - name: Ensure ECR repository exists
+        id: ecr
+        run: |
+          REPO_NAME=parlaypal-backend-${{ env.ENV }}
+          aws ecr describe-repositories --repository-names $REPO_NAME 2>/dev/null || \
+            aws ecr create-repository --repository-name $REPO_NAME --image-scanning-configuration scanOnPush=true
+          echo "repo_uri=${{ steps.login-ecr.outputs.registry }}/${REPO_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Build, tag, and push image
+        id: push
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REPO_URI: ${{ steps.ecr.outputs.repo_uri }}
+        run: |
+          docker build -t $REPO_URI:$IMAGE_TAG -t $REPO_URI:latest ./backend
+          docker push $REPO_URI:$IMAGE_TAG
+          docker push $REPO_URI:latest
+          echo "image_uri=${REPO_URI}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+  # ── 3. Build frontend ─────────────────────────────────────────────────────
+  build-frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npx vue-tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+  # ── 4. Deploy comp stack (ECS + ALB + CloudFront) ────────────────────────
+  deploy-comp-stack:
+    name: Deploy comp stack
+    runs-on: ubuntu-latest
+    needs: [read-infra-outputs, build-backend]
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy comp stack
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/comp.yml \
+            --stack-name parlaypal-comp-${{ env.ENV }} \
+            --parameter-overrides \
+                Environment=${{ env.ENV }} \
+                BackendImageUri=${{ needs.build-backend.outputs.image_uri }} \
+                VpcId=${{ needs.read-infra-outputs.outputs.vpc_id }} \
+                PublicSubnetA=${{ needs.read-infra-outputs.outputs.public_subnet_a }} \
+                PublicSubnetB=${{ needs.read-infra-outputs.outputs.public_subnet_b }} \
+                PrivateSubnetA=${{ needs.read-infra-outputs.outputs.private_subnet_a }} \
+                PrivateSubnetB=${{ needs.read-infra-outputs.outputs.private_subnet_b }} \
+                AppSecurityGroupId=${{ needs.read-infra-outputs.outputs.app_sg_id }} \
+                DatabaseEndpoint=${{ needs.read-infra-outputs.outputs.db_endpoint }} \
+                DatabasePort=${{ needs.read-infra-outputs.outputs.db_port }} \
+                DatabaseSecretArn=${{ needs.read-infra-outputs.outputs.db_secret_arn }} \
+                RedisEndpoint=${{ needs.read-infra-outputs.outputs.redis_endpoint }} \
+                RedisPort=${{ needs.read-infra-outputs.outputs.redis_port }} \
+                FrontendBucketArn=${{ needs.read-infra-outputs.outputs.frontend_bucket_arn }} \
+                FrontendBucketName=${{ needs.read-infra-outputs.outputs.frontend_bucket }} \
+                JobQueueUrl=${{ needs.read-infra-outputs.outputs.job_queue_url }} \
+                OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
+                ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
+                TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
+                DraftKingsAffiliateUrl=${{ secrets.DRAFTKINGS_AFFILIATE_URL }} \
+                FanDuelAffiliateUrl=${{ secrets.FANDUEL_AFFILIATE_URL }} \
+                BetMgmAffiliateUrl=${{ secrets.BETMGM_AFFILIATE_URL }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+  # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
+  deploy-frontend:
+    name: Deploy frontend
+    runs-on: ubuntu-latest
+    needs: [read-infra-outputs, build-frontend, deploy-comp-stack]
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: Upload to S3
+        run: |
+          aws s3 sync dist/ s3://${{ needs.read-infra-outputs.outputs.frontend_bucket }}/ \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html"
+          # index.html must not be cached so deploys take effect immediately
+          aws s3 cp dist/index.html s3://${{ needs.read-infra-outputs.outputs.frontend_bucket }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          CF_ID=$(aws cloudformation describe-stacks \
+            --stack-name parlaypal-comp-${{ env.ENV }} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+          aws cloudfront create-invalidation --distribution-id $CF_ID --paths "/*"

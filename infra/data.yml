@@ -1,0 +1,300 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: parlaypal data stack — VPC, RDS, ElastiCache, S3
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [prod, staging]
+    Default: prod
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Master password for RDS (stored in Secrets Manager)
+
+  DBInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+
+  CacheNodeType:
+    Type: String
+    Default: cache.t4g.micro
+
+Mappings:
+  EnvConfig:
+    prod:
+      MultiAZ: true
+      DeletionPolicy: Retain
+    staging:
+      MultiAZ: false
+      DeletionPolicy: Delete
+
+Resources:
+
+  # ── VPC ──────────────────────────────────────────────────────────────────
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-public-a
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-public-b
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-private-a
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.12.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-private-b
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # ── Security Groups ───────────────────────────────────────────────────────
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows outbound to data layer; inbound from ALB
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-app
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS access from app SG only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-db
+
+  CacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Redis access from app SG only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-cache
+
+  # ── RDS PostgreSQL ────────────────────────────────────────────────────────
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets for RDS
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+
+  DBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub parlaypal/${Environment}/db
+      Description: RDS master credentials
+      SecretString: !Sub |
+        {"username":"parlaypal","password":"${DBPassword}","dbname":"parlaypal"}
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: !FindInMap [EnvConfig, !Ref Environment, DeletionPolicy]
+    Properties:
+      DBInstanceIdentifier: !Sub parlaypal-${Environment}
+      DBName: parlaypal
+      Engine: postgres
+      EngineVersion: "16.3"
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: 20
+      StorageType: gp3
+      MasterUsername: parlaypal
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      MultiAZ: !FindInMap [EnvConfig, !Ref Environment, MultiAZ]
+      PubliclyAccessible: false
+      DeletionProtection: !Equals [!Ref Environment, prod]
+      BackupRetentionPeriod: !If [IsProd, 7, 1]
+
+  # ── ElastiCache Redis ─────────────────────────────────────────────────────
+
+  CacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Private subnets for Redis
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: !Sub parlaypal-${Environment}
+      Engine: redis
+      CacheNodeType: !Ref CacheNodeType
+      NumCacheNodes: 1
+      CacheSubnetGroupName: !Ref CacheSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref CacheSecurityGroup
+
+  # ── S3 — Frontend ─────────────────────────────────────────────────────────
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub parlaypal-frontend-${Environment}-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub parlaypal-${Environment}-VpcId
+
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub parlaypal-${Environment}-PublicSubnetA
+
+  PublicSubnetB:
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub parlaypal-${Environment}-PublicSubnetB
+
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub parlaypal-${Environment}-PrivateSubnetA
+
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub parlaypal-${Environment}-PrivateSubnetB
+
+  AppSecurityGroupId:
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: !Sub parlaypal-${Environment}-AppSecurityGroupId
+
+  DatabaseEndpoint:
+    Value: !GetAtt DBInstance.Endpoint.Address
+    Export:
+      Name: !Sub parlaypal-${Environment}-DatabaseEndpoint
+
+  DatabasePort:
+    Value: !GetAtt DBInstance.Endpoint.Port
+    Export:
+      Name: !Sub parlaypal-${Environment}-DatabasePort
+
+  DatabaseSecretArn:
+    Value: !Ref DBSecret
+    Export:
+      Name: !Sub parlaypal-${Environment}-DatabaseSecretArn
+
+  RedisEndpoint:
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub parlaypal-${Environment}-RedisEndpoint
+
+  RedisPort:
+    Value: !GetAtt RedisCluster.RedisEndpoint.Port
+    Export:
+      Name: !Sub parlaypal-${Environment}-RedisPort
+
+  FrontendBucketName:
+    Value: !Ref FrontendBucket
+    Export:
+      Name: !Sub parlaypal-${Environment}-FrontendBucketName
+
+  FrontendBucketArn:
+    Value: !GetAtt FrontendBucket.Arn
+    Export:
+      Name: !Sub parlaypal-${Environment}-FrontendBucketArn

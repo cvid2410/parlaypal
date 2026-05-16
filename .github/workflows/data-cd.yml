@@ -1,0 +1,59 @@
+name: data-cd
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - infra/data.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: prod
+        type: choice
+        options: [prod, staging]
+
+concurrency:
+  group: data-cd-${{ github.event.inputs.environment || 'prod' }}
+  cancel-in-progress: false  # never cancel infra deploys mid-flight
+
+env:
+  AWS_REGION: us-east-1
+  ENV: ${{ github.event.inputs.environment || 'prod' }}
+
+jobs:
+  deploy:
+    name: Deploy data stack (${{ github.event.inputs.environment || 'prod' }})
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy data stack
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/data.yml \
+            --stack-name parlaypal-data-${{ env.ENV }} \
+            --parameter-overrides \
+                Environment=${{ env.ENV }} \
+                DBPassword=${{ secrets.DB_PASSWORD }} \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Print stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name parlaypal-data-${{ env.ENV }} \
+            --query "Stacks[0].Outputs[*].{Key:OutputKey,Value:OutputValue}" \
+            --output table
