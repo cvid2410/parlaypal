@@ -7,10 +7,9 @@ Parameters:
     AllowedValues: [prod, dev]
     Default: prod
 
-  # Passed in by comp-cd.yml at deploy time
   BackendImageUri:
     Type: String
-    Description: Full ECR image URI including tag (e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/parlaypal-backend:abc1234)
+    Description: Full ECR image URI including tag
 
   # From data-cd outputs
   VpcId:
@@ -25,12 +24,6 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   AppSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
-  DatabaseEndpoint:
-    Type: String
-  DatabasePort:
-    Type: String
-  DatabaseSecretArn:
-    Type: String
   RedisEndpoint:
     Type: String
   RedisPort:
@@ -46,22 +39,13 @@ Parameters:
   OddsRefreshQueueUrl:
     Type: String
 
-  # App secrets — store in GitHub Actions secrets, injected at deploy time
+  # App secrets — stored in GitHub Actions secrets, injected at deploy time
   ApiFootballKey:
     Type: String
     NoEcho: true
   TheOddsApiKey:
     Type: String
     NoEcho: true
-  DraftKingsAffiliateUrl:
-    Type: String
-    Default: "#"
-  FanDuelAffiliateUrl:
-    Type: String
-    Default: "#"
-  BetMgmAffiliateUrl:
-    Type: String
-    Default: "#"
 
   DesiredCount:
     Type: Number
@@ -87,7 +71,6 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       LifecyclePolicy:
-        # Keep only the 10 most recent images to cap storage costs
         LifecyclePolicyText: |
           {
             "rules": [{
@@ -113,15 +96,6 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      Policies:
-        - PolicyName: ReadSecrets
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource: !Ref DatabaseSecretArn
 
   ECSTaskRole:
     Type: AWS::IAM::Role
@@ -242,8 +216,6 @@ Resources:
           PortMappings:
             - ContainerPort: 8000
           Environment:
-            - Name: DATABASE_URL
-              Value: !Sub "postgresql+asyncpg://parlaypal@${DatabaseEndpoint}:${DatabasePort}/parlaypal"
             - Name: REDIS_URL
               Value: !Sub "redis://${RedisEndpoint}:${RedisPort}"
             - Name: ARQ_QUEUE_URL
@@ -254,15 +226,6 @@ Resources:
               Value: !Ref ApiFootballKey
             - Name: THE_ODDS_API_KEY
               Value: !Ref TheOddsApiKey
-            - Name: DRAFTKINGS_AFFILIATE_URL
-              Value: !Ref DraftKingsAffiliateUrl
-            - Name: FANDUEL_AFFILIATE_URL
-              Value: !Ref FanDuelAffiliateUrl
-            - Name: BETMGM_AFFILIATE_URL
-              Value: !Ref BetMgmAffiliateUrl
-          Secrets:
-            - Name: DB_SECRET
-              ValueFrom: !Ref DatabaseSecretArn
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -295,7 +258,7 @@ Resources:
         MinimumHealthyPercent: 100
         MaximumPercent: 200
 
-  # ── CloudFront (frontend) ─────────────────────────────────────────────────
+  # ── CloudFront ────────────────────────────────────────────────────────────
 
   CloudFrontOAC:
     Type: AWS::CloudFront::OriginAccessControl
@@ -341,16 +304,15 @@ Resources:
         DefaultCacheBehavior:
           TargetOriginId: S3Frontend
           ViewerProtocolPolicy: redirect-to-https
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized managed policy
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
           Compress: true
         CacheBehaviors:
           - PathPattern: /api/*
             TargetOriginId: APIBackend
             ViewerProtocolPolicy: redirect-to-https
-            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
             AllowedMethods: [GET, HEAD, OPTIONS]
         CustomErrorResponses:
-          # Route all 404s to index.html for Vue Router to handle
           - ErrorCode: 404
             ResponseCode: 200
             ResponsePagePath: /index.html

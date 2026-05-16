@@ -41,9 +41,6 @@ jobs:
       private_subnet_a:   ${{ steps.data.outputs.private_subnet_a }}
       private_subnet_b:   ${{ steps.data.outputs.private_subnet_b }}
       app_sg_id:          ${{ steps.data.outputs.app_sg_id }}
-      db_endpoint:        ${{ steps.data.outputs.db_endpoint }}
-      db_port:            ${{ steps.data.outputs.db_port }}
-      db_secret_arn:      ${{ steps.data.outputs.db_secret_arn }}
       redis_endpoint:     ${{ steps.data.outputs.redis_endpoint }}
       redis_port:         ${{ steps.data.outputs.redis_port }}
       frontend_bucket:    ${{ steps.data.outputs.frontend_bucket }}
@@ -73,9 +70,6 @@ jobs:
           echo "private_subnet_a=$(get PrivateSubnetA)"    >> $GITHUB_OUTPUT
           echo "private_subnet_b=$(get PrivateSubnetB)"    >> $GITHUB_OUTPUT
           echo "app_sg_id=$(get AppSecurityGroupId)"       >> $GITHUB_OUTPUT
-          echo "db_endpoint=$(get DatabaseEndpoint)"       >> $GITHUB_OUTPUT
-          echo "db_port=$(get DatabasePort)"               >> $GITHUB_OUTPUT
-          echo "db_secret_arn=$(get DatabaseSecretArn)"    >> $GITHUB_OUTPUT
           echo "redis_endpoint=$(get RedisEndpoint)"       >> $GITHUB_OUTPUT
           echo "redis_port=$(get RedisPort)"               >> $GITHUB_OUTPUT
           echo "frontend_bucket=$(get FrontendBucketName)" >> $GITHUB_OUTPUT
@@ -213,9 +207,6 @@ jobs:
                 PrivateSubnetA=${{ needs.read-infra-outputs.outputs.private_subnet_a }} \
                 PrivateSubnetB=${{ needs.read-infra-outputs.outputs.private_subnet_b }} \
                 AppSecurityGroupId=${{ needs.read-infra-outputs.outputs.app_sg_id }} \
-                DatabaseEndpoint=${{ needs.read-infra-outputs.outputs.db_endpoint }} \
-                DatabasePort=${{ needs.read-infra-outputs.outputs.db_port }} \
-                DatabaseSecretArn=${{ needs.read-infra-outputs.outputs.db_secret_arn }} \
                 RedisEndpoint=${{ needs.read-infra-outputs.outputs.redis_endpoint }} \
                 RedisPort=${{ needs.read-infra-outputs.outputs.redis_port }} \
                 FrontendBucketArn=${{ needs.read-infra-outputs.outputs.frontend_bucket_arn }} \
@@ -224,9 +215,6 @@ jobs:
                 OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
                 ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
                 TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
-                DraftKingsAffiliateUrl=${{ secrets.DRAFTKINGS_AFFILIATE_URL }} \
-                FanDuelAffiliateUrl=${{ secrets.FANDUEL_AFFILIATE_URL }} \
-                BetMgmAffiliateUrl=${{ secrets.BETMGM_AFFILIATE_URL }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
 

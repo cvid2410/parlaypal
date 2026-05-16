@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: parlaypal data stack — VPC, RDS, ElastiCache, S3
+Description: parlaypal data stack — VPC, ElastiCache, S3
 
 Parameters:
   Environment:
@@ -7,30 +7,9 @@ Parameters:
     AllowedValues: [prod, dev]
     Default: prod
 
-  DBPassword:
-    Type: String
-    NoEcho: true
-    Description: Master password for RDS (stored in Secrets Manager)
-
-  DBInstanceClass:
-    Type: String
-    Default: db.t4g.micro
-
   CacheNodeType:
     Type: String
     Default: cache.t4g.micro
-
-Mappings:
-  EnvConfig:
-    prod:
-      MultiAZ: true
-      DeletionPolicy: Retain
-    dev:
-      MultiAZ: false
-      DeletionPolicy: Delete
-
-Conditions:
-  IsProd: !Equals [!Ref Environment, prod]
 
 Resources:
 
@@ -133,20 +112,6 @@ Resources:
         - Key: Name
           Value: !Sub parlaypal-${Environment}-app
 
-  DatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: RDS access from app SG only
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          SourceSecurityGroupId: !Ref AppSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub parlaypal-${Environment}-db
-
   CacheSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -160,45 +125,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub parlaypal-${Environment}-cache
-
-  # ── RDS PostgreSQL ────────────────────────────────────────────────────────
-
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Private subnets for RDS
-      SubnetIds:
-        - !Ref PrivateSubnetA
-        - !Ref PrivateSubnetB
-
-  DBSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub parlaypal/${Environment}/db
-      Description: RDS master credentials
-      SecretString: !Sub |
-        {"username":"parlaypal","password":"${DBPassword}","dbname":"parlaypal"}
-
-  DBInstance:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: !FindInMap [EnvConfig, !Ref Environment, DeletionPolicy]
-    Properties:
-      DBInstanceIdentifier: !Sub parlaypal-${Environment}
-      DBName: parlaypal
-      Engine: postgres
-      EngineVersion: "16.3"
-      DBInstanceClass: !Ref DBInstanceClass
-      AllocatedStorage: 20
-      StorageType: gp3
-      MasterUsername: parlaypal
-      MasterUserPassword: !Ref DBPassword
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      VPCSecurityGroups:
-        - !Ref DatabaseSecurityGroup
-      MultiAZ: !FindInMap [EnvConfig, !Ref Environment, MultiAZ]
-      PubliclyAccessible: false
-      DeletionProtection: !If [IsProd, true, false]
-      BackupRetentionPeriod: !If [IsProd, 7, 1]
 
   # ── ElastiCache Redis ─────────────────────────────────────────────────────
 
@@ -263,21 +189,6 @@ Outputs:
     Value: !Ref AppSecurityGroup
     Export:
       Name: !Sub parlaypal-${Environment}-AppSecurityGroupId
-
-  DatabaseEndpoint:
-    Value: !GetAtt DBInstance.Endpoint.Address
-    Export:
-      Name: !Sub parlaypal-${Environment}-DatabaseEndpoint
-
-  DatabasePort:
-    Value: !GetAtt DBInstance.Endpoint.Port
-    Export:
-      Name: !Sub parlaypal-${Environment}-DatabasePort
-
-  DatabaseSecretArn:
-    Value: !Ref DBSecret
-    Export:
-      Name: !Sub parlaypal-${Environment}-DatabaseSecretArn
 
   RedisEndpoint:
     Value: !GetAtt RedisCluster.RedisEndpoint.Address
