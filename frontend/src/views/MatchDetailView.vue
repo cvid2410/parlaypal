@@ -107,7 +107,7 @@
                     </div>
                   </div>
                 </template>
-                <div v-if="tab.markets.every(m => propsByBook(match.id, m).length === 0)" class="no-odds">
+                <div v-if="tab.markets.every(m => propsByBook(matchId, m).length === 0)" class="no-odds">
                   Odds not yet available for {{ tab.label }}.
                 </div>
               </template>
@@ -203,7 +203,7 @@ function formatSelection(selection: string): string {
   return selection.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function propLabel(market: string, line: OddsLine): string {
+function propLabel(_market: string, line: OddsLine): string {
   const sel = line.selection.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   if (line.point != null) return `${sel} ${line.point} (${line.odds})`
   return `${sel} (${line.odds})`
