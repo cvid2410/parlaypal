@@ -14,7 +14,7 @@ on:
         required: true
         default: prod
         type: choice
-        options: [prod, staging]
+        options: [prod, dev]
 
 concurrency:
   group: comp-cd-${{ github.event.inputs.environment || 'prod' }}

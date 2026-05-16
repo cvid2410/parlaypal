@@ -4,7 +4,7 @@ Description: parlaypal compute stack — ECS, ALB, CloudFront. Reads outputs fro
 Parameters:
   Environment:
     Type: String
-    AllowedValues: [prod, staging]
+    AllowedValues: [prod, dev]
     Default: prod
 
   # Passed in by comp-cd.yml at deploy time

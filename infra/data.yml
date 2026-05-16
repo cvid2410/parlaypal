@@ -4,7 +4,7 @@ Description: parlaypal data stack — VPC, RDS, ElastiCache, S3
 Parameters:
   Environment:
     Type: String
-    AllowedValues: [prod, staging]
+    AllowedValues: [prod, dev]
     Default: prod
 
   DBPassword:
@@ -25,9 +25,12 @@ Mappings:
     prod:
       MultiAZ: true
       DeletionPolicy: Retain
-    staging:
+    dev:
       MultiAZ: false
       DeletionPolicy: Delete
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
 
 Resources:
 
@@ -194,7 +197,7 @@ Resources:
         - !Ref DatabaseSecurityGroup
       MultiAZ: !FindInMap [EnvConfig, !Ref Environment, MultiAZ]
       PubliclyAccessible: false
-      DeletionProtection: !Equals [!Ref Environment, prod]
+      DeletionProtection: !If [IsProd, true, false]
       BackupRetentionPeriod: !If [IsProd, 7, 1]
 
   # ── ElastiCache Redis ─────────────────────────────────────────────────────
@@ -229,9 +232,6 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-
-Conditions:
-  IsProd: !Equals [!Ref Environment, prod]
 
 Outputs:
   VpcId:

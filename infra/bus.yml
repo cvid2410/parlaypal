@@ -4,7 +4,7 @@ Description: parlaypal bus stack — SQS queues for async/background work
 Parameters:
   Environment:
     Type: String
-    AllowedValues: [prod, staging]
+    AllowedValues: [prod, dev]
     Default: prod
 
   # How long a failed message sits in the DLQ before expiring (seconds)
