@@ -34,9 +34,7 @@ export const useMatchesStore = defineStore('matches', () => {
 
   const filtered = computed(() => {
     if (selectedGroup.value === 'all') return matches.value
-    return matches.value.filter(m =>
-      m.group.toUpperCase().includes(selectedGroup.value.toUpperCase())
-    )
+    return matches.value.filter(m => m.group === selectedGroup.value)
   })
 
   function formatMatchTime(dateStr: string): string {
@@ -53,7 +51,7 @@ export const useMatchesStore = defineStore('matches', () => {
     loading.value = true
     error.value = null
     try {
-      const res = await fetch(`/api/matches?group=${selectedGroup.value}`)
+      const res = await fetch('/api/matches')
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       matches.value = await res.json()
     } catch (e) {

@@ -2,11 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export interface Pick {
-  id: string          // `${match_id}:${market}:${selection}`
+  id: string          // `${match_id}:${market}:${selection}:${book}`
   match_id: number
-  label: string       // e.g. "USA to win", "Over 2.5 goals"
+  label: string
   odds: string        // American format: "-110", "+200"
   market: string
+  book: string
 }
 
 const STAKES = [25, 50, 100, 250] as const

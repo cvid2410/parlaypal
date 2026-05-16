@@ -11,7 +11,8 @@ def _parse_fixture(f: dict) -> dict:
     fixture = f["fixture"]
     teams = f["teams"]
     league = f["league"]
-    return {
+    goals = f.get("goals", {})
+    m = {
         "id": fixture["id"],
         "date": fixture["date"],
         "home_team": teams["home"]["name"],
@@ -23,6 +24,10 @@ def _parse_fixture(f: dict) -> dict:
         "city": fixture["venue"]["city"] or "",
         "status": _map_status(fixture["status"]["short"]),
     }
+    if goals.get("home") is not None:
+        m["home_score"] = goals["home"]
+        m["away_score"] = goals["away"]
+    return m
 
 
 def _map_status(short: str) -> str:
@@ -47,6 +52,7 @@ async def fetch_matches() -> list[dict]:
         resp.raise_for_status()
         raw = resp.json().get("response", [])
 
-    matches = [_parse_fixture(f) for f in raw]
-    await set_cached(CACHE_KEY, matches, CACHE_TTL)
+    matches = sorted([_parse_fixture(f) for f in raw], key=lambda m: m["date"])
+    ttl = 120 if any(m["status"] == "live" for m in matches) else CACHE_TTL
+    await set_cached(CACHE_KEY, matches, ttl)
     return matches

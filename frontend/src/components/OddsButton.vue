@@ -19,21 +19,22 @@ const props = defineProps<{
   market: string
   selection: string
   odds: string
+  book: string
   label: string
 }>()
 
 const parlay = useParlayStore()
 
-const pickId = computed(() => `${props.matchId}:${props.market}:${props.selection}`)
+const pickId = computed(() => `${props.matchId}:${props.market}:${props.selection}:${props.book}`)
 const isActive = computed(() => parlay.hasPick(pickId.value))
 
 const shortLabel = computed(() => {
   const map: Record<string, string> = {
-    home: 'Home', away: 'Away', draw: 'Draw',
-    over: 'Over', under: 'Under',
-    both_teams_to_score: 'BTTS', no: 'No',
+    draw: 'Draw', over: 'Over', under: 'Under',
+    yes: 'Yes', no: 'No', both_teams_to_score: 'BTTS',
   }
-  return map[props.selection] ?? props.selection.replace(/_/g, ' ')
+  return map[props.selection]
+    ?? props.selection.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 })
 
 function toggle() {
@@ -46,6 +47,7 @@ function toggle() {
       label: props.label,
       odds: props.odds,
       market: props.market,
+      book: props.book,
     }
     parlay.addPick(pick)
   }

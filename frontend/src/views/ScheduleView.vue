@@ -43,13 +43,18 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useMatchesStore } from '../stores/matches'
+import { useOddsStore } from '../stores/odds'
 import TimezoneToggle from '../components/TimezoneToggle.vue'
 import GroupFilter from '../components/GroupFilter.vue'
 import MatchCard from '../components/MatchCard.vue'
 
 const store = useMatchesStore()
+const oddsStore = useOddsStore()
 
-onMounted(() => store.loadMatches())
+onMounted(async () => {
+  await store.loadMatches()
+  oddsStore.fetchCardH2H()
+})
 </script>
 
 <style scoped>

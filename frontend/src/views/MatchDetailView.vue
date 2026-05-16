@@ -57,6 +57,7 @@
                 market="h2h"
                 :selection="line.selection"
                 :odds="line.odds"
+                :book="row.book"
                 :label="`${formatSelection(line.selection)} (${line.odds})`"
               />
             </div>
@@ -98,6 +99,7 @@
                             :market="market"
                             :selection="line.selection + (line.point != null ? `_${line.point}` : '')"
                             :odds="line.odds"
+                            :book="row.book"
                             :label="propLabel(market, line)"
                           />
                         </div>

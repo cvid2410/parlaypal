@@ -2,12 +2,12 @@
   <div class="group-filter">
     <button
       v-for="g in groups"
-      :key="g"
+      :key="g.value"
       class="group-btn"
-      :class="{ active: store.selectedGroup === g }"
-      @click="select(g)"
+      :class="{ active: store.selectedGroup === g.value }"
+      @click="store.selectedGroup = g.value"
     >
-      {{ g === 'all' ? 'All' : `Group ${g}` }}
+      {{ g.label }}
     </button>
   </div>
 </template>
@@ -16,12 +16,13 @@
 import { useMatchesStore } from '../stores/matches'
 
 const store = useMatchesStore()
-const groups = ['all', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-function select(g: string) {
-  store.selectedGroup = g
-  store.loadMatches()
-}
+const groups = [
+  { value: 'all', label: 'All' },
+  { value: 'Group Stage - 1', label: 'Matchday 1' },
+  { value: 'Group Stage - 2', label: 'Matchday 2' },
+  { value: 'Group Stage - 3', label: 'Matchday 3' },
+]
 </script>
 
 <style scoped>

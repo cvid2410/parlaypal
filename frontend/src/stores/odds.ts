@@ -13,6 +13,8 @@ export interface OddsLine {
 export const useOddsStore = defineStore('odds', () => {
   const cache = ref<Record<number, OddsLine[]>>({})
   const loading = ref<Record<number, boolean>>({})
+  const cardH2H = ref<Record<number, OddsLine[]>>({})
+  const cardH2HLoading = ref(false)
 
   async function fetchOdds(matchId: number) {
     if (cache.value[matchId]) return
@@ -28,9 +30,30 @@ export const useOddsStore = defineStore('odds', () => {
     }
   }
 
+  async function fetchCardH2H() {
+    if (Object.keys(cardH2H.value).length > 0 || cardH2HLoading.value) return
+    cardH2HLoading.value = true
+    try {
+      const res = await fetch('/api/odds/h2h')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data: Record<string, OddsLine[]> = await res.json()
+      cardH2H.value = Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [Number(k), v])
+      )
+    } catch {
+      // fail silently — cards just won't show odds
+    } finally {
+      cardH2HLoading.value = false
+    }
+  }
+
   function getOdds(matchId: number, market: string): OddsLine[] {
     return (cache.value[matchId] ?? []).filter(o => o.market === market)
   }
 
-  return { cache, loading, fetchOdds, getOdds }
+  function getCardOdds(matchId: number): OddsLine[] {
+    return cardH2H.value[matchId] ?? []
+  }
+
+  return { cache, loading, cardH2HLoading, fetchOdds, fetchCardH2H, getOdds, getCardOdds }
 })
