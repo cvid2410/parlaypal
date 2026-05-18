@@ -193,19 +193,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Validate certificate ARN
-        run: |
-          STATUS=$(aws acm describe-certificate \
-            --certificate-arn "${{ secrets.CERTIFICATE_ARN }}" \
-            --region us-east-1 \
-            --query "Certificate.Status" \
-            --output text 2>&1 || echo "ERROR: $?")
-          echo "Certificate status: $STATUS"
-          if [ "$STATUS" != "ISSUED" ]; then
-            echo "::error::Certificate is not valid or ARN is wrong: $STATUS"
-            exit 1
-          fi
-
       - name: Print infra parameters
         run: |
           echo "VpcId:           ${{ needs.read-infra-outputs.outputs.vpc_id }}"
@@ -247,8 +234,8 @@ jobs:
                 OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
                 ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
                 TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
-                "CertificateArn=${{ secrets.CERTIFICATE_ARN }}" \
-                "HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}"
+                CertificateArn=arn:aws:acm:us-east-1:905418051188:certificate/59e7c4b5-2728-46dd-9b8b-f116777a275e \
+                HostedZoneId=Z08710423EQAGPT14F1DS
 
   # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
   deploy-frontend:
