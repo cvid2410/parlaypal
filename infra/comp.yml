@@ -219,11 +219,11 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets:
-            - !Ref PrivateSubnetA
-            - !Ref PrivateSubnetB
+            - !Ref PublicSubnetA
+            - !Ref PublicSubnetB
           SecurityGroups:
             - !Ref AppSecurityGroupId
-          AssignPublicIp: DISABLED
+          AssignPublicIp: ENABLED
       LoadBalancers:
         - ContainerName: backend
           ContainerPort: 8000
