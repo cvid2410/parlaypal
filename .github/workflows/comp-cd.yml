@@ -207,6 +207,8 @@ jobs:
           echo "JobQueueUrl:     ${{ needs.read-infra-outputs.outputs.job_queue_url }}"
           echo "OddsQueueUrl:    ${{ needs.read-infra-outputs.outputs.odds_queue_url }}"
           echo "ImageUri:        ${{ needs.build-backend.outputs.image_uri }}"
+          echo "CertificateArn:  ${{ secrets.CERTIFICATE_ARN }}"
+          echo "HostedZoneId:    ${{ secrets.HOSTED_ZONE_ID }}"
 
       - name: Deploy comp stack
         run: |
