@@ -59,6 +59,17 @@ Parameters:
     Type: String
     Default: "512"
 
+  CertificateArn:
+    Type: String
+    Default: ""
+
+  HostedZoneId:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref CertificateArn, ""]]
+
 Resources:
 
   # ── IAM ───────────────────────────────────────────────────────────────────
@@ -289,6 +300,16 @@ Resources:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
+        Aliases: !If
+          - HasCustomDomain
+          - [parlaypal.gg, www.parlaypal.gg]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref AWS::NoValue
         Origins:
           - Id: S3Frontend
             DomainName: !Sub "${FrontendBucketName}.s3.${AWS::Region}.amazonaws.com"
@@ -318,6 +339,27 @@ Resources:
           - ErrorCode: 403
             ResponseCode: 200
             ResponsePagePath: /index.html
+
+  # ── Route53 ──────────────────────────────────────────────────────────────
+
+  DNSRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasCustomDomain
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+        - Name: parlaypal.gg.
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt CloudFrontDistribution.DomainName
+            EvaluateTargetHealth: false
+            HostedZoneId: Z2FDTNDATAQYW2
+        - Name: www.parlaypal.gg.
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt CloudFrontDistribution.DomainName
+            EvaluateTargetHealth: false
+            HostedZoneId: Z2FDTNDATAQYW2
 
 Outputs:
   ECRRepositoryUri:

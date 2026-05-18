@@ -231,7 +231,9 @@ jobs:
                 JobQueueUrl=${{ needs.read-infra-outputs.outputs.job_queue_url }} \
                 OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
                 ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
-                TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }}
+                TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
+                CertificateArn=${{ secrets.CERTIFICATE_ARN }} \
+                HostedZoneId=${{ secrets.HOSTED_ZONE_ID }}
 
   # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
   deploy-frontend:
