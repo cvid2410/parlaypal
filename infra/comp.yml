@@ -67,6 +67,10 @@ Parameters:
     Type: String
     Default: ""
 
+  DeployId:
+    Type: String
+    Default: ""
+
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref CertificateArn, ""]]
 
@@ -211,6 +215,8 @@ Resources:
               Value: !Ref ApiFootballKey
             - Name: THE_ODDS_API_KEY
               Value: !Ref TheOddsApiKey
+            - Name: DEPLOY_ID
+              Value: !Ref DeployId
           LogConfiguration:
             LogDriver: awslogs
             Options:

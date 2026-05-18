@@ -211,6 +211,9 @@ jobs:
           echo "HostedZoneId:    ${{ secrets.HOSTED_ZONE_ID }}"
 
       - name: Deploy comp stack
+        env:
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
+          HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
         run: |
           aws cloudformation deploy \
             --template-file infra/comp.yml \
@@ -234,8 +237,9 @@ jobs:
                 OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
                 ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
                 TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
-                CertificateArn=arn:aws:acm:us-east-1:905418051188:certificate/59e7c4b5-2728-46dd-9b8b-f116777a275e \
-                HostedZoneId=Z08710423EQAGPT14F1DS
+                "CertificateArn=$CERTIFICATE_ARN" \
+                "HostedZoneId=$HOSTED_ZONE_ID" \
+                DeployId=${{ github.sha }}
 
   # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
   deploy-frontend:
