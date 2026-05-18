@@ -61,26 +61,6 @@ Parameters:
 
 Resources:
 
-  # ── ECR ──────────────────────────────────────────────────────────────────
-
-  ECRRepository:
-    Type: AWS::ECR::Repository
-    DeletionPolicy: Retain
-    Properties:
-      RepositoryName: !Sub parlaypal-backend-${Environment}
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      LifecyclePolicy:
-        LifecyclePolicyText: |
-          {
-            "rules": [{
-              "rulePriority": 1,
-              "description": "Keep last 10 images",
-              "selection": {"tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 10},
-              "action": {"type": "expire"}
-            }]
-          }
-
   # ── IAM ───────────────────────────────────────────────────────────────────
 
   ECSTaskExecutionRole:
@@ -187,12 +167,6 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub parlaypal-${Environment}
-      CapacityProviders:
-        - FARGATE
-        - FARGATE_SPOT
-      DefaultCapacityProviderStrategy:
-        - CapacityProvider: FARGATE_SPOT
-          Weight: 1
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -258,6 +232,31 @@ Resources:
         MinimumHealthyPercent: 100
         MaximumPercent: 200
 
+  # ── Auto Scaling ──────────────────────────────────────────────────────────
+
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 10
+      ResourceId: !Sub "service/${ECSCluster}/${ECSService.Name}"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub parlaypal-${Environment}-rpt
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Sub "${LoadBalancer.LoadBalancerFullName}/${TargetGroup.TargetGroupFullName}"
+        TargetValue: 1000
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+
   # ── CloudFront ────────────────────────────────────────────────────────────
 
   CloudFrontOAC:
@@ -322,7 +321,7 @@ Resources:
 
 Outputs:
   ECRRepositoryUri:
-    Value: !GetAtt ECRRepository.RepositoryUri
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/parlaypal-backend-${Environment}"
     Export:
       Name: !Sub parlaypal-${Environment}-ECRRepositoryUri
 
