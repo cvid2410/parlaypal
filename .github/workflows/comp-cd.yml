@@ -193,6 +193,19 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Validate certificate ARN
+        run: |
+          STATUS=$(aws acm describe-certificate \
+            --certificate-arn "${{ secrets.CERTIFICATE_ARN }}" \
+            --region us-east-1 \
+            --query "Certificate.Status" \
+            --output text 2>&1 || echo "ERROR: $?")
+          echo "Certificate status: $STATUS"
+          if [ "$STATUS" != "ISSUED" ]; then
+            echo "::error::Certificate is not valid or ARN is wrong: $STATUS"
+            exit 1
+          fi
+
       - name: Print infra parameters
         run: |
           echo "VpcId:           ${{ needs.read-infra-outputs.outputs.vpc_id }}"
