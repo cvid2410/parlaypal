@@ -49,7 +49,6 @@ jobs:
                 Environment=${{ env.ENV }} \
                 DBPassword=${{ secrets.DB_PASSWORD }} \
             --capabilities CAPABILITY_IAM \
-            --no-fail-on-empty-changeset
 
       - name: Print stack outputs
         run: |

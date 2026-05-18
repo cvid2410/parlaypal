@@ -215,11 +215,13 @@ jobs:
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
           HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
         run: |
+          echo "CertificateArn length: ${#CERTIFICATE_ARN}"
+          echo "HostedZoneId length:   ${#HOSTED_ZONE_ID}"
+          echo "DeployId: ${{ github.sha }}"
           aws cloudformation deploy \
             --template-file infra/comp.yml \
             --stack-name parlaypal-comp-${{ env.ENV }} \
             --capabilities CAPABILITY_NAMED_IAM \
-            --no-fail-on-empty-changeset \
             --parameter-overrides \
                 Environment=${{ env.ENV }} \
                 BackendImageUri=${{ needs.build-backend.outputs.image_uri }} \
@@ -239,7 +241,15 @@ jobs:
                 TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
                 "CertificateArn=$CERTIFICATE_ARN" \
                 "HostedZoneId=$HOSTED_ZONE_ID" \
-                DeployId=${{ github.sha }}
+                DeployId=${{ github.sha }} \
+          || {
+            echo "=== Stack failure events ==="
+            aws cloudformation describe-stack-events \
+              --stack-name parlaypal-comp-${{ env.ENV }} \
+              --query "StackEvents[?ResourceStatus=='UPDATE_FAILED'].{Resource:LogicalResourceId,Reason:ResourceStatusReason}" \
+              --output table 2>/dev/null || true
+            exit 1
+          }
 
   # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
   deploy-frontend:

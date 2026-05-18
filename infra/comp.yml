@@ -310,12 +310,11 @@ Resources:
           - HasCustomDomain
           - [parlaypal.gg, www.parlaypal.gg]
           - !Ref AWS::NoValue
-        ViewerCertificate: !If
-          - HasCustomDomain
-          - AcmCertificateArn: !Ref CertificateArn
-            SslSupportMethod: sni-only
-            MinimumProtocolVersion: TLSv1.2_2021
-          - !Ref AWS::NoValue
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: !If [HasCustomDomain, !Ref AWS::NoValue, true]
+          AcmCertificateArn: !If [HasCustomDomain, !Ref CertificateArn, !Ref AWS::NoValue]
+          SslSupportMethod: !If [HasCustomDomain, sni-only, !Ref AWS::NoValue]
+          MinimumProtocolVersion: !If [HasCustomDomain, TLSv1.2_2021, !Ref AWS::NoValue]
         Origins:
           - Id: S3Frontend
             DomainName: !Sub "${FrontendBucketName}.s3.${AWS::Region}.amazonaws.com"

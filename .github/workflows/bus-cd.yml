@@ -48,7 +48,6 @@ jobs:
             --parameter-overrides \
                 Environment=${{ env.ENV }} \
             --capabilities CAPABILITY_IAM \
-            --no-fail-on-empty-changeset
 
       - name: Print stack outputs
         run: |
