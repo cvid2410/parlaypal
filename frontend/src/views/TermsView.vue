@@ -66,7 +66,7 @@
 
     <section>
       <h2>12. Contact</h2>
-      <p>For questions about these Terms, contact us at <a href="mailto:legal@parlaypal.gg">legal@parlaypal.gg</a>.</p>
+      <p>For questions about these Terms, contact us at <a href="mailto:carlos@excelsiordevs.com">carlos@excelsiordevs.com</a>.</p>
     </section>
   </div>
 </template>
