@@ -61,14 +61,9 @@ Parameters:
 
   CertificateArn:
     Type: String
-    Default: ""
 
   HostedZoneId:
     Type: String
-    Default: ""
-
-Conditions:
-  HasCustomDomain: !Not [!Equals [!Ref CertificateArn, ""]]
 
 Resources:
 
@@ -300,16 +295,13 @@ Resources:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
-        Aliases: !If
-          - HasCustomDomain
-          - [parlaypal.gg, www.parlaypal.gg]
-          - !Ref AWS::NoValue
-        ViewerCertificate: !If
-          - HasCustomDomain
-          - AcmCertificateArn: !Ref CertificateArn
-            SslSupportMethod: sni-only
-            MinimumProtocolVersion: TLSv1.2_2021
-          - !Ref AWS::NoValue
+        Aliases:
+          - parlaypal.gg
+          - www.parlaypal.gg
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
         Origins:
           - Id: S3Frontend
             DomainName: !Sub "${FrontendBucketName}.s3.${AWS::Region}.amazonaws.com"
@@ -344,7 +336,6 @@ Resources:
 
   DNSRecords:
     Type: AWS::Route53::RecordSetGroup
-    Condition: HasCustomDomain
     Properties:
       HostedZoneId: !Ref HostedZoneId
       RecordSets:

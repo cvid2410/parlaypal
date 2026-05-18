@@ -66,7 +66,7 @@
 
     <section>
       <h2>11. Contact</h2>
-      <p>If you have questions about this Privacy Policy, please contact us at <a href="mailto:privacy@parlaypal.gg">privacy@parlaypal.gg</a>.</p>
+      <p>If you have questions about this Privacy Policy, please contact us at <a href="mailto:carlos@excelsiordevs.com">carlos@excelsiordevs.com</a>.</p>
     </section>
   </div>
 </template>
