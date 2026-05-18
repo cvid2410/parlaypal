@@ -5,7 +5,10 @@
         <RouterLink to="/" class="logo">parlaypal<span>.gg</span></RouterLink>
         <div class="nav-links">
           <RouterLink to="/">Schedule</RouterLink>
-          <RouterLink to="/parlay">My Parlay</RouterLink>
+          <RouterLink to="/parlay" class="parlay-link">
+            My Parlay
+            <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
+          </RouterLink>
         </div>
       </nav>
     </header>
@@ -14,9 +17,19 @@
     </main>
     <footer class="site-footer">
       <p class="disclaimer">21+ only. Gambling problem? Call 1-800-GAMBLER.</p>
+      <div class="footer-links">
+        <RouterLink to="/privacy">Privacy Policy</RouterLink>
+        <span aria-hidden="true">·</span>
+        <RouterLink to="/terms">Terms of Service</RouterLink>
+      </div>
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+import { useParlayStore } from './stores/parlay'
+const parlay = useParlayStore()
+</script>
 
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,6 +80,22 @@ a { color: inherit; text-decoration: none; }
 .nav-links a { color: var(--muted); font-size: 0.9rem; transition: color 0.15s; white-space: nowrap; }
 .nav-links a:hover, .nav-links a.router-link-active { color: var(--text); }
 
+.parlay-link { display: flex; align-items: center; gap: 6px; }
+
+.pick-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green);
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+}
+
 @media (max-width: 400px) {
   .nav { gap: 1rem; }
   .nav-links { gap: 1rem; }
@@ -79,7 +108,22 @@ a { color: inherit; text-decoration: none; }
   border-top: 1px solid var(--border);
   padding: 1rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .disclaimer { font-size: 0.75rem; color: var(--muted); }
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.footer-links a { color: var(--muted); }
+.footer-links a:hover { color: var(--text); }
 </style>
