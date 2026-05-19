@@ -18,6 +18,7 @@ export const useOddsStore = defineStore('odds', () => {
   const cardH2HLoading = ref(false)
 
   async function fetchOdds(matchId: number) {
+    if (!matchId || !Number.isFinite(matchId)) return
     if (cache.value[matchId]) return
     loading.value[matchId] = true
     try {

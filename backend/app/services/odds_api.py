@@ -80,5 +80,7 @@ async def fetch_all_odds() -> dict[str, list[dict]]:
                 except Exception:
                     pass
 
-    await set_cached("odds:all", result, CACHE_TTL)
+    # Don't cache empty results — retry on next request after a short backoff
+    ttl = CACHE_TTL if result else 30
+    await set_cached("odds:all", result, ttl)
     return result

@@ -55,30 +55,54 @@
 
         <div v-if="oddsLoading" class="odds-skeleton-row" />
         <div v-else-if="h2hByBook.length === 0" class="no-odds">Odds not yet available.</div>
-        <div v-else class="book-rows">
-          <div v-for="row in h2hByBook" :key="row.book" class="book-row">
-            <span class="book-label">{{ BOOK_NAMES[row.book] ?? row.book }}</span>
-            <div class="odds-btns">
-              <div v-for="(line, i) in row.lines" :key="line.selection" class="odds-btn-col">
-                <OddsButton
-                  :match-id="match.id"
-                  market="h2h"
-                  :selection="line.selection"
-                  :odds="line.odds"
-                  :book="row.book"
-                  :label="`${formatSelection(line.selection)} (${line.odds})`"
-                />
-                <span
-                  class="no-vig"
-                  :class="vigClass(noVigOdds(row.lines)[i].vig)"
-                  :title="vigLabel(noVigOdds(row.lines)[i].vig)"
-                >
-                  Fair: {{ noVigOdds(row.lines)[i].odds }}
-                </span>
+        <template v-else>
+          <!-- Quick-add best odds row -->
+          <div v-if="bestOddsOrdered.length" class="best-row">
+            <span class="best-row-label">⚡ Best available</span>
+            <div class="best-btns">
+              <button
+                v-for="item in bestOddsOrdered"
+                :key="item.selection"
+                class="best-btn"
+                :title="`Best on ${BOOK_NAMES[item.book] ?? item.book} — click to add to parlay`"
+                @click="addBestLine(item.selection, item.odds, item.book)"
+              >
+                {{ formatSelection(item.selection) }} <strong>{{ item.odds }}</strong>
+              </button>
+            </div>
+          </div>
+
+          <div class="book-rows">
+            <div v-for="row in h2hByBook" :key="row.book" class="book-row">
+              <div class="book-label-col">
+                <span class="book-label">{{ BOOK_NAMES[row.book] ?? row.book }}</span>
+                <span class="book-vig">{{ bookVig(row.lines) }} hold</span>
+              </div>
+              <div class="odds-btns">
+                <div v-for="(line, i) in row.lines" :key="line.selection" class="odds-btn-col">
+                  <div class="odds-btn-wrap" :class="{ 'is-best': isBest(row.book, line.selection) }">
+                    <span v-if="isBest(row.book, line.selection)" class="best-badge">Best</span>
+                    <OddsButton
+                      :match-id="match.id"
+                      market="h2h"
+                      :selection="line.selection"
+                      :odds="line.odds"
+                      :book="row.book"
+                      :label="`${formatSelection(line.selection)} (${line.odds})`"
+                    />
+                  </div>
+                  <span
+                    class="no-vig"
+                    :class="vigClass(noVigOdds(row.lines)[i].vig)"
+                    :title="vigLabel(noVigOdds(row.lines)[i].vig)"
+                  >
+                    Fair: {{ noVigOdds(row.lines)[i].odds }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </template>
       </section>
 
       <!-- Props tabs -->
@@ -151,10 +175,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatchesStore } from '../stores/matches'
 import { useOddsStore, type OddsLine } from '../stores/odds'
+import { useParlayStore } from '../stores/parlay'
 import OddsButton from '../components/OddsButton.vue'
 import AffiliateCTAs from '../components/AffiliateCTAs.vue'
 
@@ -165,6 +190,7 @@ const oddsStore = useOddsStore()
 
 const activeTab = ref('goals')
 const vigInfoOpen = ref(false)
+const parlayStore = useParlayStore()
 
 const TABS = [
   { key: 'goals', label: 'Goals', markets: ['totals', 'btts'] },
@@ -205,6 +231,51 @@ function groupByBook(lines: OddsLine[]): { book: string; lines: OddsLine[] }[] {
 }
 
 const h2hByBook = computed(() => groupByBook(oddsStore.getOdds(matchId.value, 'h2h')))
+
+// Best odds per selection across all books (higher parseInt = better for bettor)
+const bestBySelection = computed(() => {
+  const map = new Map<string, { odds: string; book: string }>()
+  for (const line of oddsStore.getOdds(matchId.value, 'h2h')) {
+    const cur = map.get(line.selection)
+    if (!cur || parseInt(line.odds) > parseInt(cur.odds))
+      map.set(line.selection, { odds: line.odds, book: line.book })
+  }
+  return map
+})
+
+// Ordered home → draw → away for the quick-add row
+const bestOddsOrdered = computed(() => {
+  if (!match.value) return []
+  const selOrder = [
+    match.value.home_team.toLowerCase().replace(/\s+/g, '_'),
+    'draw',
+    match.value.away_team.toLowerCase().replace(/\s+/g, '_'),
+  ]
+  return selOrder
+    .filter(sel => bestBySelection.value.has(sel))
+    .map(sel => ({ selection: sel, ...bestBySelection.value.get(sel)! }))
+})
+
+function isBest(book: string, selection: string): boolean {
+  return bestBySelection.value.get(selection)?.book === book
+}
+
+function bookVig(lines: OddsLine[]): string {
+  const hold = lines.reduce((s, l) => s + toImplied(l.odds), 0) - 1
+  return (hold * 100).toFixed(1) + '%'
+}
+
+function addBestLine(selection: string, odds: string, book: string) {
+  if (!match.value) return
+  parlayStore.addPick({
+    id: `${match.value.id}:h2h:${selection}:${book}`,
+    match_id: match.value.id,
+    market: 'h2h',
+    book,
+    label: `${formatSelection(selection)} — ${match.value.home_team} vs ${match.value.away_team}`,
+    odds,
+  })
+}
 
 function propsByBook(id: number, market: string) {
   return groupByBook(oddsStore.getOdds(id, market))
@@ -260,8 +331,14 @@ function propLabel(_market: string, line: OddsLine): string {
 
 onMounted(async () => {
   if (matchesStore.matches.length === 0) await matchesStore.loadMatches()
-  await oddsStore.fetchOdds(matchId.value)
+  if (Number.isFinite(matchId.value) && matchId.value > 0)
+    await oddsStore.fetchOdds(matchId.value)
 })
+
+// Retry if matchId resolves after mount (mobile Safari timing)
+watch(matchId, async (id) => {
+  if (Number.isFinite(id) && id > 0) await oddsStore.fetchOdds(id)
+}, { once: true })
 </script>
 
 <style scoped>
@@ -416,17 +493,94 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.book-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
+/* Best available row */
+.best-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--green) 6%, var(--dark));
+  border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.best-row-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--green);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.best-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.best-btn {
+  font-size: 0.78rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.best-btn:hover {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+}
+.best-btn strong { color: var(--green); }
+
+/* Book label with vig */
+.book-label-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 80px;
   flex-shrink: 0;
 }
 
-.odds-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.book-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
 
-.odds-btn-col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.book-vig {
+  font-size: 0.62rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Best badge on individual buttons */
+.odds-btn-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.best-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #000;
+  background: var(--green);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.odds-btns { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; }
+
+.odds-btn-col { display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 10px; }
 
 .no-vig { font-size: 0.65rem; white-space: nowrap; font-weight: 600; }
 .vig-good { color: var(--green); }
