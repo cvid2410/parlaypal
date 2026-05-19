@@ -212,6 +212,8 @@ jobs:
 
       - name: Deploy comp stack
         env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
           HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
         run: |
@@ -223,25 +225,25 @@ jobs:
             --stack-name parlaypal-comp-${{ env.ENV }} \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-                Environment=${{ env.ENV }} \
-                BackendImageUri=${{ needs.build-backend.outputs.image_uri }} \
-                VpcId=${{ needs.read-infra-outputs.outputs.vpc_id }} \
-                PublicSubnetA=${{ needs.read-infra-outputs.outputs.public_subnet_a }} \
-                PublicSubnetB=${{ needs.read-infra-outputs.outputs.public_subnet_b }} \
-                PrivateSubnetA=${{ needs.read-infra-outputs.outputs.private_subnet_a }} \
-                PrivateSubnetB=${{ needs.read-infra-outputs.outputs.private_subnet_b }} \
-                AppSecurityGroupId=${{ needs.read-infra-outputs.outputs.app_sg_id }} \
-                RedisEndpoint=${{ needs.read-infra-outputs.outputs.redis_endpoint }} \
-                RedisPort=${{ needs.read-infra-outputs.outputs.redis_port }} \
-                FrontendBucketArn=${{ needs.read-infra-outputs.outputs.frontend_bucket_arn }} \
-                FrontendBucketName=${{ needs.read-infra-outputs.outputs.frontend_bucket }} \
-                JobQueueUrl=${{ needs.read-infra-outputs.outputs.job_queue_url }} \
-                OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }} \
-                ApiFootballKey=${{ secrets.API_FOOTBALL_KEY }} \
-                TheOddsApiKey=${{ secrets.THE_ODDS_API_KEY }} \
+                "Environment=${{ env.ENV }}" \
+                "BackendImageUri=${{ needs.build-backend.outputs.image_uri }}" \
+                "VpcId=${{ needs.read-infra-outputs.outputs.vpc_id }}" \
+                "PublicSubnetA=${{ needs.read-infra-outputs.outputs.public_subnet_a }}" \
+                "PublicSubnetB=${{ needs.read-infra-outputs.outputs.public_subnet_b }}" \
+                "PrivateSubnetA=${{ needs.read-infra-outputs.outputs.private_subnet_a }}" \
+                "PrivateSubnetB=${{ needs.read-infra-outputs.outputs.private_subnet_b }}" \
+                "AppSecurityGroupId=${{ needs.read-infra-outputs.outputs.app_sg_id }}" \
+                "RedisEndpoint=${{ needs.read-infra-outputs.outputs.redis_endpoint }}" \
+                "RedisPort=${{ needs.read-infra-outputs.outputs.redis_port }}" \
+                "FrontendBucketArn=${{ needs.read-infra-outputs.outputs.frontend_bucket_arn }}" \
+                "FrontendBucketName=${{ needs.read-infra-outputs.outputs.frontend_bucket }}" \
+                "JobQueueUrl=${{ needs.read-infra-outputs.outputs.job_queue_url }}" \
+                "OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }}" \
+                "ApiFootballKey=$API_FOOTBALL_KEY" \
+                "TheOddsApiKey=$THE_ODDS_API_KEY" \
                 "CertificateArn=$CERTIFICATE_ARN" \
                 "HostedZoneId=$HOSTED_ZONE_ID" \
-                DeployId=${{ github.sha }} \
+                "DeployId=${{ github.sha }}" \
           || {
             echo "=== Stack failure events ==="
             aws cloudformation describe-stack-events \
