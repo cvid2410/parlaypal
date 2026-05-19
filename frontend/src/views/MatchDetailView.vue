@@ -43,23 +43,39 @@
 
       <!-- Winner picks -->
       <section class="odds-section">
-        <h2 class="section-title">Match Winner</h2>
+        <div class="section-title-row">
+          <h2 class="section-title">Match Winner</h2>
+          <button class="info-btn" @click="vigInfoOpen = !vigInfoOpen">?</button>
+        </div>
+
+        <div v-if="vigInfoOpen" class="vig-explainer">
+          <p><strong>What is "Fair"?</strong> Sportsbooks bake a profit margin (the "vig") into every line — the three implied probabilities always add up to more than 100%. <em>Fair</em> strips that out and shows you the true odds.</p>
+          <p class="explainer-tip"><strong>Color guide:</strong> <span class="vig-good">Green</span> = good price (low vig, close to fair). <span class="vig-ok">Yellow</span> = slight overcharge. <span class="vig-bad">Red</span> = steep price — the book is taking a large cut on this outcome. When you see red, shop other books or consider skipping.</p>
+        </div>
+
         <div v-if="oddsLoading" class="odds-skeleton-row" />
         <div v-else-if="h2hByBook.length === 0" class="no-odds">Odds not yet available.</div>
         <div v-else class="book-rows">
           <div v-for="row in h2hByBook" :key="row.book" class="book-row">
             <span class="book-label">{{ BOOK_NAMES[row.book] ?? row.book }}</span>
             <div class="odds-btns">
-              <OddsButton
-                v-for="line in row.lines"
-                :key="line.selection"
-                :match-id="match.id"
-                market="h2h"
-                :selection="line.selection"
-                :odds="line.odds"
-                :book="row.book"
-                :label="`${formatSelection(line.selection)} (${line.odds})`"
-              />
+              <div v-for="(line, i) in row.lines" :key="line.selection" class="odds-btn-col">
+                <OddsButton
+                  :match-id="match.id"
+                  market="h2h"
+                  :selection="line.selection"
+                  :odds="line.odds"
+                  :book="row.book"
+                  :label="`${formatSelection(line.selection)} (${line.odds})`"
+                />
+                <span
+                  class="no-vig"
+                  :class="vigClass(noVigOdds(row.lines)[i].vig)"
+                  :title="vigLabel(noVigOdds(row.lines)[i].vig)"
+                >
+                  Fair: {{ noVigOdds(row.lines)[i].odds }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -67,7 +83,7 @@
 
       <!-- Props tabs -->
       <section class="odds-section">
-        <h2 class="section-title">Prop Bets</h2>
+        <h2 class="section-title" style="margin-bottom:0.875rem">Prop Bets</h2>
         <div class="tabs">
           <button
             v-for="tab in TABS"
@@ -148,6 +164,7 @@ const matchesStore = useMatchesStore()
 const oddsStore = useOddsStore()
 
 const activeTab = ref('goals')
+const vigInfoOpen = ref(false)
 
 const TABS = [
   { key: 'goals', label: 'Goals', markets: ['totals', 'btts'] },
@@ -201,6 +218,38 @@ function formatSelection(selection: string): string {
   if (selection === away) return match.value.away_team
   if (selection === 'draw') return 'Draw'
   return selection.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function toImplied(american: string): number {
+  const n = parseInt(american, 10)
+  return n > 0 ? 100 / (n + 100) : Math.abs(n) / (Math.abs(n) + 100)
+}
+
+function toAmerican(prob: number): string {
+  if (prob >= 0.5) return `-${Math.round(prob / (1 - prob) * 100)}`
+  return `+${Math.round((1 - prob) / prob * 100)}`
+}
+
+function noVigOdds(lines: OddsLine[]): { odds: string; vig: number }[] {
+  const implied = lines.map(l => toImplied(l.odds))
+  const total = implied.reduce((a, b) => a + b, 0)
+  return implied.map((imp) => {
+    const fair = imp / total
+    const vig = imp - fair  // how much extra the book charges on this outcome
+    return { odds: toAmerican(fair), vig }
+  })
+}
+
+function vigClass(vig: number): string {
+  if (vig < 0.02) return 'vig-good'
+  if (vig < 0.04) return 'vig-ok'
+  return 'vig-bad'
+}
+
+function vigLabel(vig: number): string {
+  if (vig < 0.02) return 'good price'
+  if (vig < 0.04) return 'slight overcharge'
+  return 'steep price'
 }
 
 function propLabel(_market: string, line: OddsLine): string {
@@ -299,7 +348,46 @@ onMounted(async () => {
   padding: 1rem;
 }
 
-.section-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.875rem; }
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+
+.section-title { font-size: 0.95rem; font-weight: 700; }
+
+.info-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: 0.65rem;
+  color: var(--muted);
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+.info-btn:hover { border-color: var(--text); color: var(--text); }
+
+.vig-explainer {
+  background: var(--dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin-bottom: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.vig-explainer strong { color: var(--text); }
+.vig-explainer em { color: var(--green); font-style: normal; }
+
+.explainer-tip { padding-top: 0.5rem; border-top: 1px solid var(--border); }
 
 .odds-skeleton-row {
   height: 52px;
@@ -336,6 +424,13 @@ onMounted(async () => {
 }
 
 .odds-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.odds-btn-col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+.no-vig { font-size: 0.65rem; white-space: nowrap; font-weight: 600; }
+.vig-good { color: var(--green); }
+.vig-ok   { color: #f5a623; }
+.vig-bad  { color: #ff4757; }
 
 /* Tabs */
 .tabs {

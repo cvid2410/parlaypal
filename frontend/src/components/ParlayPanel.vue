@@ -19,6 +19,10 @@
       </li>
     </ul>
 
+    <button v-if="parlay.picks.length" class="share-btn" @click="share">
+      {{ copied ? '✓ Copied!' : 'Share Parlay' }}
+    </button>
+
     <div v-if="parlay.picks.length" class="place-bet">
       <p class="place-bet-label">Ready to bet?</p>
       <div class="book-btns">
@@ -66,6 +70,35 @@
           <span class="calc-value green">+${{ parlay.profit.toFixed(2) }}</span>
         </div>
       </div>
+
+      <button class="save-btn" @click="save">
+        {{ saved ? '✓ Saved!' : 'Save Parlay' }}
+      </button>
+    </div>
+
+    <!-- History -->
+    <div v-if="parlay.history.length" class="history">
+      <div class="history-header">
+        <button class="history-toggle" @click="historyOpen = !historyOpen">
+          Past Parlays ({{ parlay.history.length }}) {{ historyOpen ? '▲' : '▼' }}
+        </button>
+        <button class="clear-history-btn" @click="parlay.clearHistory()">Clear</button>
+      </div>
+
+      <div v-if="historyOpen" class="history-list">
+        <div v-for="entry in parlay.history" :key="entry.id" class="history-entry">
+          <div class="history-meta">
+            <span class="history-date">{{ formatDate(entry.date) }}</span>
+            <span class="history-status" :class="entry.status">{{ entry.status }}</span>
+          </div>
+          <div class="history-picks">
+            {{ entry.picks.map(p => p.label).join(' · ') }}
+          </div>
+          <div class="history-payout">
+            ${{ entry.stake }} → <strong>${{ entry.payout.toFixed(2) }}</strong>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -75,6 +108,30 @@ import { ref, onMounted } from 'vue'
 import { useParlayStore } from '../stores/parlay'
 
 const parlay = useParlayStore()
+const copied = ref(false)
+const saved = ref(false)
+const historyOpen = ref(false)
+
+async function share() {
+  const encoded = btoa(JSON.stringify(parlay.picks))
+  const url = `${window.location.origin}/parlay?p=${encoded}`
+  await navigator.clipboard.writeText(url)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
+function save() {
+  parlay.saveCurrent()
+  historyOpen.value = true
+  saved.value = true
+  setTimeout(() => { saved.value = false }, 2000)
+}
+
+function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(new Date(iso))
+}
 
 interface Book { key: string; name: string; url: string }
 
@@ -160,6 +217,18 @@ function oddsClass(odds: string) {
 .remove-btn { color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 2px 6px; }
 .remove-btn:hover { color: #ff4757; }
 
+.share-btn {
+  width: 100%;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+.share-btn:hover { color: var(--text); border-color: var(--text); }
+
 .place-bet {
   border-top: 1px solid var(--border);
   padding-top: 1rem;
@@ -224,4 +293,86 @@ function oddsClass(odds: string) {
 .calc-label { color: var(--muted); }
 .calc-value { font-weight: 700; }
 .green { color: var(--green); }
+
+.save-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 8px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--green);
+  transition: background 0.15s;
+}
+.save-btn:hover { background: color-mix(in srgb, var(--green) 10%, transparent); }
+
+.history {
+  border-top: 1px solid var(--border);
+  padding-top: 0.875rem;
+  margin-top: 0.875rem;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.history-toggle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.history-toggle:hover { color: var(--text); }
+
+.clear-history-btn {
+  font-size: 0.72rem;
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.clear-history-btn:hover { color: #ff4757; }
+
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+
+.history-entry {
+  background: var(--dark);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.history-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-date { font-size: 0.72rem; color: var(--muted); }
+
+.history-status {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.history-status.pending { color: var(--muted); background: var(--border); }
+.history-status.won { color: var(--green); background: color-mix(in srgb, var(--green) 15%, transparent); }
+.history-status.lost { color: #ff4757; background: rgba(255,71,87,0.12); }
+
+.history-picks {
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-payout { font-size: 0.75rem; color: var(--muted); }
+.history-payout strong { color: var(--text); }
 </style>

@@ -10,6 +10,15 @@ export interface Pick {
   book: string
 }
 
+export interface HistoryEntry {
+  id: string
+  date: string        // ISO timestamp
+  picks: Pick[]
+  stake: number
+  payout: number
+  status: 'pending' | 'won' | 'lost'
+}
+
 const STAKES = [25, 50, 100, 250] as const
 export type Stake = typeof STAKES[number]
 
@@ -20,10 +29,12 @@ function americanToDecimal(odds: string): number {
 }
 
 const STORAGE_KEY = 'parlaypal:picks'
+const HISTORY_KEY = 'parlaypal:history'
 
 export const useParlayStore = defineStore('parlay', () => {
   const picks = ref<Pick[]>(loadFromStorage())
   const stake = ref<Stake>(25)
+  const history = ref<HistoryEntry[]>(loadHistory())
 
   const multiplier = computed(() => {
     if (picks.value.length === 0) return 1
@@ -62,12 +73,43 @@ export const useParlayStore = defineStore('parlay', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(picks.value))
   }
 
-  return { picks, stake, multiplier, payout, profit, STAKES, hasPick, addPick, removePick, clear, setStake }
+  function saveCurrent() {
+    if (!picks.value.length) return
+    const entry: HistoryEntry = {
+      id: `${Date.now()}`,
+      date: new Date().toISOString(),
+      picks: [...picks.value],
+      stake: stake.value,
+      payout: payout.value,
+      status: 'pending',
+    }
+    history.value.unshift(entry)
+    if (history.value.length > 10) history.value.length = 10
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.value))
+    picks.value = []
+    persist()
+  }
+
+  function clearHistory() {
+    history.value = []
+    localStorage.removeItem(HISTORY_KEY)
+  }
+
+  return { picks, stake, multiplier, payout, profit, history, STAKES, hasPick, addPick, removePick, clear, setStake, saveCurrent, clearHistory }
 })
 
 function loadFromStorage(): Pick[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function loadHistory(): HistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []

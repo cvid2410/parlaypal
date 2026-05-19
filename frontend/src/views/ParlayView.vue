@@ -11,8 +11,23 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import ParlayPanel from '../components/ParlayPanel.vue'
 import AffiliateCTAs from '../components/AffiliateCTAs.vue'
+import { useParlayStore, type Pick } from '../stores/parlay'
+
+const route = useRoute()
+const parlay = useParlayStore()
+
+onMounted(() => {
+  const p = route.query.p as string | undefined
+  if (!p || parlay.picks.length > 0) return
+  try {
+    const picks: Pick[] = JSON.parse(atob(p))
+    picks.forEach(pick => parlay.addPick(pick))
+  } catch { /* malformed URL — ignore */ }
+})
 </script>
 
 <style scoped>

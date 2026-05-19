@@ -1,5 +1,5 @@
 <template>
-  <RouterLink :to="`/match/${match.id}`" class="match-card">
+  <RouterLink :to="`/match/${match.id}`" class="match-card" :class="{ live: match.status === 'live' }">
     <div class="card-top">
       <span class="group-label">Group {{ TEAM_GROUP[match.home_team] ?? '?' }}</span>
       <span class="status" :class="match.status">{{ statusLabel }}</span>
@@ -86,7 +86,23 @@ function selectionLabel(sel: string): string {
   transition: border-color 0.15s;
 }
 
-.match-card:hover { border-color: var(--green); }
+.match-card:hover {
+  border-color: var(--green);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 200, 83, 0.1);
+}
+
+.match-card { transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; }
+
+.match-card.live {
+  border-color: var(--green);
+  animation: live-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes live-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0, 200, 83, 0.3); }
+  50%       { box-shadow: 0 0 20px rgba(0, 200, 83, 0.7); }
+}
 
 .card-top {
   display: flex;

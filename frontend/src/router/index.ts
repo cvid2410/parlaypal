@@ -19,6 +19,16 @@ const router = createRouter({
       component: () => import('../views/MatchDetailView.vue'),
     },
     {
+      path: '/standings',
+      name: 'standings',
+      component: () => import('../views/StandingsView.vue'),
+    },
+    {
+      path: '/bracket',
+      name: 'bracket',
+      component: () => import('../views/BracketView.vue'),
+    },
+    {
       path: '/privacy',
       name: 'privacy',
       component: () => import('../views/PrivacyView.vue'),

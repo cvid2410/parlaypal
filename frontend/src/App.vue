@@ -5,6 +5,8 @@
         <RouterLink to="/" class="logo">parlaypal<span>.gg</span></RouterLink>
         <div class="nav-links">
           <RouterLink to="/">Schedule</RouterLink>
+          <RouterLink to="/standings">Standings</RouterLink>
+          <RouterLink to="/bracket">Bracket</RouterLink>
           <RouterLink to="/parlay" class="parlay-link">
             My Parlay
             <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>

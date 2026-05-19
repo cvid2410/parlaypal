@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export interface Match {
   id: number
@@ -44,8 +44,12 @@ export const useMatchesStore = defineStore('matches', () => {
   const matches = ref<Match[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const selectedTeams = ref<string[]>([])
+  const selectedTeams = ref<string[]>((() => {
+    try { return JSON.parse(localStorage.getItem('parlaypal:teams') ?? '[]') } catch { return [] }
+  })())
   const selectedTimezone = ref<Timezone>('ET')
+
+  watch(selectedTeams, val => localStorage.setItem('parlaypal:teams', JSON.stringify(val)), { deep: true })
 
   const allTeams = computed(() => {
     const teams = new Set<string>()

@@ -23,10 +23,16 @@
     </div>
 
     <template v-else>
-      <template v-for="group in groupedByDate" :key="group.date">
-        <h2 class="date-header">{{ group.label }}</h2>
+      <template v-for="(group, gi) in groupedByDate" :key="group.date">
+        <h2 class="date-header animate-header" :style="`--gi: ${gi}`">{{ group.label }}</h2>
         <div class="match-grid">
-          <MatchCard v-for="match in group.matches" :key="match.id" :match="match" />
+          <MatchCard
+            v-for="(match, ci) in group.matches"
+            :key="match.id"
+            :match="match"
+            :style="`--delay: ${(gi * 0.08 + ci * 0.06).toFixed(2)}s`"
+            class="animate-card"
+          />
         </div>
       </template>
     </template>
@@ -144,6 +150,26 @@ onUnmounted(() => {
 }
 
 .date-header:first-of-type { margin-top: 0; }
+
+.animate-header {
+  animation: header-drop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--gi, 0) * 0.08s);
+}
+
+@keyframes header-drop {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-card {
+  animation: card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .ad-unit { margin-top: 1.5rem; }
 </style>

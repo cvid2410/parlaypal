@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import config, health, matches, odds, sitemap
+from app.api import config, health, matches, odds, sitemap, standings
 
 app = FastAPI(title="parlaypal.gg API", version="0.1.0")
 
@@ -17,3 +17,4 @@ app.include_router(health.router, prefix="/api")
 app.include_router(matches.router, prefix="/api")
 app.include_router(odds.router, prefix="/api")
 app.include_router(sitemap.router, prefix="/api")
+app.include_router(standings.router, prefix="/api")
