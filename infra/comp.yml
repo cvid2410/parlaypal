@@ -241,6 +241,35 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: backend
 
+        - Name: worker
+          Image: !Ref BackendImageUri
+          Command: ["arq", "app.worker.WorkerSettings"]
+          Environment:
+            - Name: REDIS_URL
+              Value: !Sub "redis://${RedisEndpoint}:${RedisPort}"
+            - Name: ARQ_QUEUE_URL
+              Value: !Ref JobQueueUrl
+            - Name: ODDS_REFRESH_QUEUE_URL
+              Value: !Ref OddsRefreshQueueUrl
+            - Name: API_FOOTBALL_KEY
+              Value: !Ref ApiFootballKey
+            - Name: THE_ODDS_API_KEY
+              Value: !Ref TheOddsApiKey
+            - Name: VAPID_PUBLIC_KEY
+              Value: !Ref VapidPublicKey
+            - Name: VAPID_PRIVATE_KEY
+              Value: !Ref VapidPrivateKey
+            - Name: VAPID_CLAIM_EMAIL
+              Value: !Ref VapidClaimEmail
+            - Name: DEPLOY_ID
+              Value: !Ref DeployId
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: worker
+
   ECSService:
     Type: AWS::ECS::Service
     DependsOn: HTTPListener

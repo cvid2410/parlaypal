@@ -3,6 +3,8 @@
     <header class="site-header">
       <nav class="nav">
         <RouterLink to="/" class="logo">parlaypal<span>.gg</span></RouterLink>
+
+        <!-- Desktop links -->
         <div class="nav-links">
           <RouterLink to="/">Schedule</RouterLink>
           <RouterLink to="/standings">Standings</RouterLink>
@@ -12,8 +14,28 @@
             <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
           </RouterLink>
         </div>
+
+        <!-- Hamburger button (mobile only) -->
+        <div class="hamburger-wrap">
+          <span v-if="parlay.picks.length && !menuOpen" class="hamburger-badge">{{ parlay.picks.length }}</span>
+          <button class="hamburger" :class="{ open: menuOpen }" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
+            <span class="bar" /><span class="bar" /><span class="bar" />
+          </button>
+        </div>
       </nav>
+
+      <!-- Mobile drawer -->
+      <div class="mobile-menu" :class="{ open: menuOpen }" @click="menuOpen = false">
+        <RouterLink to="/">Schedule</RouterLink>
+        <RouterLink to="/standings">Standings</RouterLink>
+        <RouterLink to="/bracket">Bracket</RouterLink>
+        <RouterLink to="/parlay" class="parlay-link">
+          My Parlay
+          <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
+        </RouterLink>
+      </div>
     </header>
+
     <main class="main-content">
       <RouterView />
     </main>
@@ -29,8 +51,14 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useParlayStore } from './stores/parlay'
+
 const parlay = useParlayStore()
+const menuOpen = ref(false)
+
+useRouter().afterEach(() => { menuOpen.value = false })
 </script>
 
 <style>
@@ -81,12 +109,8 @@ a { color: inherit; text-decoration: none; }
 .nav-links {
   display: flex;
   gap: 1.5rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  margin-left: auto;
 }
-.nav-links::-webkit-scrollbar { display: none; }
 .nav-links a { color: var(--muted); font-size: 0.9rem; transition: color 0.15s; white-space: nowrap; }
 .nav-links a:hover, .nav-links a.router-link-active { color: var(--text); }
 
@@ -106,19 +130,86 @@ a { color: inherit; text-decoration: none; }
   border-radius: 999px;
 }
 
+/* Hamburger button */
+.hamburger-wrap {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.hamburger .bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.25s, opacity 0.25s;
+  transform-origin: center;
+}
+
+.hamburger.open .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open .bar:nth-child(2) { opacity: 0; }
+.hamburger.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.hamburger-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green);
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+}
+
+/* Mobile drawer */
+.mobile-menu {
+  display: none;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s ease;
+}
+
+.mobile-menu.open {
+  max-height: 300px;
+  border-top: 1px solid var(--border);
+}
+
+.mobile-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.85rem 1.25rem;
+  font-size: 1rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  transition: color 0.15s, background 0.15s;
+}
+.mobile-menu a:last-child { border-bottom: none; }
+.mobile-menu a:hover,
+.mobile-menu a.router-link-active { color: var(--text); background: var(--dark); }
+
 @media (max-width: 600px) {
-  .nav {
-    height: auto;
-    flex-wrap: wrap;
-    gap: 0;
-    padding: 0.5rem 1rem 0;
-  }
-  .logo { padding: 0.25rem 0; font-size: 1.1rem; }
-  .nav-links {
-    flex-basis: 100%;
-    gap: 1.25rem;
-    padding: 0.4rem 0 0.5rem;
-  }
+  .nav-links { display: none; }
+  .hamburger-wrap { display: flex; }
+  .mobile-menu { display: flex; }
 }
 
 .main-content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem; width: 100%; }
