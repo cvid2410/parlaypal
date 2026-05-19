@@ -59,14 +59,14 @@ function toggle() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 12px;
+  padding: 8px 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  min-width: 72px;
   transition: border-color 0.15s, background 0.15s;
   gap: 2px;
+  min-width: 0;
 }
 
 .odds-btn:hover { border-color: var(--green); }

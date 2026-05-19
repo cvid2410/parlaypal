@@ -3,7 +3,7 @@
     <div class="schedule-header">
       <div>
         <h1 class="page-title">WC 2026 Schedule</h1>
-        <p class="subtitle">{{ store.filtered.length }} matches</p>
+        <p class="subtitle">{{ store.filtered.length }} match{{ store.filtered.length === 1 ? '' : 'es' }}</p>
       </div>
       <TimezoneToggle />
     </div>
@@ -22,16 +22,21 @@
       No matches for this group yet.
     </div>
 
-    <div v-else class="match-grid">
-      <MatchCard v-for="match in store.filtered" :key="match.id" :match="match" />
-    </div>
+    <template v-else>
+      <template v-for="group in groupedByDate" :key="group.date">
+        <h2 class="date-header">{{ group.label }}</h2>
+        <div class="match-grid">
+          <MatchCard v-for="match in group.matches" :key="match.id" :match="match" />
+        </div>
+      </template>
+    </template>
 
     <!-- AdSense unit — replace data-ad-slot with your slot ID -->
     <div class="ad-unit">
       <ins
         class="adsbygoogle"
         style="display:block"
-        data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+        data-ad-client="ca-pub-2359818837116456"
         data-ad-slot="XXXXXXXXXX"
         data-ad-format="auto"
         data-full-width-responsive="true"
@@ -41,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useMatchesStore } from '../stores/matches'
 import { useOddsStore } from '../stores/odds'
 import TimezoneToggle from '../components/TimezoneToggle.vue'
@@ -50,6 +55,30 @@ import MatchCard from '../components/MatchCard.vue'
 
 const store = useMatchesStore()
 const oddsStore = useOddsStore()
+
+const TZ_MAP: Record<string, string> = {
+  ET: 'America/New_York',
+  CT: 'America/Chicago',
+  MT: 'America/Denver',
+  PT: 'America/Los_Angeles',
+}
+
+const groupedByDate = computed(() => {
+  const tz = TZ_MAP[store.selectedTimezone] || 'America/New_York'
+  const map = new Map<string, typeof store.filtered>()
+  for (const match of store.filtered) {
+    const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(match.date))
+    if (!map.has(localDate)) map.set(localDate, [])
+    map.get(localDate)!.push(match)
+  }
+  return Array.from(map.entries()).map(([date, matches]) => ({
+    date,
+    matches,
+    label: new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, weekday: 'long', month: 'long', day: 'numeric',
+    }).format(new Date(date + 'T12:00:00')),
+  }))
+})
 
 onMounted(async () => {
   await store.loadMatches()
@@ -93,6 +122,17 @@ onMounted(async () => {
 
 .error-msg { color: #ff4757; padding: 2rem 0; }
 .empty-msg { color: var(--muted); padding: 2rem 0; }
+
+.date-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1.25rem 0 0.6rem;
+}
+
+.date-header:first-of-type { margin-top: 0; }
 
 .ad-unit { margin-top: 1.5rem; }
 </style>

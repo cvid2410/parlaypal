@@ -1,7 +1,7 @@
 <template>
   <RouterLink :to="`/match/${match.id}`" class="match-card">
     <div class="card-top">
-      <span class="group-label">{{ match.group }}</span>
+      <span class="group-label">Group {{ TEAM_GROUP[match.home_team] ?? '?' }}</span>
       <span class="status" :class="match.status">{{ statusLabel }}</span>
     </div>
 
@@ -41,14 +41,14 @@
 
     <div class="card-footer">
       <span class="time">{{ store.formatMatchTime(match.date) }} {{ store.selectedTimezone }}</span>
-      <span class="venue">{{ match.venue }}, {{ match.city }}</span>
+      <span class="venue" :title="`${match.venue}, ${match.city}`">{{ match.venue }}, {{ match.city }}</span>
     </div>
   </RouterLink>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useMatchesStore, type Match } from '../stores/matches'
+import { useMatchesStore, TEAM_GROUP, type Match } from '../stores/matches'
 import { useOddsStore } from '../stores/odds'
 import OddsButton from './OddsButton.vue'
 
@@ -111,13 +111,20 @@ function selectionLabel(sel: string): string {
   align-items: center;
   gap: 0.5rem;
   flex: 1;
+  min-width: 0;
 }
 
 .team.away { flex-direction: row-reverse; }
 
-.flag { width: 28px; height: 20px; object-fit: cover; border-radius: 2px; }
+.flag { width: 28px; height: 20px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
 
-.team-name { font-weight: 600; font-size: 0.95rem; }
+.team-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .score-block { flex-shrink: 0; text-align: center; }
 .vs { color: var(--muted); font-size: 0.8rem; }
@@ -129,6 +136,8 @@ function selectionLabel(sel: string): string {
   gap: 6px;
   margin-bottom: 0.75rem;
 }
+
+.odds-strip :deep(.odds-btn) { flex: 1; }
 
 .odds-strip-skeleton {
   height: 52px;
@@ -146,7 +155,17 @@ function selectionLabel(sel: string): string {
 .card-footer {
   display: flex;
   justify-content: space-between;
+  gap: 0.5rem;
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+.time { white-space: nowrap; flex-shrink: 0; }
+
+.venue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
 }
 </style>
