@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     fanduel_affiliate_url: str = "#"
     betmgm_affiliate_url: str = "#"
     sentry_dsn: str = ""
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_claim_email: str = "admin@parlaypal.gg"
 
     class Config:
         env_file = ".env"

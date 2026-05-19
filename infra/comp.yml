@@ -46,6 +46,17 @@ Parameters:
   TheOddsApiKey:
     Type: String
     NoEcho: true
+  VapidPublicKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+  VapidPrivateKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+  VapidClaimEmail:
+    Type: String
+    Default: ""
 
   DesiredCount:
     Type: Number
@@ -215,6 +226,12 @@ Resources:
               Value: !Ref ApiFootballKey
             - Name: THE_ODDS_API_KEY
               Value: !Ref TheOddsApiKey
+            - Name: VAPID_PUBLIC_KEY
+              Value: !Ref VapidPublicKey
+            - Name: VAPID_PRIVATE_KEY
+              Value: !Ref VapidPrivateKey
+            - Name: VAPID_CLAIM_EMAIL
+              Value: !Ref VapidClaimEmail
             - Name: DEPLOY_ID
               Value: !Ref DeployId
           LogConfiguration:

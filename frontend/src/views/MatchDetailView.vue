@@ -321,11 +321,12 @@ onMounted(async () => {
   align-items: center;
   gap: 0.6rem;
   flex: 1;
+  min-width: 0;
 }
 .team.away { flex-direction: row-reverse; }
 
-.flag { width: 36px; height: 26px; object-fit: cover; border-radius: 3px; }
-.team-name { font-size: 1.1rem; font-weight: 700; }
+.flag { width: 36px; height: 26px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+.team-name { font-size: 1.1rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .vs-block { flex-shrink: 0; text-align: center; }
 .vs { color: var(--muted); font-size: 0.85rem; }
@@ -474,12 +475,15 @@ onMounted(async () => {
 
 /* Mobile */
 @media (max-width: 600px) {
-  .team-name { font-size: 0.95rem; }
-  .flag { width: 28px; height: 20px; }
+  .team-name { font-size: 0.88rem; }
+  .flag { width: 24px; height: 17px; }
+  .live-score { font-size: 1.1rem; }
+  .teams-row { gap: 0.4rem; }
   .book-row { gap: 0.5rem; }
-  .book-label { min-width: 70px; font-size: 0.7rem; }
+  .book-label { min-width: 60px; font-size: 0.68rem; }
   .tab-btn { font-size: 0.78rem; padding: 5px 10px; white-space: nowrap; }
   .match-meta { flex-direction: column; gap: 2px; }
   .separator { display: none; }
+  .match-header { padding: 1rem; }
 }
 </style>

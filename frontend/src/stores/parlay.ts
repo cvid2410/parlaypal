@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { Match } from './matches'
 
 export interface Pick {
   id: string          // `${match_id}:${market}:${selection}:${book}`
@@ -95,8 +96,54 @@ export const useParlayStore = defineStore('parlay', () => {
     localStorage.removeItem(HISTORY_KEY)
   }
 
-  return { picks, stake, multiplier, payout, profit, history, STAKES, hasPick, addPick, removePick, clear, setStake, saveCurrent, clearHistory }
+  function checkResults(matches: Match[]) {
+    let changed = false
+    for (const entry of history.value) {
+      if (entry.status !== 'pending') continue
+      const entryMatches = entry.picks.map(p => matches.find(m => m.id === p.match_id))
+      if (entryMatches.some(m => !m || m.status !== 'finished' || m.home_score == null)) continue
+      const results = entry.picks.map(p => evaluatePick(p, entryMatches.find(m => m!.id === p.match_id)!))
+      if (results.some(r => r === null)) continue
+      entry.status = results.every(Boolean) ? 'won' : 'lost'
+      changed = true
+    }
+    if (changed) localStorage.setItem(HISTORY_KEY, JSON.stringify(history.value))
+  }
+
+  return { picks, stake, multiplier, payout, profit, history, STAKES, hasPick, addPick, removePick, clear, setStake, saveCurrent, clearHistory, checkResults }
 })
+
+function evaluatePick(pick: Pick, match: Match): boolean | null {
+  const home = match.home_score!
+  const away = match.away_score!
+  const selection = pick.id.split(':')[2]
+
+  if (pick.market === 'h2h') {
+    const homeSlug = match.home_team.toLowerCase().replace(/\s+/g, '_')
+    const awaySlug = match.away_team.toLowerCase().replace(/\s+/g, '_')
+    if (home > away) return selection === homeSlug
+    if (away > home) return selection === awaySlug
+    return selection === 'draw'
+  }
+
+  if (pick.market === 'totals') {
+    const total = home + away
+    const parts = selection.split('_')
+    const direction = parts[0]
+    const point = parseFloat(parts.slice(1).join('.'))
+    if (isNaN(point)) return null
+    if (direction === 'over') return total > point
+    if (direction === 'under') return total < point
+    return null
+  }
+
+  if (pick.market === 'btts') {
+    const btts = home > 0 && away > 0
+    return selection === 'yes' ? btts : !btts
+  }
+
+  return null // corners, shots, cards — no data to evaluate
+}
 
 function loadFromStorage(): Pick[] {
   try {

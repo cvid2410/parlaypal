@@ -5,7 +5,10 @@
         <h1 class="page-title">WC 2026 Schedule</h1>
         <p class="subtitle">{{ store.filtered.length }} match{{ store.filtered.length === 1 ? '' : 'es' }}</p>
       </div>
-      <TimezoneToggle />
+      <div class="header-actions">
+        <NotifyButton />
+        <TimezoneToggle />
+      </div>
     </div>
 
     <GroupFilter class="group-filter" />
@@ -55,12 +58,15 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useMatchesStore } from '../stores/matches'
 import { useOddsStore } from '../stores/odds'
+import { useParlayStore } from '../stores/parlay'
 import TimezoneToggle from '../components/TimezoneToggle.vue'
 import GroupFilter from '../components/GroupFilter.vue'
 import MatchCard from '../components/MatchCard.vue'
+import NotifyButton from '../components/NotifyButton.vue'
 
 const store = useMatchesStore()
 const oddsStore = useOddsStore()
+const parlayStore = useParlayStore()
 
 const TZ_MAP: Record<string, string> = {
   ET: 'America/New_York',
@@ -88,13 +94,16 @@ const groupedByDate = computed(() => {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
-onMounted(async () => {
+async function refreshMatches() {
   await store.loadMatches()
+  parlayStore.checkResults(store.matches)
+}
+
+onMounted(async () => {
+  await refreshMatches()
   oddsStore.fetchCardH2H()
   pollTimer = setInterval(() => {
-    if (store.matches.some(m => m.status === 'live')) {
-      store.loadMatches()
-    }
+    if (store.matches.some(m => m.status === 'live')) refreshMatches()
   }, 60_000)
 })
 
@@ -113,6 +122,19 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+  .schedule-header { flex-direction: column; align-items: flex-start; }
+  .header-actions { justify-content: flex-start; }
+}
+
 .page-title { font-size: 1.5rem; font-weight: 700; }
 .subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
 
@@ -120,7 +142,7 @@ onUnmounted(() => {
 
 .match-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
   gap: 0.75rem;
 }
 

@@ -130,6 +130,7 @@ function selectionLabel(sel: string): string {
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .team.away { flex-direction: row-reverse; }
