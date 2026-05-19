@@ -8,6 +8,7 @@ export interface OddsLine {
   book: string
   description: string
   point: number | null
+  link: string | null
 }
 
 export const useOddsStore = defineStore('odds', () => {

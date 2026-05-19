@@ -5,7 +5,10 @@ router = APIRouter()
 
 
 @router.get("/matches")
-async def get_matches(group: str = Query(default="all")):
+async def get_matches(
+    group: str = Query(default="all"),
+    mock_live: bool = Query(default=False),
+):
     try:
         matches = await fetch_matches()
     except Exception as exc:
@@ -16,5 +19,12 @@ async def get_matches(group: str = Query(default="all")):
             m for m in matches
             if group.upper() in m.get("group", "").upper()
         ]
+
+    if mock_live and matches:
+        import copy
+        matches = [copy.copy(m) for m in matches]
+        matches[0]["status"] = "live"
+        matches[0]["home_score"] = 1
+        matches[0]["away_score"] = 0
 
     return matches

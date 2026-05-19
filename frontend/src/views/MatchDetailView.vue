@@ -101,7 +101,7 @@
                             :odds="line.odds"
                             :book="row.book"
                             :label="propLabel(market, line)"
-                          />
+                                      />
                         </div>
                       </div>
                     </div>

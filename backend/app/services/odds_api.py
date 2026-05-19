@@ -20,10 +20,13 @@ def _parse_game(game: dict) -> list[dict]:
     results = []
     for bookmaker in game.get("bookmakers", []):
         book = bookmaker["key"]
+        book_link = bookmaker.get("link")
         for market in bookmaker.get("markets", []):
             market_key = market["key"]
+            market_link = market.get("link")
             for outcome in market.get("outcomes", []):
                 price = outcome.get("price", 2.0)
+                link = outcome.get("link") or market_link or book_link or None
                 results.append({
                     "market": market_key,
                     "selection": outcome["name"].lower().replace(" ", "_"),
@@ -31,6 +34,7 @@ def _parse_game(game: dict) -> list[dict]:
                     "book": book,
                     "description": outcome.get("description", ""),
                     "point": outcome.get("point"),
+                    "link": link,
                 })
     return results
 
@@ -44,6 +48,7 @@ async def _fetch_games(markets: str, client: httpx.AsyncClient) -> list[dict]:
             "markets": markets,
             "bookmakers": BOOKS,
             "oddsFormat": "decimal",
+            "includeLinks": "true",
         },
     )
     resp.raise_for_status()

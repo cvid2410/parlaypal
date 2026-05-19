@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useMatchesStore } from '../stores/matches'
 import { useOddsStore } from '../stores/odds'
 import TimezoneToggle from '../components/TimezoneToggle.vue'
@@ -80,9 +80,20 @@ const groupedByDate = computed(() => {
   }))
 })
 
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(async () => {
   await store.loadMatches()
   oddsStore.fetchCardH2H()
+  pollTimer = setInterval(() => {
+    if (store.matches.some(m => m.status === 'live')) {
+      store.loadMatches()
+    }
+  }, 60_000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 

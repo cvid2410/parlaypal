@@ -19,6 +19,23 @@
       </li>
     </ul>
 
+    <div v-if="parlay.picks.length" class="place-bet">
+      <p class="place-bet-label">Ready to bet?</p>
+      <div class="book-btns">
+        <a
+          v-for="book in books"
+          :key="book.key"
+          :href="book.url"
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          class="book-btn"
+        >
+          {{ book.name }}
+        </a>
+      </div>
+      <p class="disclaimer">21+ only. Gambling problem? Call 1-800-GAMBLER.</p>
+    </div>
+
     <div v-if="parlay.picks.length" class="calculator">
       <div class="stake-row">
         <span class="calc-label">Stake</span>
@@ -54,9 +71,33 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useParlayStore } from '../stores/parlay'
 
 const parlay = useParlayStore()
+
+interface Book { key: string; name: string; url: string }
+
+const FALLBACKS: Book[] = [
+  { key: 'draftkings', name: 'DraftKings', url: 'https://sportsbook.draftkings.com' },
+  { key: 'fanduel',    name: 'FanDuel',    url: 'https://sportsbook.fanduel.com' },
+  { key: 'betmgm',     name: 'BetMGM',     url: 'https://sports.betmgm.com' },
+]
+
+const books = ref<Book[]>(FALLBACKS)
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/config')
+    if (!res.ok) return
+    const data = await res.json()
+    books.value = data.books.map((b: Book & { url: string }) => ({
+      key: b.key,
+      name: b.name,
+      url: b.url && b.url !== '#' ? b.url : FALLBACKS.find(f => f.key === b.key)?.url ?? b.url,
+    }))
+  } catch { /* keep fallbacks */ }
+})
 
 function oddsClass(odds: string) {
   return parseInt(odds, 10) > 0 ? 'positive' : 'negative'
@@ -118,6 +159,40 @@ function oddsClass(odds: string) {
 
 .remove-btn { color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 2px 6px; }
 .remove-btn:hover { color: #ff4757; }
+
+.place-bet {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.place-bet-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.book-btns { display: flex; gap: 6px; }
+
+.book-btn {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--green);
+  color: #000;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 6px;
+  transition: opacity 0.15s;
+}
+.book-btn:hover { opacity: 0.85; }
+
+.disclaimer { font-size: 0.68rem; color: var(--muted); text-align: center; }
 
 .calculator { border-top: 1px solid var(--border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
 

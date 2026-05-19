@@ -44,7 +44,7 @@ export const useMatchesStore = defineStore('matches', () => {
   const matches = ref<Match[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const selectedTeam = ref('')
+  const selectedTeams = ref<string[]>([])
   const selectedTimezone = ref<Timezone>('ET')
 
   const allTeams = computed(() => {
@@ -57,9 +57,9 @@ export const useMatchesStore = defineStore('matches', () => {
   })
 
   const filtered = computed(() => {
-    if (!selectedTeam.value) return matches.value
+    if (!selectedTeams.value.length) return matches.value
     return matches.value.filter(m =>
-      m.home_team === selectedTeam.value || m.away_team === selectedTeam.value
+      selectedTeams.value.includes(m.home_team) || selectedTeams.value.includes(m.away_team)
     )
   })
 
@@ -77,7 +77,8 @@ export const useMatchesStore = defineStore('matches', () => {
     loading.value = true
     error.value = null
     try {
-      const res = await fetch('/api/matches')
+      const mockLive = new URLSearchParams(window.location.search).has('mock_live')
+      const res = await fetch(mockLive ? '/api/matches?mock_live=1' : '/api/matches')
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       matches.value = await res.json()
     } catch (e) {
@@ -87,5 +88,5 @@ export const useMatchesStore = defineStore('matches', () => {
     }
   }
 
-  return { matches, loading, error, selectedTeam, selectedTimezone, allTeams, filtered, formatMatchTime, loadMatches }
+  return { matches, loading, error, selectedTeams, selectedTimezone, allTeams, filtered, formatMatchTime, loadMatches }
 })

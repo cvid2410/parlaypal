@@ -41,7 +41,9 @@
 
     <div class="card-footer">
       <span class="time">{{ store.formatMatchTime(match.date) }} {{ store.selectedTimezone }}</span>
-      <span class="venue" :title="`${match.venue}, ${match.city}`">{{ match.venue }}, {{ match.city }}</span>
+      <span class="venue" :title="[match.venue, match.city].filter(Boolean).join(', ')">
+        {{ [match.venue, match.city].filter(Boolean).join(', ') }}
+      </span>
     </div>
   </RouterLink>
 </template>
