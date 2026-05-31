@@ -34,7 +34,7 @@ import { h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-interface M { league: string; country: string; home: string; away: string; home_score: number | null; away_score: number | null; status: string; minute: number | null; kickoff: string }
+interface M { league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; minute: number | null; kickoff: string }
 interface Scores { live: M[]; upcoming: M[]; finished: M[] }
 
 const auth = useAuthStore()
@@ -50,14 +50,16 @@ const Match = (props: { m: M; label: string }) => {
   const { m, label } = props
   const sc = (s: number | null) => (s == null ? '—' : String(s))
   const w = (a: number | null, b: number | null) => a != null && b != null && a > b
-  const team = (name: string, score: number | null, win: boolean) =>
+  const crest = (logo: string | null) =>
+    logo ? h('img', { class: 'crest', src: logo, loading: 'lazy' }) : h('span', { class: 'dt' })
+  const team = (name: string, score: number | null, win: boolean, logo: string | null) =>
     h('div', { class: ['trow', win ? 'w' : ''] }, [
-      h('span', { class: 'dt' }), h('span', { class: 'n' }, name), h('span', { class: 'sc' }, sc(score)),
+      crest(logo), h('span', { class: 'n' }, name), h('span', { class: 'sc' }, sc(score)),
     ])
   return h('div', { class: 'match' }, [
     h('div', { class: 'meta' }, [h('span', `${m.league} · ${m.country}`), h('span', { class: 'm' }, label)]),
-    team(m.home, m.home_score, w(m.home_score, m.away_score)),
-    team(m.away, m.away_score, w(m.away_score, m.home_score)),
+    team(m.home, m.home_score, w(m.home_score, m.away_score), m.home_logo),
+    team(m.away, m.away_score, w(m.away_score, m.home_score), m.away_logo),
   ])
 }
 
@@ -89,8 +91,8 @@ onMounted(() => {
 :deep(.match .meta) { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--txt-3); margin-bottom: 11px; font-weight: 500; }
 :deep(.match .meta .m) { font-family: 'Spline Sans Mono', monospace; color: var(--green); }
 :deep(.trow) { display: flex; align-items: center; gap: 11px; padding: 4px 0; }
-:deep(.trow .dt) { width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); }
-:deep(.trow.w .dt) { background: var(--green); }
+:deep(.trow .dt) { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); display: inline-block; }
+:deep(.trow .crest) { width: 18px; height: 18px; object-fit: contain; }
 :deep(.trow .n) { flex: 1; font-size: 14.5px; }
 :deep(.trow.w .n) { font-weight: 700; }
 :deep(.trow .sc) { font-family: 'Spline Sans Mono', monospace; font-size: 16px; color: var(--txt-3); font-weight: 600; }

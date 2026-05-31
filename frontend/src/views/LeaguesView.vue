@@ -4,13 +4,14 @@
     <p v-if="error" class="err">{{ error }}</p>
 
     <div class="list">
-      <div v-for="lg in data?.leagues || []" :key="lg.id" class="lgrow">
+      <RouterLink v-for="lg in data?.leagues || []" :key="lg.id" :to="`/leagues/${lg.id}`" class="lgrow">
         <div class="info">
           <b>{{ lg.name }} <span v-if="lg.is_soft" class="soft">soft</span></b>
           <small>{{ lg.country }}{{ lg.is_soft ? ' · books lag here' : ' · sharp lines, no edge' }}</small>
         </div>
         <span class="c" :class="{ z: lg.live_signals === 0 }">{{ lg.live_signals }}</span>
-      </div>
+        <span class="chev">›</span>
+      </RouterLink>
     </div>
 
     <p v-if="data && data.leagues.length === 0" class="empty">No leagues configured.</p>
@@ -50,10 +51,11 @@ onMounted(() => {
 .lgs { color: var(--txt); max-width: 760px; }
 .sect { font-size: 11px; color: var(--txt-3); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin: 0 0 14px; }
 .list { display: flex; flex-direction: column; gap: 10px; }
-.lgrow { display: flex; align-items: center; gap: 16px; padding: 17px 20px; border: 1px solid var(--hair); border-radius: 14px; background: var(--panel); transition: .18s; }
+.lgrow { display: flex; align-items: center; gap: 14px; padding: 17px 20px; border: 1px solid var(--hair); border-radius: 14px; background: var(--panel); transition: .18s; color: var(--txt); }
 .lgrow:hover { transform: translateY(-1px); border-color: var(--hair-2); }
 .lgrow .info { flex: 1; }
 .lgrow .info b { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 9px; letter-spacing: -.01em; }
+.chev { color: var(--txt-3); font-size: 20px; line-height: 1; }
 .lgrow .info small { font-size: 12px; color: var(--txt-3); display: block; margin-top: 3px; }
 .soft { font-size: 9.5px; font-weight: 700; letter-spacing: .05em; color: var(--green); border: 1px solid var(--green-dim); padding: 2px 8px; border-radius: 100px; text-transform: uppercase; }
 .c { font-family: 'Spline Sans Mono', monospace; font-size: 15px; font-weight: 600; color: var(--green); }

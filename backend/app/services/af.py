@@ -41,3 +41,67 @@ def status_of(short: str) -> str:
     if short in LIVE:
         return "live"
     return "scheduled"
+
+
+async def current_season(af_league_id: int) -> int | None:
+    """The league's current season year (handles calendar vs cross-year leagues)."""
+    key = f"afseason:{af_league_id}"
+    cached = await get_cached(key)
+    if cached is not None:
+        return cached
+    if not settings.api_football_key:
+        return None
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(
+            f"{AF_BASE}/leagues",
+            headers={"x-apisports-key": settings.api_football_key},
+            params={"id": af_league_id},
+        )
+        resp.raise_for_status()
+        data = resp.json().get("response", [])
+    year = None
+    if data:
+        for s in data[0].get("seasons", []):
+            if s.get("current"):
+                year = s.get("year")
+                break
+    if year is not None:
+        await set_cached(key, year, ttl=86400)
+    return year
+
+
+async def standings(af_league_id: int, season: int) -> list[dict]:
+    """League table groups. Returns [{group, rows:[...]}] — one entry per table
+    (most leagues have one; MLS-style leagues have a group per conference)."""
+    key = f"afstand:{af_league_id}:{season}"
+    cached = await get_cached(key)
+    if cached is not None:
+        return cached
+    if not settings.api_football_key:
+        return []
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(
+            f"{AF_BASE}/standings",
+            headers={"x-apisports-key": settings.api_football_key},
+            params={"league": af_league_id, "season": season},
+        )
+        resp.raise_for_status()
+        data = resp.json().get("response", [])
+    groups: list[dict] = []
+    if data:
+        for table in data[0].get("league", {}).get("standings", []):
+            rows = [{
+                "rank": r.get("rank"),
+                "team": r["team"]["name"],
+                "logo": r["team"].get("logo"),
+                "points": r.get("points"),
+                "played": r.get("all", {}).get("played"),
+                "win": r.get("all", {}).get("win"),
+                "draw": r.get("all", {}).get("draw"),
+                "lose": r.get("all", {}).get("lose"),
+                "gd": r.get("goalsDiff"),
+                "form": r.get("form"),
+            } for r in table]
+            groups.append({"group": table[0].get("group") if table else "", "rows": rows})
+    await set_cached(key, groups, ttl=600)
+    return groups

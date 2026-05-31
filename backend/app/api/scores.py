@@ -46,6 +46,8 @@ async def scores(
             "country": lg.country,
             "home": f["teams"]["home"]["name"],
             "away": f["teams"]["away"]["name"],
+            "home_logo": f["teams"]["home"].get("logo"),
+            "away_logo": f["teams"]["away"].get("logo"),
             "home_score": goals.get("home"),
             "away_score": goals.get("away"),
             "status": st,
