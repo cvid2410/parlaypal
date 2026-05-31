@@ -21,6 +21,7 @@ from app.api.auth import get_current_user
 from app.shared.copy import action_ticket, explain
 from app.shared.db import get_db
 from app.shared.routing import PAID_TIERS
+from app.shared.signal_feed import user_facing_clause
 from app.shared.signal_view import signal_context
 
 router = APIRouter(prefix="/signals", tags=["signals"])
@@ -37,7 +38,7 @@ async def list_signals(
 
     # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
     # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated — they're
-    # mechanical. Exclude uncertified EV right in the query.
+    # mechanical. The same clause gates the Leagues badge so the two screens agree.
     sigs = (await db.execute(
         select(Signal)
         .join(Fixture, Signal.fixture_id == Fixture.id)
@@ -45,7 +46,7 @@ async def list_signals(
         .where(
             Signal.status == "live",
             Signal.created_at >= cutoff,
-            ~((Signal.kind == "ev") & (League.ev_certified.is_(False))),
+            user_facing_clause(),
         )
         .order_by(Signal.created_at.desc())
         .limit(50)

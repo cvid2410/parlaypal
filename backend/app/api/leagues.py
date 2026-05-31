@@ -13,6 +13,7 @@ from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.models.users import User
 from app.shared.db import get_db
+from app.shared.signal_feed import user_facing_clause
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
 
@@ -22,13 +23,15 @@ async def list_leagues(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    # Count only fresh live signals — the same window the Signals feed shows, so the two
-    # screens agree (an old 'live' row for an upcoming game isn't "live now").
+    # Count only fresh live signals — the same window AND the same user-facing gate the
+    # Signals feed uses, so the two screens agree (no counting uncertified +EV the feed
+    # hides — NON-NEGOTIABLE #2; and an old 'live' row for an upcoming game isn't "live now").
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.signal_ttl_seconds)
     live_counts = (
         select(Fixture.league_id, func.count(Signal.id).label("c"))
         .join(Signal, Signal.fixture_id == Fixture.id)
-        .where(Signal.status == "live", Signal.created_at >= cutoff)
+        .join(League, Fixture.league_id == League.id)
+        .where(Signal.status == "live", Signal.created_at >= cutoff, user_facing_clause())
         .group_by(Fixture.league_id)
         .subquery()
     )

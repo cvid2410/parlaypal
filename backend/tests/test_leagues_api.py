@@ -27,7 +27,7 @@ async def league_with_signal():
     fid = f"test_fx_{tag}"
     async with Session() as s:
         lg = League(name=f"LG {tag}", country="Testland", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False)
+                    is_soft=True, ingest_enabled=False, ev_certified=True)
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
@@ -68,3 +68,56 @@ async def test_leagues_lists_with_live_counts(league_with_signal):
 async def test_leagues_requires_auth():
     async with _client() as c:
         assert (await c.get("/api/leagues")).status_code == 401
+
+
+async def test_badge_matches_feed_for_uncertified_ev():
+    """The Leagues 'N live' badge must apply the SAME +EV gate as the Signals feed, or they
+    disagree (a count with an empty feed). Uncertified +EV is counted by neither; arb by
+    both (NON-NEGOTIABLE #2)."""
+    Session = get_sessionmaker()
+    tag = uuid.uuid4().hex[:8]
+    fid = f"test_fx_{tag}"
+    async with Session() as s:
+        lg = League(name=f"UC {tag}", country=f"UC{tag}", sport_key=f"tl_{tag}",
+                    is_soft=True, ingest_enabled=True, ev_certified=False)
+        s.add(lg)
+        await s.flush()
+        h = Team(league_id=lg.id, name=f"H {tag}")
+        a = Team(league_id=lg.id, name=f"A {tag}")
+        s.add_all([h, a])
+        await s.flush()
+        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
+                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        mid = await _get_market_id(s, "h2h", None)
+        s.add_all([
+            Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
+                   kind="ev", offered_odds=2.2, fair_prob=0.5, edge_pct=10.0, kelly_frac=0.05,
+                   ttl_sec=1800, dedup_hash=f"ev_{tag}", status="live"),
+            Signal(fixture_id=fid, market_id=mid, selection="home+away", book="multi",
+                   kind="arb", offered_odds=0.0, fair_prob=0.0, edge_pct=4.0, kelly_frac=0.0,
+                   ttl_sec=1800, dedup_hash=f"arb_{tag}", status="live",
+                   meta={"legs": {"home": {"book": "betmgm", "odds": 2.1, "stake_frac": 0.5},
+                                  "away": {"book": "fanduel", "odds": 2.1, "stake_frac": 0.5}}}),
+        ])
+        u = User(email=f"u_{tag}@x.com", tier="bettor")
+        s.add(u)
+        await s.commit()
+        league_id, uid = lg.id, u.id
+    try:
+        token = create_access_token(uid)
+        async with _client() as c:
+            lr = (await c.get("/api/leagues", headers={"Authorization": f"Bearer {token}"})).json()
+            sr = (await c.get("/api/signals", headers={"Authorization": f"Bearer {token}"})).json()
+        badge = next(x["live_signals"] for x in lr["leagues"] if x["id"] == league_id)
+        feed = [c for c in sr["signals"] if c.get("country") == f"UC{tag}"]
+        # arb counted/shown by both; uncertified ev by neither → badge == feed count == 1
+        assert badge == len(feed) == 1
+        assert [c["kind"] for c in feed] == ["arb"]
+    finally:
+        async with Session() as s:
+            await s.execute(delete(Signal).where(Signal.fixture_id == fid))
+            await s.execute(delete(Fixture).where(Fixture.id == fid))
+            await s.execute(delete(Team).where(Team.league_id == league_id))
+            await s.execute(delete(User).where(User.id == uid))
+            await s.execute(delete(League).where(League.id == league_id))
+            await s.commit()
