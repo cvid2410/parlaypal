@@ -1,252 +1,71 @@
 <template>
   <div class="app">
-    <header class="site-header">
-      <nav class="nav">
-        <RouterLink to="/" class="logo">parlaypal<span>.gg</span></RouterLink>
-
-        <!-- Desktop links -->
-        <div class="nav-links">
-          <RouterLink to="/">Schedule</RouterLink>
-          <RouterLink to="/standings">Standings</RouterLink>
-          <RouterLink to="/signals" class="signals-link">⚡ Signals</RouterLink>
-          <RouterLink to="/results">📈 Results</RouterLink>
-          <RouterLink to="/parlay" class="parlay-link">
-            My Parlay
-            <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
-          </RouterLink>
-          <a v-if="auth.isAuthed" href="#" class="auth-link" @click.prevent="doLogout">Log out</a>
-          <RouterLink v-else to="/login" class="auth-link">Log in</RouterLink>
-        </div>
-
-        <!-- Hamburger button (mobile only) -->
-        <div class="hamburger-wrap">
-          <span v-if="parlay.picks.length && !menuOpen" class="hamburger-badge">{{ parlay.picks.length }}</span>
-          <button class="hamburger" :class="{ open: menuOpen }" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
-            <span class="bar" /><span class="bar" /><span class="bar" />
-          </button>
-        </div>
-      </nav>
-
-      <!-- Mobile drawer -->
-      <div class="mobile-menu" :class="{ open: menuOpen }" @click="menuOpen = false">
-        <RouterLink to="/">Schedule</RouterLink>
-        <RouterLink to="/standings">Standings</RouterLink>
-        <RouterLink to="/signals" class="signals-link">⚡ Signals</RouterLink>
-        <RouterLink to="/parlay" class="parlay-link">
-          My Parlay
-          <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
-        </RouterLink>
-        <a v-if="auth.isAuthed" href="#" class="auth-link" @click.prevent="doLogout">Log out</a>
-        <RouterLink v-else to="/login" class="auth-link">Log in</RouterLink>
-      </div>
+    <header v-if="showChrome" class="apphead">
+      <span class="dot" />
+      <RouterLink to="/signals" class="brand">Parlay<span>Pal</span></RouterLink>
+      <span class="badge" :class="auth.isPaid ? 'pro' : 'free'">{{ auth.tier }}</span>
+      <button class="logout" @click="doLogout" title="Log out">⎋</button>
     </header>
 
-    <main class="main-content">
+    <main class="content">
       <RouterView />
     </main>
-    <footer class="site-footer">
-      <p class="disclaimer">21+ only. Gambling problem? Call 1-800-GAMBLER.</p>
-      <div class="footer-links">
-        <RouterLink to="/privacy">Privacy Policy</RouterLink>
-        <span aria-hidden="true">·</span>
-        <RouterLink to="/terms">Terms of Service</RouterLink>
-      </div>
+
+    <nav v-if="showChrome" class="tabbar">
+      <RouterLink to="/scores"><span class="i">⚽</span>Scores</RouterLink>
+      <RouterLink to="/signals"><span class="i">⚡</span>Signals</RouterLink>
+      <RouterLink to="/ask"><span class="i">💬</span>Ask</RouterLink>
+      <RouterLink to="/results"><span class="i">📈</span>Results</RouterLink>
+      <RouterLink to="/leagues"><span class="i">🌍</span>Leagues</RouterLink>
+    </nav>
+
+    <footer v-else class="mini-foot">
+      21+ only. Gambling problem? Call 1-800-GAMBLER.
+      · <RouterLink to="/privacy">Privacy</RouterLink> · <RouterLink to="/terms">Terms</RouterLink>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useParlayStore } from './stores/parlay'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 
-const parlay = useParlayStore()
 const auth = useAuthStore()
 const router = useRouter()
-const menuOpen = ref(false)
+const route = useRoute()
+
+// App chrome (brand bar + tab bar) only when signed in and inside the product.
+const showChrome = computed(() => auth.isAuthed && !['login'].includes(route.name as string))
 
 function doLogout() {
   auth.logout()
   router.push('/login')
 }
-
-router.afterEach(() => { menuOpen.value = false })
 </script>
 
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #05080a; color: #eef3f2; font-family: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100vh; }
+#app { min-height: 100vh; }
+.app { display: flex; flex-direction: column; min-height: 100vh; background-image: radial-gradient(circle at 50% 0%, #0e1618, #05080a 60%); }
 
-:root {
-  --green: #00c853;
-  --dark: #0d1117;
-  --surface: #161b22;
-  --border: #30363d;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --radius: 8px;
-}
+.apphead { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 9px; padding: 13px 16px; border-bottom: 1px solid #222d30; background: #0a0e0f; }
+.apphead .dot { width: 9px; height: 9px; border-radius: 50%; background: #1fd65f; box-shadow: 0 0 10px #1fd65f; }
+.brand { font-family: 'Archivo Narrow', 'Archivo', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: .5px; text-transform: uppercase; text-decoration: none; color: #eef3f2; }
+.brand span { color: #1fd65f; }
+.apphead .badge { margin-left: auto; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 4px 10px; border-radius: 20px; }
+.apphead .badge.free { background: #1a2123; color: #8a9a9c; }
+.apphead .badge.pro { background: #ffc94d; color: #241a00; }
+.apphead .logout { background: none; border: none; color: #5f6f71; font-size: 18px; cursor: pointer; padding: 0 2px; }
 
-body {
-  background: var(--dark);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  min-height: 100vh;
-}
+.content { flex: 1; padding-bottom: 70px; }
 
-a { color: inherit; text-decoration: none; }
+.tabbar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; border-top: 1px solid #222d30; background: #0c1112; z-index: 10; }
+.tabbar a { flex: 1; text-decoration: none; color: #5f6f71; font-size: 9.5px; font-weight: 600; padding: 9px 2px 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: .3px; }
+.tabbar a .i { font-size: 18px; line-height: 1; }
+.tabbar a.router-link-active { color: #1fd65f; }
 
-.app { display: flex; flex-direction: column; min-height: 100vh; }
-
-.site-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.nav {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.logo { font-size: 1.25rem; font-weight: 700; color: var(--green); flex-shrink: 0; }
-.logo span { color: var(--text); }
-
-.nav-links {
-  display: flex;
-  gap: 1.5rem;
-  margin-left: auto;
-}
-.nav-links a { color: var(--muted); font-size: 0.9rem; transition: color 0.15s; white-space: nowrap; }
-.nav-links a:hover, .nav-links a.router-link-active { color: var(--text); }
-
-.parlay-link { display: flex; align-items: center; gap: 6px; }
-
-.pick-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--green);
-  color: #000;
-  font-size: 0.65rem;
-  font-weight: 700;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
-  border-radius: 999px;
-}
-
-/* Hamburger button */
-.hamburger-wrap {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.hamburger {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  padding: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.hamburger .bar {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: var(--text);
-  border-radius: 2px;
-  transition: transform 0.25s, opacity 0.25s;
-  transform-origin: center;
-}
-
-.hamburger.open .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.hamburger.open .bar:nth-child(2) { opacity: 0; }
-.hamburger.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-.hamburger-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--green);
-  color: #000;
-  font-size: 0.65rem;
-  font-weight: 700;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 999px;
-}
-
-/* Mobile drawer */
-.mobile-menu {
-  display: none;
-  flex-direction: column;
-  background: var(--surface);
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.25s ease;
-}
-
-.mobile-menu.open {
-  max-height: 300px;
-  border-top: 1px solid var(--border);
-}
-
-.mobile-menu a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0.85rem 1.25rem;
-  font-size: 1rem;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  transition: color 0.15s, background 0.15s;
-}
-.mobile-menu a:last-child { border-bottom: none; }
-.mobile-menu a:hover,
-.mobile-menu a.router-link-active { color: var(--text); background: var(--dark); }
-
-@media (max-width: 600px) {
-  .nav-links { display: none; }
-  .hamburger-wrap { display: flex; }
-  .mobile-menu { display: flex; }
-}
-
-.main-content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem; width: 100%; }
-
-.site-footer {
-  border-top: 1px solid var(--border);
-  padding: 1rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.disclaimer { font-size: 0.75rem; color: var(--muted); }
-
-.footer-links {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.footer-links a { color: var(--muted); }
-.footer-links a:hover { color: var(--text); }
+.mini-foot { text-align: center; color: #5f6f71; font-size: 11px; padding: 16px; line-height: 1.6; }
+.mini-foot a { color: #8a9a9c; }
 </style>

@@ -1,12 +1,5 @@
 <template>
   <div class="sig-screen">
-    <div class="topbar">
-      <div class="head">
-        <span class="dot" /> Parlay<span class="g">Pal</span> Signals
-      </div>
-      <span class="badge" :class="auth.isPaid ? 'pro' : 'free'">{{ auth.tier }}</span>
-    </div>
-
     <div class="sect">
       <template v-if="auth.isPaid"><span class="live" /> Live signals · soft leagues</template>
       <template v-else>Signals · <span class="gold">locked on Free</span></template>
@@ -19,7 +12,7 @@
     </p>
 
     <div
-      v-for="s in signals"
+      v-for="s in grouped"
       :key="s.id"
       class="card"
       :class="{ locked: s.locked }"
@@ -28,6 +21,7 @@
       <div class="chead">
         <span class="tag" :class="s.kind">{{ s.kind === 'arb' ? '★ Arbitrage' : 'Value Bet' }}</span>
         <span class="lgn">{{ s.league }} · {{ s.country }}</span>
+        <span v-if="s.count > 1" class="reups" title="re-alerted as the edge improved">↑ {{ s.count }}×</span>
         <span class="tm">{{ ago(s.age_seconds) }}</span>
       </div>
 
@@ -81,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -89,7 +83,7 @@ interface Signal {
   id: number; kind: string; league: string; country: string; fixture: string
   age_seconds: number; locked: boolean; title?: string; body?: string
   pick?: string; book?: string; odds?: string; fair_odds?: string
-  edge_pct?: number; stake_pct?: number; profit_pct?: number
+  edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number
 }
 
 const auth = useAuthStore()
@@ -100,6 +94,20 @@ const loading = ref(false)
 const error = ref('')
 const showUpgrade = ref(false)
 const billing = ref<{ stripe_enabled: boolean; allow_dev_upgrade: boolean }>({ stripe_enabled: false, allow_dev_upgrade: true })
+
+// Collapse re-alerts of the same pick (same fixture appearing at 1/11/25 min as the edge
+// improved) into one card, keeping the strongest/freshest and a re-up count.
+const grouped = computed<(Signal & { count: number })[]>(() => {
+  const map = new Map<string, Signal & { count: number }>()
+  for (const s of signals.value) {
+    const key = s.locked ? `${s.fixture}` : `${s.fixture}|${s.pick}`
+    const ex = map.get(key)
+    if (!ex) { map.set(key, { ...s, count: 1 }); continue }
+    const better = s.locked ? s.age_seconds < ex.age_seconds : (s.edge_pct ?? 0) > (ex.edge_pct ?? 0)
+    map.set(key, { ...(better ? s : ex), count: ex.count + 1 })
+  }
+  return [...map.values()]
+})
 
 function ago(sec: number) {
   if (sec < 60) return 'just now'
@@ -179,6 +187,7 @@ onMounted(async () => {
 .tag { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 3px 7px; border-radius: 5px; }
 .tag.ev { background: #0e3f23; color: #1fd65f; } .tag.arb { background: #3a2f08; color: #ffc94d; }
 .lgn { font-size: 10.5px; color: #8a9a9c; font-weight: 500; }
+.reups { font-size: 9px; font-weight: 800; color: #ffc94d; background: #3a2f08; padding: 2px 5px; border-radius: 4px; }
 .tm { margin-left: auto; font-family: 'Spline Sans Mono', monospace; font-size: 10.5px; color: #8a9a9c; }
 .pk { padding: 8px 13px 2px; }
 .pk .m { font-size: 17px; font-weight: 800; line-height: 1.15; }

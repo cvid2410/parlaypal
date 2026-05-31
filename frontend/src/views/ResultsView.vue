@@ -1,10 +1,6 @@
 <template>
   <div class="trk">
-    <div class="topbar">
-      <div class="head"><span class="dot" /> Results · verified</div>
-      <span class="badge" :class="auth.isPaid ? 'pro' : 'free'">{{ auth.tier }}</span>
-    </div>
-
+    <div class="sect-title">Results · verified track record</div>
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
@@ -128,7 +124,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.trk { max-width: 460px; margin: 0 auto; padding: 12px 14px 40px; color: #eef3f2; font-family: 'Archivo', sans-serif; }
+.trk { max-width: 460px; margin: 0 auto; padding: 14px 14px 40px; color: #eef3f2; font-family: 'Archivo', sans-serif; }
+.sect-title { font-size: 11px; color: #5f6f71; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin: 2px 0 4px; }
 .topbar { display: flex; align-items: center; gap: 9px; padding: 8px 0 14px; border-bottom: 1px solid #222d30; }
 .head { font-family: 'Archivo Narrow', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; font-size: 15px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: #1fd65f; box-shadow: 0 0 10px #1fd65f; }
