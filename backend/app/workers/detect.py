@@ -68,10 +68,6 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
             await session.execute(select(League).where(League.id == fixture.league_id))
         ).scalar_one()
 
-        # Sharp leagues carry no edge — ingested for Scores only, never signalled.
-        if not league.is_soft:
-            return stats
-
         # Read hot state → {book: {selection: decimal}}
         flat = await r.hgetall(_hot_key(fixture_id, market_id))
         by_book: dict[str, dict[str, float]] = defaultdict(dict)
@@ -82,8 +78,9 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
         sharp = by_book.get(league.sharp_ref_book)
         new_signals: list[Signal] = []
 
-        # ---- +EV vs the sharp fair line ----
-        if sharp and len(sharp) >= 2:
+        # ---- +EV vs the sharp fair line (soft leagues only — sharp/big leagues have no
+        # soft-book edge; mechanical signals like arb still run for them below) ----
+        if league.is_soft and sharp and len(sharp) >= 2:
             fair = devig_multi(sharp)
             for book, sels in by_book.items():
                 if book == league.sharp_ref_book:

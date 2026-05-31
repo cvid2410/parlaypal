@@ -2,6 +2,7 @@
 compose stack). Creates an isolated soft league/fixture/market, drives hot state, and
 asserts the signal + dedup + re-alert-on-improvement behaviour, then cleans up.
 """
+import datetime as dt
 import uuid
 
 import pytest
@@ -84,6 +85,53 @@ async def test_ev_signal_dedup_and_improvement(scenario):
     await r.hset(f"odds:{fid}:{mid}", "fanduel:home", 2.5)
     await detect_market({}, fid, mid)
     assert len([x for x in await _signals(fid) if x.kind == "ev" and x.selection == "home"]) == 2
+
+
+async def test_sharp_league_gets_arb_not_ev():
+    """On a non-soft (big/sharp) league: arb still fires, but EV never does — even when a
+    soft book looks mispriced vs Pinnacle."""
+    Session = get_sessionmaker()
+    r = get_redis()
+    tag = uuid.uuid4().hex[:8]
+    fid = f"test_fx_{tag}"
+    async with Session() as s:
+        lg = League(name=f"Sharp {tag}", country="X", sport_key=f"tl_{tag}",
+                    sharp_ref_book="pinnacle", is_soft=False, ingest_enabled=True)
+        s.add(lg)
+        await s.flush()
+        h = Team(league_id=lg.id, name=f"H {tag}")
+        a = Team(league_id=lg.id, name=f"A {tag}")
+        s.add_all([h, a])
+        await s.flush()
+        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
+                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        mid = await _get_market_id(s, "h2h", None)
+        await s.commit()
+        league_id = lg.id
+    try:
+        # Pinnacle fair + a FanDuel home at 2.2 (would be +EV on a soft league). Best prices
+        # across books also leave an arb gap (1/2.2 + 1/3.6 + 1/4.5 < 1).
+        await r.delete(f"odds:{fid}:{mid}")
+        await r.hset(f"odds:{fid}:{mid}", mapping={
+            "pinnacle:home": 1.8, "pinnacle:draw": 3.6, "pinnacle:away": 4.5,
+            "fanduel:home": 2.2, "fanduel:draw": 3.6, "betmgm:away": 4.5,
+        })
+        await detect_market({}, fid, mid)
+        async with Session() as s:
+            sigs = (await s.execute(select(Signal).where(Signal.fixture_id == fid))).scalars().all()
+        assert not any(x.kind == "ev" for x in sigs), "EV must not fire on a sharp league"
+        assert any(x.kind == "arb" for x in sigs), "arb should still fire on a sharp league"
+    finally:
+        async with Session() as s:
+            await s.execute(delete(Signal).where(Signal.fixture_id == fid))
+            await s.execute(delete(Fixture).where(Fixture.id == fid))
+            await s.execute(delete(Team).where(Team.league_id == league_id))
+            await s.execute(delete(League).where(League.id == league_id))
+            await s.commit()
+        async for k in r.scan_iter(match=f"*{tag}*"):
+            await r.delete(k)
+        async for k in r.scan_iter(match=f"*{fid}*"):
+            await r.delete(k)
 
 
 async def test_arb_detected(scenario):

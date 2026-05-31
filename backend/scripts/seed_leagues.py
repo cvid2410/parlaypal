@@ -32,9 +32,11 @@ LEAGUES = [
     # af_league_id left None: the correct API-Football id for Honduras is unverified
     # (351 turned out to be a Czech league). Set it once confirmed.
     ("Liga Nacional", "Honduras", "soccer_honduras_liga_nacional", True, False, None),
-    # --- sharp leagues: Scores tab only, no edge, excluded from detection ---
+    # --- sharp / big leagues: no soft-book +EV edge, but mechanical signals (arb, middles)
+    #     still run, plus Scores/Standings. World Cup has no fixtures until June 2026. ---
     ("Premier League", "England", "soccer_epl", False, True, 39),
     ("La Liga", "Spain", "soccer_spain_la_liga", False, True, 140),
+    ("World Cup", "International", "soccer_fifa_world_cup", False, True, 1),
 ]
 
 

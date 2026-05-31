@@ -32,8 +32,20 @@ head-on. Our defensible wedge is the *intersection* of four things:
 Positioning line: *"The only betting-edge tool built only for soccer — every league on
 earth, all year, including the ones the big tools don't even cover."*
 
-**Do NOT** spend effort trying to out-cover OddsJam on US sports or big-5 European leagues
-(EPL/La Liga lines are sharp → no edge). Hunt the soft long tail.
+**Hunt the soft long tail for classic +EV** — a soft book lagging the sharp price only
+happens where the money is thin. Do NOT try to out-cover OddsJam by claiming "+EV value
+bets" on big-5 / WC markets (EPL/La Liga/World Cup lines are sharp → no soft-book edge;
+faking one breaks NON-NEGOTIABLE #1/#2).
+
+**But big leagues + the World Cup still get signals — just the right *kind*.** Match the
+signal type to the market sharpness:
+- **+EV (devig vs sharp):** soft leagues only.
+- **Arbitrage & middles (mechanical, guaranteed by math):** ALL leagues, incl. big-5 + WC.
+  Big games have the most books → the most fleeting arbs. (Don't need the CLV gate.)
+- **Best price / line-shopping (informational, no edge claim):** every market, incl. WC —
+  and it's what the existing big-league/WC audience wants.
+- **Odds boosts / promos (book-subsidized, genuinely +EV):** best honest edge on big games;
+  needs a promo data source.
 
 ## Tech stack (use what already exists; this mirrors the owner's stack)
 
