@@ -8,7 +8,6 @@ a flapping line can't spam and we only re-alert when the edge bucket improves
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 from collections import defaultdict
@@ -20,10 +19,15 @@ from app.models.core import Fixture, League, Market
 from app.models.signals import Signal
 from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
-from app.shared.math import devig_multi, ev_pct, find_arb_multi, kelly
+from app.shared.detect_core import _bucket as _core_bucket
+from app.shared.detect_core import _dedup_hash, find_opportunities
 from app.shared.metrics import emit
 
 log = logging.getLogger("detect")
+
+# Re-exported for the other signal-kind workers (middles, boosts) that share the same
+# flap-dedup primitives. `_dedup_hash` is the pure core hash; `_bucket` binds it to config.
+__all__ = ["detect_market", "_alert_allowed", "_bucket", "_dedup_hash"]
 
 
 def _hot_key(fixture_id: str, market_id: int) -> str:
@@ -31,7 +35,8 @@ def _hot_key(fixture_id: str, market_id: int) -> str:
 
 
 def _bucket(value: float) -> int:
-    return int(value // settings.edge_bucket_pct)
+    """Settings-bound edge bucket (shared by middles/boosts dedup)."""
+    return _core_bucket(value, settings.edge_bucket_pct)
 
 
 async def _alert_allowed(r, scope: str, bucket: int) -> bool:
@@ -43,10 +48,6 @@ async def _alert_allowed(r, scope: str, bucket: int) -> bool:
         return False
     await r.set(best_key, bucket, ex=settings.signal_ttl_seconds)
     return True
-
-
-def _dedup_hash(*parts) -> str:
-    return hashlib.sha1("|".join(str(p) for p in parts).encode()).hexdigest()
 
 
 async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
@@ -75,81 +76,44 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
             book, _, sel = field.partition(":")
             by_book[book][sel] = float(val)
 
-        sharp = by_book.get(league.sharp_ref_book)
+        # Pure detection (shared with the backtest replay). The flap-dedup below is the only
+        # stateful gate; everything math lives in detect_core.find_opportunities.
+        opps = find_opportunities(
+            fixture_id,
+            market_id,
+            by_book,
+            is_soft=league.is_soft,
+            sharp_ref_book=league.sharp_ref_book,
+            min_edge_pct=settings.min_edge_pct,
+            kelly_fraction=settings.kelly_fraction,
+            edge_bucket_pct=settings.edge_bucket_pct,
+            max_offered_odds=settings.max_offered_odds,
+            max_edge_pct=settings.max_edge_pct,
+            devig_method=settings.devig_method,
+        )
+
         new_signals: list[Signal] = []
-
-        # ---- +EV vs the sharp fair line (soft leagues only — sharp/big leagues have no
-        # soft-book edge; mechanical signals like arb still run for them below) ----
-        if league.is_soft and sharp and len(sharp) >= 2:
-            fair = devig_multi(sharp)
-            for book, sels in by_book.items():
-                if book == league.sharp_ref_book:
-                    continue
-                for sel, dec in sels.items():
-                    p = fair.get(sel)
-                    if p is None:
-                        continue
-                    edge = ev_pct(dec, p)
-                    if edge < settings.min_edge_pct:
-                        continue
-                    scope = f"ev:{fixture_id}:{market_id}:{sel}:{book}"
-                    if not await _alert_allowed(r, scope, _bucket(edge)):
-                        continue
-                    new_signals.append(
-                        Signal(
-                            fixture_id=fixture_id,
-                            market_id=market_id,
-                            selection=sel,
-                            book=book,
-                            kind="ev",
-                            offered_odds=dec,
-                            fair_prob=p,
-                            edge_pct=edge,
-                            kelly_frac=kelly(p, dec, settings.kelly_fraction),
-                            ttl_sec=settings.signal_ttl_seconds,
-                            dedup_hash=_dedup_hash(
-                                fixture_id, market_id, sel, book, _bucket(edge)
-                            ),
-                            status="live",
-                            meta={"sharp_book": league.sharp_ref_book},
-                        )
-                    )
-                    stats["ev"] += 1
-
-        # ---- cross-book arbitrage (best price per selection across all books) ----
-        best: dict[str, tuple[str, float]] = {}
-        for book, sels in by_book.items():
-            for sel, dec in sels.items():
-                if sel not in best or dec > best[sel][1]:
-                    best[sel] = (book, dec)
-        if len(best) >= 2:
-            arb = find_arb_multi({sel: dec for sel, (_, dec) in best.items()})
-            if arb is not None:
-                profit = arb["profit_pct"]
-                scope = f"arb:{fixture_id}:{market_id}"
-                if await _alert_allowed(r, scope, _bucket(profit)):
-                    legs = {
-                        sel: {"book": bk, "odds": dec, "stake_frac": arb["stake_fracs"][sel]}
-                        for sel, (bk, dec) in best.items()
-                    }
-                    new_signals.append(
-                        Signal(
-                            fixture_id=fixture_id,
-                            market_id=market_id,
-                            selection="+".join(sorted(best)),
-                            book="multi",
-                            kind="arb",
-                            offered_odds=0.0,
-                            fair_prob=0.0,
-                            edge_pct=profit,
-                            kelly_frac=0.0,
-                            ttl_sec=settings.signal_ttl_seconds,
-                            dedup_hash=_dedup_hash(fixture_id, market_id, "arb", _bucket(profit)),
-                            status="live",
-                            meta={"legs": legs},
-                        )
-                    )
-                    stats["arb"] += 1
+        for opp in opps:
+            if not await _alert_allowed(r, opp.scope, opp.bucket):
+                continue
+            new_signals.append(
+                Signal(
+                    fixture_id=fixture_id,
+                    market_id=market_id,
+                    selection=opp.selection,
+                    book=opp.book,
+                    kind=opp.kind,
+                    offered_odds=opp.offered_odds,
+                    fair_prob=opp.fair_prob,
+                    edge_pct=opp.edge_pct,
+                    kelly_frac=opp.kelly_frac,
+                    ttl_sec=settings.signal_ttl_seconds,
+                    dedup_hash=opp.dedup_hash,
+                    status="live",
+                    meta=opp.meta,
+                )
+            )
+            stats[opp.kind] += 1
 
         arq = ctx.get("redis") if isinstance(ctx, dict) else None
         if new_signals:

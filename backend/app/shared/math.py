@@ -69,6 +69,52 @@ def devig_multi(odds_by_sel: dict[str, float]) -> dict[str, float]:
     return {sel: v / total for sel, v in inv.items()}
 
 
+def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
+    """Devig an N-way market with Shin's (1992) insider-trading model → fair prob per sel.
+
+    The multiplicative method (`devig_multi`) splits the vig proportionally, which
+    systematically OVER-states longshot probabilities (the favourite-longshot bias). Shin
+    instead assumes a fraction `z` of the money is informed and removes vig asymmetrically,
+    pulling longshot fair probs down. For a symmetric market it agrees with multiplicative;
+    the methods diverge exactly in the tails — which is where our soft-book +EV lives.
+
+    Recovers p_i = [sqrt(z^2 + 4(1-z)*pi_i^2/PI) - z] / (2(1-z)), with z solving the
+    normalisation Sum(p_i)=1, i.e. Sum sqrt(z^2 + 4(1-z)*pi_i^2/PI) = 2 + (n-2)z. Solved by
+    bisection (the function is +ve at z=0 and crosses once before z=1).
+    """
+    pis = {sel: 1 / dec for sel, dec in odds_by_sel.items() if dec and dec > 1}
+    n = len(pis)
+    booksum = sum(pis.values())
+    if n < 2 or booksum <= 0:
+        return {}
+    if booksum <= 1:  # no overround (or a cross-book arb) — just normalise, no vig to model
+        return {sel: p / booksum for sel, p in pis.items()}
+
+    q = {sel: (p * p) / booksum for sel, p in pis.items()}  # pi_i^2 / PI
+
+    def constraint(z: float) -> float:
+        return sum((z * z + 4 * (1 - z) * qi) ** 0.5 for qi in q.values()) - (2 + (n - 2) * z)
+
+    lo, hi = 0.0, 0.9999
+    lo_pos = constraint(lo) > 0
+    for _ in range(60):  # ~1e-18 resolution; cheap and robust
+        mid = (lo + hi) / 2
+        if (constraint(mid) > 0) == lo_pos:
+            lo = mid
+        else:
+            hi = mid
+    z = (lo + hi) / 2
+
+    p = {sel: ((z * z + 4 * (1 - z) * qi) ** 0.5 - z) / (2 * (1 - z)) for sel, qi in q.items()}
+    tot = sum(p.values())  # renormalise away tiny bisection drift
+    return {sel: v / tot for sel, v in p.items()} if tot > 0 else {}
+
+
+def devig(odds_by_sel: dict[str, float], method: str = "multiplicative") -> dict[str, float]:
+    """Dispatch to a devig method. 'multiplicative' (default, proportional) or 'shin'."""
+    return shin_devig(odds_by_sel) if method == "shin" else devig_multi(odds_by_sel)
+
+
 def find_middle(over_dec: float, over_line: float,
                under_dec: float, under_line: float) -> dict | None:
     """A totals 'middle': back Over at a low line and Under at a high line so a final total

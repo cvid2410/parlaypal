@@ -21,25 +21,39 @@ from app.models.odds import OddsSnapshot
 from app.models.signals import Signal, SignalGrade
 from app.shared.db import get_sessionmaker
 from app.shared.grading import clv_beat, compute_result, pnl_units
+from app.shared.math import devig
 from app.shared.metrics import emit
 
 log = logging.getLogger("settle")
 
 
-async def _closing_sharp_odds(session, fixture_id, market_id, selection, sharp_book, kickoff):
-    """Last sharp (Pinnacle) price for this selection at/before kickoff = the closing line."""
-    return (await session.execute(
-        select(OddsSnapshot.decimal_odds)
+async def _closing_sharp_fair_decimal(session, fixture_id, market_id, selection,
+                                      sharp_book, kickoff):
+    """The NO-VIG closing fair decimal for `selection`.
+
+    CLV must be measured against the sharp's true closing probability, not its raw posted
+    odds — the vig makes raw odds shorter than fair, so 'offered > raw closing' is a
+    structurally easy bar that inflates beat-CLV. We pull every sharp selection's last price
+    at/before kickoff, devig the whole market, and return 1/fair_prob for our selection.
+    """
+    rows = (await session.execute(
+        select(OddsSnapshot.selection, OddsSnapshot.decimal_odds)
         .where(
             OddsSnapshot.fixture_id == fixture_id,
             OddsSnapshot.book == sharp_book,
             OddsSnapshot.market_id == market_id,
-            OddsSnapshot.selection == selection,
             OddsSnapshot.ts <= kickoff,
         )
-        .order_by(OddsSnapshot.ts.desc())
-        .limit(1)
-    )).scalar()
+        .order_by(OddsSnapshot.selection, OddsSnapshot.ts.desc())
+    )).all()
+    raw: dict[str, float] = {}
+    for sel, dec in rows:  # first per selection = latest (ts desc within selection)
+        if sel not in raw:
+            raw[sel] = dec
+    if len(raw) < 2:  # need a full market to devig
+        return None
+    p = devig(raw, settings.devig_method).get(selection)
+    return (1.0 / p) if p and p > 0 else None
 
 
 async def settle_once() -> dict:
@@ -71,7 +85,9 @@ async def settle_once() -> dict:
             closing = beat = result = pnl = None
             # CLV only applies to single-selection EV bets (arb is multi-book).
             if sig.kind == "ev":
-                closing = await _closing_sharp_odds(
+                # `closing` is the no-vig fair closing decimal, so beat = our odds longer
+                # than fair (genuine positive CLV).
+                closing = await _closing_sharp_fair_decimal(
                     session, fx.id, sig.market_id, sig.selection,
                     league.sharp_ref_book, fx.kickoff_utc,
                 )

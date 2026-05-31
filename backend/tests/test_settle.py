@@ -37,9 +37,16 @@ async def settled_world():
                      kind="ev", offered_odds=2.35, fair_prob=0.5, edge_pct=9.1,
                      kelly_frac=0.03, ttl_sec=1800, dedup_hash=f"h_{tag}", status="live")
         s.add(sig)
-        # Closing Pinnacle line for 'home' = 2.20 (we alerted 2.35 → we beat closing).
-        s.add(OddsSnapshot(fixture_id=fid, book="pinnacle", market_id=mid, selection="home",
-                           decimal_odds=2.20, ts=kickoff - dt.timedelta(minutes=5)))
+        # Closing Pinnacle market: home/away both 1.90 (raw, ~5% vig) → no-vig fair = 0.5
+        # each → fair closing decimal 2.0. We alerted 2.35 (> 2.0) so we beat CLV on the
+        # devigged line, which is what settle now grades against.
+        close_ts = kickoff - dt.timedelta(minutes=5)
+        s.add_all([
+            OddsSnapshot(fixture_id=fid, book="pinnacle", market_id=mid, selection="home",
+                         decimal_odds=1.90, ts=close_ts),
+            OddsSnapshot(fixture_id=fid, book="pinnacle", market_id=mid, selection="away",
+                         decimal_odds=1.90, ts=close_ts),
+        ])
         await s.commit()
         ids = (lg.id, fid, sig.id, mid)
     yield {"league_id": ids[0], "fid": ids[1], "sig_id": ids[2], "mid": ids[3], "kickoff": kickoff}
@@ -68,8 +75,8 @@ async def test_clv_graded_at_kickoff_before_score(settled_world):
     assert stats["graded"] >= 1
     g = await _grade(settled_world["sig_id"])
     assert g is not None
-    assert g.closing_odds == pytest.approx(2.20)
-    assert g.beat_clv is True       # 2.35 > 2.20
+    assert g.closing_odds == pytest.approx(2.0)   # no-vig fair from 1.90/1.90
+    assert g.beat_clv is True       # 2.35 > 2.0 fair
     assert g.result is None          # no score yet
     assert (await _signal(settled_world["sig_id"])).status == "expired"
 

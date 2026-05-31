@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     # --- signals: detection ---
     # Minimum +EV edge (percent) before a signal is emitted.
     min_edge_pct: float = 2.0
+    # Sanity bounds for +EV (a soft book vs the sharp fair). A soft-league value price lives
+    # in roughly the 1.2–12 decimal range; anything longer is a suspended/placeholder quote
+    # (e.g. The Odds API returns decimal ~101 for untradeable outcomes), not a real edge.
+    # And a devig edge this large is almost always bad/incomplete sharp data, not money on
+    # the table. Beyond either bound we DON'T emit (a fake +EV is worse than a missed one).
+    max_offered_odds: float = 12.0
+    max_edge_pct: float = 50.0
+    # Devig method for the sharp fair line: 'multiplicative' (proportional) or 'shin'
+    # (insider-trading model; corrects the favourite-longshot bias in the tails). Used in
+    # BOTH detection and CLV grading so the gate measures what we ship.
+    devig_method: str = "multiplicative"
     # A selection's decimal odds must move at least this fraction to count as a
     # meaningful change (NON-NEGOTIABLE #3). 0.01 == 1%.
     move_threshold: float = 0.01
