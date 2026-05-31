@@ -9,6 +9,7 @@ from app.shared.math import (
     ev_pct,
     find_arb,
     find_arb_multi,
+    find_middle,
     kelly,
     no_vig_prob,
 )
@@ -95,6 +96,26 @@ def test_find_arb_multi_3way():
 
 def test_find_arb_multi_none_with_hold():
     assert find_arb_multi({"home": 1.8, "draw": 3.6, "away": 4.5}) is None
+
+
+def test_find_middle_basic():
+    # Over 1.5 @ 2.0 and Under 2.5 @ 2.0 → total of 2 wins both. s=1.0 → free middle.
+    m = find_middle(2.0, 1.5, 2.0, 2.5)
+    assert m is not None
+    assert m["window"] == [2]
+    assert m["hold"] == pytest.approx(1.0)
+    assert m["miss_pnl_pct"] == pytest.approx(0.0)        # break-even on a miss
+    assert m["middle_pnl_pct"] == pytest.approx(100.0)    # doubles if it middles
+
+
+def test_find_middle_wide_window():
+    m = find_middle(2.0, 1.5, 2.0, 3.5)
+    assert m["window"] == [2, 3]
+
+
+def test_find_middle_none():
+    assert find_middle(2.0, 2.5, 2.0, 1.5) is None   # over line >= under line
+    assert find_middle(2.0, 1.5, 2.0, 2.0) is None   # no integer strictly between
 
 
 def test_kelly_sizing_and_floor():

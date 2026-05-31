@@ -73,8 +73,9 @@ class SignalCopyContext:
     fair_prob: float = 0.0
     edge_pct: float = 0.0
     kelly_frac: float = 0.0
-    # ARB fields: list of {"selection","book","decimal","stake_frac"}
+    # ARB / MIDDLE legs: list of {"selection","book","decimal","stake_frac"[,"line"]}
     legs: list[dict] = field(default_factory=list)
+    window: list | None = None  # middle: integers that win both sides
 
     @property
     def fixture_label(self) -> str:
@@ -118,6 +119,25 @@ def _stake_sentence(kelly_frac: float) -> str:
 
 def explain(ctx: SignalCopyContext) -> dict:
     """Render a signal into {title, body, footer, fields} from approved templates."""
+    if ctx.kind == "middle":
+        legs = {leg["selection"]: leg for leg in ctx.legs}
+        over, under = legs.get("over", {}), legs.get("under", {})
+        win = ", ".join(str(n) for n in (ctx.window or []))
+        body = (
+            f"Middle on {ctx.fixture_label}: back Over {over.get('line')} @ "
+            f"{book_label(over.get('book', ''))} {decimal_to_american(over.get('decimal', 2))} and "
+            f"Under {under.get('line')} @ {book_label(under.get('book', ''))} "
+            f"{decimal_to_american(under.get('decimal', 2))}. If the final total lands on "
+            f"{win}, BOTH win (+{ctx.edge_pct:.1f}%) — otherwise it's a small, known cost."
+        )
+        return {
+            "title": f"Middle — {ctx.fixture_label}",
+            "body": body,
+            "footer": RG_FOOTER,
+            "fields": {"league": ctx.league_name, "fixture": ctx.fixture_label,
+                       "middle_pct": round(ctx.edge_pct, 2), "window": ctx.window},
+        }
+
     if ctx.kind == "arb":
         legs_txt = " · ".join(
             f"{selection_label(ctx.market_type, ctx.line, leg['selection'], ctx.home, ctx.away)} "

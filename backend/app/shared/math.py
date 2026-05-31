@@ -69,6 +69,34 @@ def devig_multi(odds_by_sel: dict[str, float]) -> dict[str, float]:
     return {sel: v / total for sel, v in inv.items()}
 
 
+def find_middle(over_dec: float, over_line: float,
+               under_dec: float, under_line: float) -> dict | None:
+    """A totals 'middle': back Over at a low line and Under at a high line so a final total
+    landing strictly between wins BOTH. Returns the window + P&L, or None if no middle.
+
+    With equal-payout staking (s = 1/over_dec + 1/under_dec):
+      - exactly one side wins → return 1/s per unit staked  → miss P&L = (1/s - 1)
+      - both win (it middles)  → return 2/s                 → middle P&L = (2/s - 1)
+    s < 1 means it's also an arb (profits even on a miss).
+    """
+    import math as _m
+    if over_line >= under_line:
+        return None
+    window = [n for n in range(_m.floor(over_line) + 1, _m.ceil(under_line))
+              if over_line < n < under_line]
+    if not window:
+        return None
+    s = 1 / over_dec + 1 / under_dec
+    return {
+        "window": window,
+        "hold": s,
+        "miss_pnl_pct": (1 / s - 1) * 100,
+        "middle_pnl_pct": (2 / s - 1) * 100,
+        "stake_over_frac": (1 / over_dec) / s,
+        "stake_under_frac": (1 / under_dec) / s,
+    }
+
+
 def find_arb_multi(best_odds_by_sel: dict[str, float]) -> dict | None:
     """N-way arbitrage across the best price per selection.
 

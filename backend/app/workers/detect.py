@@ -151,15 +151,20 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
                     )
                     stats["arb"] += 1
 
+        arq = ctx.get("redis") if isinstance(ctx, dict) else None
         if new_signals:
             session.add_all(new_signals)
             await session.commit()
-            arq = ctx.get("redis") if isinstance(ctx, dict) else None
             for sig in new_signals:
                 emit("signal.accepted", signal_id=sig.id, kind=sig.kind,
                      edge_pct=round(sig.edge_pct, 3))
                 if arq is not None:
                     await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
+
+        # A totals move can create a cross-market middle — hand off to the middle detector.
+        if market.type == "total" and arq is not None:
+            await arq.enqueue_job("detect_middles", fixture_id,
+                                  _job_id=f"middles:{fixture_id}")
 
     lag_ms = (time.perf_counter() - started) * 1000
     emit("detect.market", fixture_id=fixture_id, market_id=market_id,

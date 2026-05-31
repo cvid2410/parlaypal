@@ -14,7 +14,7 @@
     <div class="grid">
       <div v-for="s in grouped" :key="s.id" class="sig" :class="{ locked: s.locked }">
         <div class="top">
-          <span class="kind" :class="s.kind">{{ s.kind === 'arb' ? 'Arbitrage' : 'Value bet' }}</span>
+          <span class="kind" :class="s.kind">{{ kindLabel(s) }}</span>
           <span class="lg">{{ s.league }} · {{ s.country }}</span>
           <span v-if="s.count > 1" class="reups" title="re-alerted as the edge improved">↑ {{ s.count }}×</span>
           <span class="ago">{{ ago(s.age_seconds) }}</span>
@@ -28,14 +28,14 @@
         </div>
 
         <template v-if="!s.locked">
-          <div v-if="s.kind !== 'arb'" class="line">
+          <div v-if="s.kind === 'ev'" class="line">
             <span class="at">at</span><span class="bk">{{ s.book }}</span><span class="o">{{ s.odds }}</span>
           </div>
           <div class="why">{{ s.body }}</div>
           <div class="stats">
-            <div class="stat"><div class="v green">{{ metric(s) }}</div><div class="k">{{ s.kind === 'arb' ? 'locked profit' : 'your edge' }}</div></div>
-            <div v-if="s.kind !== 'arb'" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
-            <div v-if="s.kind !== 'arb'" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
+            <div class="stat"><div class="v green">+{{ s.edge_pct }}%</div><div class="k">{{ metricLabel(s) }}</div></div>
+            <div v-if="s.kind === 'ev'" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
+            <div v-if="s.kind === 'ev'" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
           </div>
         </template>
 
@@ -90,11 +90,16 @@ function ago(sec: number) {
   const m = Math.floor(sec / 60)
   return m < 60 ? `${m} min ago` : `${Math.floor(m / 60)}h ago`
 }
-function pickLabel(s: Signal) {
-  return s.kind === 'arb' ? 'Win either way' : (s.pick || s.title || '')
+function kindLabel(s: Signal) {
+  return ({ arb: 'Arbitrage', middle: 'Middle' } as Record<string, string>)[s.kind] || 'Value bet'
 }
-function metric(s: Signal) {
-  return s.kind === 'arb' ? `+${s.profit_pct}%` : `+${s.edge_pct}%`
+function pickLabel(s: Signal) {
+  if (s.kind === 'arb') return 'Win either way'
+  if (s.kind === 'middle') return 'Middle'
+  return s.pick || s.title || ''
+}
+function metricLabel(s: Signal) {
+  return ({ arb: 'locked profit', middle: 'middle upside' } as Record<string, string>)[s.kind] || 'your edge'
 }
 
 async function load() {
@@ -139,6 +144,7 @@ onMounted(async () => {
 .kind { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 9px; border-radius: 100px; }
 .kind.ev { background: var(--green-dim); color: var(--green); }
 .kind.arb { background: var(--surface-2); color: var(--txt); border: 1px solid var(--hair-2); }
+.kind.middle { background: #0c2536; color: #5cb3ff; }
 .lg { font-size: 12px; color: var(--txt-3); }
 .reups { font-size: 9.5px; font-weight: 700; color: var(--green); border: 1px solid var(--green-dim); padding: 2px 6px; border-radius: 100px; }
 .ago { margin-left: auto; font-family: 'Spline Sans Mono', monospace; font-size: 12px; color: var(--txt-3); }

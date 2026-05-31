@@ -287,6 +287,9 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                                 stats["changes"] += 1
                                 await r.hset(key, field, price)
                                 await r.expire(key, HOT_STATE_TTL)
+                                if mtype == "total":  # for the cross-market middle detector
+                                    await r.sadd(f"fxtotals:{fid}", mid)
+                                    await r.expire(f"fxtotals:{fid}", HOT_STATE_TTL)
                                 snapshots.append(
                                     OddsSnapshot(
                                         fixture_id=fid,

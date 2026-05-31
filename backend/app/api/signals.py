@@ -67,9 +67,11 @@ async def list_signals(
                 "footer": copy["footer"],
                 **copy["fields"],
             })
+            # Unified headline metric (ev edge / arb profit / middle upside all live in edge_pct).
+            card["edge_pct"] = round(sig.edge_pct, 2)
         else:
             # Redacted teaser — show that an edge exists, not what it is.
-            label = "arbitrage" if sig.kind == "arb" else "value bet"
+            label = {"arb": "arbitrage", "middle": "middle"}.get(sig.kind, "value bet")
             card["title"] = f"Live {label} — unlock to see the pick"
         cards.append(card)
 

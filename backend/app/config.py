@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     signal_ttl_seconds: int = 1800
     # Edge bucket width (percent) for dedup / re-alert-on-improvement.
     edge_bucket_pct: float = 1.0
+    # Middles: max combined inverse-odds (hold) worth surfacing. <=1.10 means a miss costs
+    # at most ~9%; <1.0 is a guaranteed-profit middle (arb that also middles).
+    middle_max_hold: float = 1.10
 
     # --- signals: delivery ---
     # Free tier sees signals on a delay (the teaser model). Paid tiers are live.

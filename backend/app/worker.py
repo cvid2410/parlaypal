@@ -17,6 +17,7 @@ from app.shared.metrics import emit
 from app.workers.deliver import deliver
 from app.workers.detect import detect_market
 from app.workers.fanout import route_signal
+from app.workers.middles import detect_middles
 
 
 async def poll_odds(ctx: dict) -> dict:
@@ -44,7 +45,7 @@ def _tick_seconds() -> set[int]:
 
 class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    functions = [detect_market, route_signal, deliver]
+    functions = [detect_market, detect_middles, route_signal, deliver]
     cron_jobs = [
         # Kickoff-aware odds poll at the base tick (run immediately on boot).
         cron(poll_odds, second=_tick_seconds(), run_at_startup=True),
