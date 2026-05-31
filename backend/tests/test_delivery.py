@@ -25,7 +25,7 @@ async def world():
     fid = f"test_fx_{tag}"
     async with Session() as s:
         lg = League(name="Test", country="T", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False)
+                    is_soft=True, ingest_enabled=False, ev_certified=True)
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"Home {tag}")
