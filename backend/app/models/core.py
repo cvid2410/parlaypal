@@ -1,0 +1,89 @@
+"""Canonical reference entities: leagues, teams, aliases, fixtures, markets."""
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.shared.db import Base
+
+
+class League(Base):
+    __tablename__ = "leagues"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    country: Mapped[str] = mapped_column(String, nullable=False)
+    # The Odds API sport key, e.g. "soccer_mexico_ligamx" — this is what makes the
+    # ingestor league-agnostic: adding a league is a row, not code.
+    sport_key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    sharp_ref_book: Mapped[str] = mapped_column(String, default="pinnacle")
+    is_soft: Mapped[bool] = mapped_column(Boolean, default=True)
+    model_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Whether the ingestor polls this league at all (sharp leagues can be ingested for
+    # the Scores tab but won't generate signals — see is_soft).
+    ingest_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Team(Base):
+    __tablename__ = "teams"
+    __table_args__ = (UniqueConstraint("league_id", "name", name="uq_team_league_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class TeamAlias(Base):
+    """Per-book raw name → canonical team. Mostly unused in v1 (single aggregator
+    normalizes names), but the table exists for direct-book ingestion later."""
+
+    __tablename__ = "team_aliases"
+    __table_args__ = (UniqueConstraint("book", "raw_name", name="uq_alias_book_raw"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
+    book: Mapped[str] = mapped_column(String, nullable=False)
+    raw_name: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class Fixture(Base):
+    __tablename__ = "fixtures"
+
+    # The Odds API event id — the canonical fixture key for v1.
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"), nullable=False)
+    home_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
+    away_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
+    kickoff_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String, default="scheduled")
+
+    league: Mapped[League] = relationship()
+
+
+class Market(Base):
+    """A market definition, reusable across fixtures. e.g. ('total', 2.5, 'FT')."""
+
+    __tablename__ = "markets"
+    # line is NULL for line-less markets (h2h, btts). A plain unique constraint can't
+    # dedupe those (NULLs are never equal in Postgres), so use a COALESCE functional
+    # index — otherwise every process restart would mint duplicate h2h market rows.
+    __table_args__ = (
+        Index("uq_market_def", "type", text("coalesce(line, -1)"), "period", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # h2h, total, btts, ...
+    line: Mapped[float | None] = mapped_column(Float, nullable=True)  # null for h2h/btts
+    period: Mapped[str] = mapped_column(String, default="FT")
