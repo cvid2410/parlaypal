@@ -23,6 +23,7 @@ def _parse_fixture(f: dict) -> dict:
         "venue": fixture["venue"]["name"] or "",
         "city": fixture["venue"]["city"] or "",
         "status": _map_status(fixture["status"]["short"]),
+        "broadcast": fixture.get("broadcast") or "",
     }
     if goals.get("home") is not None:
         m["home_score"] = goals["home"]

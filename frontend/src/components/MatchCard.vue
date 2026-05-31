@@ -34,17 +34,18 @@
         :selection="line.selection"
         :odds="line.odds"
         :book="line.book"
-        :label="selectionLabel(line.selection)"
+        :label="line.selection === 'draw' ? `Draw — ${match.home_team} vs ${match.away_team}` : `${selectionLabel(line.selection)} to win — ${match.home_team} vs ${match.away_team}`"
       />
     </div>
     <div v-else-if="oddsStore.cardH2HLoading" class="odds-strip-skeleton" />
 
     <div class="card-footer">
-      <span class="time">{{ store.formatMatchTime(match.date) }} {{ store.selectedTimezone }}</span>
+      <span class="time">{{ store.formatMatchTime(match.date) }}</span>
       <span class="venue" :title="[match.venue, match.city].filter(Boolean).join(', ')">
         {{ [match.venue, match.city].filter(Boolean).join(', ') }}
       </span>
     </div>
+    <div v-if="match.broadcast" class="broadcast">📺 {{ match.broadcast }}</div>
   </RouterLink>
 </template>
 
@@ -186,5 +187,11 @@ function selectionLabel(sel: string): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
+}
+
+.broadcast {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 4px;
 }
 </style>

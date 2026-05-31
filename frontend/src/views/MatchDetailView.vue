@@ -35,9 +35,12 @@
         </div>
 
         <div class="match-meta">
-          <span>{{ matchesStore.formatMatchTime(match.date) }} {{ matchesStore.selectedTimezone }}</span>
+          <span>{{ matchesStore.formatMatchTime(match.date) }}</span>
           <span class="separator">·</span>
           <span>{{ match.venue }}, {{ match.city }}</span>
+        </div>
+        <div v-if="match.broadcast" class="broadcast-row">
+          📺 {{ match.broadcast }}
         </div>
       </div>
 
@@ -88,7 +91,7 @@
                       :selection="line.selection"
                       :odds="line.odds"
                       :book="row.book"
-                      :label="`${formatSelection(line.selection)} (${line.odds})`"
+                      :label="pickLabel('h2h', line.selection)"
                     />
                   </div>
                   <span
@@ -140,7 +143,7 @@
                             :selection="line.selection + (line.point != null ? `_${line.point}` : '')"
                             :odds="line.odds"
                             :book="row.book"
-                            :label="propLabel(market, line)"
+                            :label="pickLabel(market, line.selection, line.point)"
                                       />
                         </div>
                       </div>
@@ -272,7 +275,7 @@ function addBestLine(selection: string, odds: string, book: string) {
     match_id: match.value.id,
     market: 'h2h',
     book,
-    label: `${formatSelection(selection)} — ${match.value.home_team} vs ${match.value.away_team}`,
+    label: pickLabel('h2h', selection),
     odds,
   })
 }
@@ -323,10 +326,22 @@ function vigLabel(vig: number): string {
   return 'steep price'
 }
 
-function propLabel(_market: string, line: OddsLine): string {
-  const sel = line.selection.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-  if (line.point != null) return `${sel} ${line.point} (${line.odds})`
-  return `${sel} (${line.odds})`
+function pickLabel(market: string, selection: string, point: number | null = null): string {
+  if (!match.value) return selection
+  const matchup = `${match.value.home_team} vs ${match.value.away_team}`
+  if (market === 'h2h') {
+    const outcome = selection === 'draw' ? 'Draw' : `${formatSelection(selection)} to win`
+    return `${outcome} — ${matchup}`
+  }
+  if (market === 'totals') {
+    const dir = selection === 'over' ? 'Over' : 'Under'
+    return `${dir} ${point ?? ''} Goals — ${matchup}`
+  }
+  if (market === 'btts') {
+    return `Both Teams to Score ${selection === 'yes' ? 'Yes' : 'No'} — ${matchup}`
+  }
+  const sel = selection.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  return `${sel}${point != null ? ` ${point}` : ''} — ${matchup}`
 }
 
 onMounted(async () => {
@@ -417,6 +432,11 @@ watch(matchId, async (id) => {
   flex-wrap: wrap;
 }
 .separator { color: var(--border); }
+
+.broadcast-row {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
 
 /* Odds sections */
 .odds-section {

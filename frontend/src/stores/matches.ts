@@ -14,9 +14,8 @@ export interface Match {
   status: 'scheduled' | 'live' | 'finished'
   home_score?: number
   away_score?: number
+  broadcast?: string
 }
-
-export type Timezone = 'ET' | 'CT' | 'MT' | 'PT'
 
 export const TEAM_GROUP: Record<string, string> = {
   'Algeria': 'A', 'Argentina': 'A', 'Austria': 'A', 'Jordan': 'A',
@@ -33,12 +32,7 @@ export const TEAM_GROUP: Record<string, string> = {
   'Australia': 'L', 'Paraguay': 'L', 'Türkiye': 'L', 'USA': 'L',
 }
 
-const TZ_OFFSETS: Record<Timezone, string> = {
-  ET: 'America/New_York',
-  CT: 'America/Chicago',
-  MT: 'America/Denver',
-  PT: 'America/Los_Angeles',
-}
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export const useMatchesStore = defineStore('matches', () => {
   const matches = ref<Match[]>([])
@@ -47,7 +41,6 @@ export const useMatchesStore = defineStore('matches', () => {
   const selectedTeams = ref<string[]>((() => {
     try { return JSON.parse(localStorage.getItem('parlaypal:teams') ?? '[]') } catch { return [] }
   })())
-  const selectedTimezone = ref<Timezone>('ET')
 
   watch(selectedTeams, val => localStorage.setItem('parlaypal:teams', JSON.stringify(val)), { deep: true })
 
@@ -69,7 +62,7 @@ export const useMatchesStore = defineStore('matches', () => {
 
   function formatMatchTime(dateStr: string): string {
     return new Intl.DateTimeFormat('en-US', {
-      timeZone: TZ_OFFSETS[selectedTimezone.value],
+      timeZone: LOCAL_TZ,
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
@@ -92,5 +85,5 @@ export const useMatchesStore = defineStore('matches', () => {
     }
   }
 
-  return { matches, loading, error, selectedTeams, selectedTimezone, allTeams, filtered, formatMatchTime, loadMatches }
+  return { matches, loading, error, selectedTeams, allTeams, filtered, formatMatchTime, loadMatches }
 })

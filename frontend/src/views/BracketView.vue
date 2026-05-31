@@ -65,7 +65,7 @@
             :style="`--delay: ${(ri * 0.12 + ci * 0.05).toFixed(2)}s`"
             @click="router.push(`/match/${match.id}`)"
           >
-            <div class="bracket-time">{{ store.formatMatchTime(match.date) }} {{ store.selectedTimezone }}</div>
+            <div class="bracket-time">{{ store.formatMatchTime(match.date) }}</div>
             <div class="bracket-team" :class="{ winner: isWinner(match, 'home') }">
               <img :src="match.home_flag" :alt="match.home_team" class="b-flag" />
               <span class="b-name">{{ match.home_team }}</span>

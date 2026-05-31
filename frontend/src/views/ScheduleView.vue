@@ -7,7 +7,6 @@
       </div>
       <div class="header-actions">
         <NotifyButton />
-        <TimezoneToggle />
       </div>
     </div>
 
@@ -59,7 +58,6 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useMatchesStore } from '../stores/matches'
 import { useOddsStore } from '../stores/odds'
 import { useParlayStore } from '../stores/parlay'
-import TimezoneToggle from '../components/TimezoneToggle.vue'
 import GroupFilter from '../components/GroupFilter.vue'
 import MatchCard from '../components/MatchCard.vue'
 import NotifyButton from '../components/NotifyButton.vue'
@@ -68,18 +66,12 @@ const store = useMatchesStore()
 const oddsStore = useOddsStore()
 const parlayStore = useParlayStore()
 
-const TZ_MAP: Record<string, string> = {
-  ET: 'America/New_York',
-  CT: 'America/Chicago',
-  MT: 'America/Denver',
-  PT: 'America/Los_Angeles',
-}
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 const groupedByDate = computed(() => {
-  const tz = TZ_MAP[store.selectedTimezone] || 'America/New_York'
   const map = new Map<string, typeof store.filtered>()
   for (const match of store.filtered) {
-    const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(match.date))
+    const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: LOCAL_TZ }).format(new Date(match.date))
     if (!map.has(localDate)) map.set(localDate, [])
     map.get(localDate)!.push(match)
   }
@@ -87,7 +79,7 @@ const groupedByDate = computed(() => {
     date,
     matches,
     label: new Intl.DateTimeFormat('en-US', {
-      timeZone: tz, weekday: 'long', month: 'long', day: 'numeric',
+      timeZone: LOCAL_TZ, weekday: 'long', month: 'long', day: 'numeric',
     }).format(new Date(date + 'T12:00:00')),
   }))
 })
