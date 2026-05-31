@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     # 'log' channel runs (lets us verify the full chain locally without external creds).
     discord_webhook_url: str = ""
 
+    # --- auth ---
+    jwt_secret: str = "dev-secret-change-me"  # override in prod via env
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
+    # Google OAuth is deferred; this placeholder marks where it plugs in (provider-ready).
+    google_client_id: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

@@ -27,6 +27,10 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     tier: Mapped[str] = mapped_column(String, default="free")  # free|bettor|sharp
     bankroll: Mapped[float] = mapped_column(Float, default=1000.0)
+    # Auth: password_hash is null for non-password providers (e.g. future 'google').
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    provider: Mapped[str] = mapped_column(String, default="password")  # password|google
+    stripe_customer_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

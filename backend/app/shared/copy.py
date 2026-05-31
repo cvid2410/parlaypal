@@ -64,6 +64,7 @@ class SignalCopyContext:
     market_type: str
     line: float | None
     selection: str
+    country: str = ""
     # EV fields
     book: str = ""
     offered_decimal: float = 0.0

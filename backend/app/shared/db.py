@@ -51,6 +51,12 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return _sessionmaker
 
 
+async def get_db():
+    """FastAPI dependency: yield an async session per request."""
+    async with get_sessionmaker()() as session:
+        yield session
+
+
 async def ensure_daily_partition(when: datetime | date | None = None) -> str:
     """Create today's (or `when`'s) odds_snapshots partition if absent. Idempotent."""
     if when is None:

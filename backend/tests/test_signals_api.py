@@ -1,0 +1,92 @@
+"""Tier gating for GET /api/signals. Requires Postgres + Redis."""
+import datetime as dt
+import uuid
+
+import httpx
+import pytest
+from httpx import ASGITransport
+from sqlalchemy import delete
+
+from app.ingestors.odds import _get_market_id
+from app.main import app
+from app.models.core import Fixture, League, Team
+from app.models.signals import Signal
+from app.models.users import User
+from app.shared.db import get_sessionmaker
+from app.shared.security import create_access_token
+
+
+def _client():
+    return httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+@pytest.fixture
+async def world():
+    Session = get_sessionmaker()
+    tag = uuid.uuid4().hex[:8]
+    fid = f"test_fx_{tag}"
+    async with Session() as s:
+        lg = League(name="Test", country="Testland", sport_key=f"tl_{tag}",
+                    is_soft=True, ingest_enabled=False)
+        s.add(lg)
+        await s.flush()
+        h = Team(league_id=lg.id, name=f"Home {tag}")
+        a = Team(league_id=lg.id, name=f"Away {tag}")
+        s.add_all([h, a])
+        await s.flush()
+        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
+                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        mid = await _get_market_id(s, "h2h", None)
+        s.add(Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
+                     kind="ev", offered_odds=2.35, fair_prob=0.5, edge_pct=9.1,
+                     kelly_frac=0.03, ttl_sec=1800, dedup_hash=f"h_{tag}", status="live"))
+        free = User(email=f"free_{tag}@x.com", tier="free")
+        paid = User(email=f"paid_{tag}@x.com", tier="bettor")
+        s.add_all([free, paid])
+        await s.commit()
+        ids = (lg.id, fid, free.id, paid.id)
+    yield {"league_id": ids[0], "fid": ids[1],
+           "free_token": create_access_token(ids[2]), "paid_token": create_access_token(ids[3]),
+           "free_id": ids[2], "paid_id": ids[3]}
+    async with Session() as s:
+        await s.execute(delete(Signal).where(Signal.fixture_id == fid))
+        await s.execute(delete(Fixture).where(Fixture.id == fid))
+        await s.execute(delete(Team).where(Team.league_id == ids[0]))
+        await s.execute(delete(User).where(User.id.in_([ids[2], ids[3]])))
+        await s.execute(delete(League).where(League.id == ids[0]))
+        await s.commit()
+
+
+def _find(cards, fid):
+    return [c for c in cards if c["fixture"] and fid]  # fixture label present
+
+
+async def test_paid_sees_full_signal(world):
+    async with _client() as c:
+        r = await c.get("/api/signals", headers={"Authorization": f"Bearer {world['paid_token']}"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["tier"] == "bettor"
+    card = next(s for s in data["signals"] if s["country"] == "Testland")
+    assert card["locked"] is False
+    assert card["book"] == "FanDuel"
+    assert card["odds"] == "+135"
+    assert "body" in card and "9.1%" in card["body"]
+
+
+async def test_free_sees_locked_teaser(world):
+    async with _client() as c:
+        r = await c.get("/api/signals", headers={"Authorization": f"Bearer {world['free_token']}"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["tier"] == "free"
+    card = next(s for s in data["signals"] if s["country"] == "Testland")
+    assert card["locked"] is True
+    assert "unlock" in card["title"].lower()
+    # No edge leaks: pick / book / odds / body absent.
+    assert "book" not in card and "odds" not in card and "body" not in card
+
+
+async def test_signals_requires_auth():
+    async with _client() as c:
+        assert (await c.get("/api/signals")).status_code == 401
