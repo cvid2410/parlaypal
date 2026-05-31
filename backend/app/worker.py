@@ -10,6 +10,7 @@ from arq.connections import RedisSettings
 
 from app.config import settings
 from app.ingestors.odds import ingest_once
+from app.scheduler.discovery import discover_sports
 from app.scheduler.logos import resolve_team_logos
 from app.scheduler.results import resolve_results
 from app.scheduler.settle import settle_once
@@ -36,6 +37,12 @@ async def settle_cron(ctx: dict) -> dict:
     return await settle_once()
 
 
+async def discovery_cron(ctx: dict) -> dict:
+    if not settings.discovery_enabled:
+        return {"skipped": True}
+    return await discover_sports()
+
+
 def _tick_seconds() -> set[int]:
     """Cron `second` set for the base tick. Tick should divide 60 (15/20/30); otherwise
     fall back to every 30s."""
@@ -51,4 +58,6 @@ class WorkerSettings:
         cron(poll_odds, second=_tick_seconds(), run_at_startup=True),
         # Settlement every 10 min: grade CLV at kickoff, result/P&L once scored.
         cron(settle_cron, minute={0, 10, 20, 30, 40, 50}),
+        # Discover active competitions (friendlies/cups/seasons) every 6h + on boot.
+        cron(discovery_cron, hour={0, 6, 12, 18}, minute={3}, run_at_startup=True),
     ]

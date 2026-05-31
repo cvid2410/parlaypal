@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     poll_fast_seconds: int = 20            # live / imminent leagues
     poll_medium_seconds: int = 300         # upcoming-today leagues
     poll_slow_seconds: int = 1800          # idle leagues (still discover fixtures + far odds)
+    # Auto-discover active soccer competitions from The Odds API (friendlies, cups, seasons).
+    discovery_enabled: bool = True
 
     # --- signals: detection ---
     # Minimum +EV edge (percent) before a signal is emitted.
