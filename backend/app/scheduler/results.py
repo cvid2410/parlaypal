@@ -11,46 +11,27 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-import httpx
 from sqlalchemy import select
 
-from app.config import settings
 from app.models.core import Fixture, Team
 from app.models.signals import Signal
 from app.models.users import ReviewQueue
-from app.services.cache import get_cached, get_redis, set_cached
+from app.services.af import FINISHED, fixtures_by_date
+from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
 from app.shared.metrics import emit
 from app.shared.normalize import norm_team
 
 log = logging.getLogger("results")
 
-AF_BASE = "https://v3.football.api-sports.io"
-FINISHED = {"FT", "AET", "PEN", "AWD", "WO"}
 # Only flag a fixture to review once it's well past kickoff (results lag).
 REVIEW_GRACE = timedelta(hours=6)
 
 
 async def _af_results_by_date(date_str: str) -> dict[tuple[str, str], tuple[int, int]]:
-    """Finished API-Football fixtures for a date, indexed by (norm home, norm away).
-    Cached: a past date's results are stable."""
-    cache_key = f"afresults:{date_str}"
-    cached = await get_cached(cache_key)
-    if cached is not None:
-        return {tuple(k.split("|")): tuple(v) for k, v in cached.items()}
-    if not settings.api_football_key:
-        return {}
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.get(
-            f"{AF_BASE}/fixtures",
-            headers={"x-apisports-key": settings.api_football_key},
-            params={"date": date_str, "timezone": "UTC"},
-        )
-        resp.raise_for_status()
-        raw = resp.json().get("response", [])
-
-    index: dict[str, list[int]] = {}
-    for f in raw:
+    """Finished API-Football results for a date, indexed by (norm home, norm away)."""
+    index: dict[tuple[str, str], tuple[int, int]] = {}
+    for f in await fixtures_by_date(date_str):
         if f["fixture"]["status"]["short"] not in FINISHED:
             continue
         goals = f.get("goals", {})
@@ -58,12 +39,8 @@ async def _af_results_by_date(date_str: str) -> dict[tuple[str, str], tuple[int,
             continue
         h = norm_team(f["teams"]["home"]["name"])
         a = norm_team(f["teams"]["away"]["name"])
-        index[f"{h}|{a}"] = [goals["home"], goals["away"]]
-
-    # Past dates are immutable; cache long. Today's may still be filling in.
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    await set_cached(cache_key, index, ttl=900 if date_str == today else 86400)
-    return {tuple(k.split("|")): tuple(v) for k, v in index.items()}
+        index[(h, a)] = (goals["home"], goals["away"])
+    return index
 
 
 async def resolve_results() -> dict:
