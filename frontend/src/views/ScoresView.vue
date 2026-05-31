@@ -21,7 +21,12 @@
         <Match v-for="(m, i) in data.finished" :key="'f' + i" :m="m" label="FT" />
       </div>
 
-      <p v-if="!data.live.length && !data.upcoming.length && !data.finished.length" class="empty">
+      <div v-if="data.off && data.off.length" class="panel wide off">
+        <div class="ph">Cancelled · postponed</div>
+        <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || 'Off').toUpperCase()" />
+      </div>
+
+      <p v-if="!data.live.length && !data.upcoming.length && !data.finished.length && !(data.off && data.off.length)" class="empty">
         No fixtures in your leagues today.
       </p>
     </template>
@@ -34,8 +39,8 @@ import { h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-interface M { league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; minute: number | null; kickoff: string }
-interface Scores { live: M[]; upcoming: M[]; finished: M[] }
+interface M { league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string }
+interface Scores { live: M[]; upcoming: M[]; finished: M[]; off: M[] }
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -83,6 +88,8 @@ onMounted(() => {
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 .panel { border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: var(--panel); }
 .panel.wide { margin-top: 16px; max-width: 560px; }
+.panel.off { opacity: .62; }
+.panel.off :deep(.match .meta .m) { color: var(--txt-3); }
 .ph { padding: 14px 18px; border-bottom: 1px solid var(--hair); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--txt-3); display: flex; align-items: center; gap: 9px; }
 .ph .d { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 .pe { padding: 18px; color: var(--txt-3); font-size: 13px; }

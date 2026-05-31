@@ -12,6 +12,10 @@ from app.services.cache import get_cached, set_cached
 AF_BASE = "https://v3.football.api-sports.io"
 FINISHED = {"FT", "AET", "PEN", "AWD", "WO"}
 LIVE = {"1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"}
+# Matches that won't be played — these must NOT fall through to "scheduled" (which would
+# park a cancelled game in the Upcoming column with a future-looking kickoff time). The
+# value is the human label shown on the Scores tab.
+OFF = {"CANC": "Cancelled", "PST": "Postponed", "ABD": "Abandoned"}
 
 
 async def fixtures_by_date(date_str: str) -> list[dict]:
@@ -40,6 +44,8 @@ def status_of(short: str) -> str:
         return "finished"
     if short in LIVE:
         return "live"
+    if short in OFF:
+        return "off"
     return "scheduled"
 
 

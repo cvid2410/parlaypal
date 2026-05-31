@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_current_user
 from app.models.core import League
 from app.models.users import User
-from app.services.af import fixtures_by_date, status_of
+from app.services.af import OFF, fixtures_by_date, status_of
 from app.shared.db import get_db
 
 router = APIRouter(prefix="/scores", tags=["scores"])
@@ -34,12 +34,13 @@ async def scores(
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     raw = await fixtures_by_date(today)
 
-    live, upcoming, finished = [], [], []
+    live, upcoming, finished, off = [], [], [], []
     for f in raw:
         lg = af_map.get(f["league"]["id"])
         if lg is None:
             continue
-        st = status_of(f["fixture"]["status"]["short"])
+        short = f["fixture"]["status"]["short"]
+        st = status_of(short)
         goals = f.get("goals", {})
         item = {
             "league": lg.name,
@@ -51,10 +52,11 @@ async def scores(
             "home_score": goals.get("home"),
             "away_score": goals.get("away"),
             "status": st,
+            "note": OFF.get(short),  # human label for off matches; None otherwise
             "minute": f["fixture"]["status"].get("elapsed"),
             "kickoff": f["fixture"]["date"],
         }
-        (live if st == "live" else finished if st == "finished" else upcoming).append(item)
+        {"live": live, "finished": finished, "off": off}.get(st, upcoming).append(item)
 
     upcoming.sort(key=lambda m: m["kickoff"])
-    return {"live": live, "upcoming": upcoming, "finished": finished}
+    return {"live": live, "upcoming": upcoming, "finished": finished, "off": off}
