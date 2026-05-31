@@ -9,7 +9,9 @@ const router = createRouter({
     { path: '/scores', name: 'scores', component: () => import('../views/ScoresView.vue'), meta: { requiresAuth: true } },
     { path: '/signals', name: 'signals', component: () => import('../views/SignalsView.vue'), meta: { requiresAuth: true } },
     { path: '/ask', name: 'ask', component: () => import('../views/AskView.vue'), meta: { requiresAuth: true } },
-    { path: '/results', name: 'results', component: () => import('../views/ResultsView.vue'), meta: { requiresAuth: true } },
+    // Results tab hidden for now (kept ResultsView.vue + /api/results + grading backend
+    // intact for an easy restore). Re-add this route + the App.vue nav link to bring back.
+    // { path: '/results', name: 'results', component: () => import('../views/ResultsView.vue'), meta: { requiresAuth: true } },
     { path: '/leagues', name: 'leagues', component: () => import('../views/LeaguesView.vue'), meta: { requiresAuth: true } },
     { path: '/login', name: 'login', component: () => import('../views/AuthView.vue') },
     { path: '/privacy', name: 'privacy', component: () => import('../views/PrivacyView.vue') },

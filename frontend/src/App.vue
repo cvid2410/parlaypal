@@ -15,7 +15,6 @@
       <RouterLink to="/scores"><span class="i">⚽</span>Scores</RouterLink>
       <RouterLink to="/signals"><span class="i">⚡</span>Signals</RouterLink>
       <RouterLink to="/ask"><span class="i">💬</span>Ask</RouterLink>
-      <RouterLink to="/results"><span class="i">📈</span>Results</RouterLink>
       <RouterLink to="/leagues"><span class="i">🌍</span>Leagues</RouterLink>
     </nav>
 
