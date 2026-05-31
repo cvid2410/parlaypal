@@ -124,6 +124,61 @@ def _stake_sentence(kelly_frac: float) -> str:
     return f"Suggested stake: {pct:.1f}% of your bankroll (fractional Kelly)."
 
 
+def _stake_value(kelly_frac: float, bankroll: float | None) -> str:
+    """Stake as % of bankroll (always; NON-NEGOTIABLE #7) plus a concrete amount when the
+    user has set a bankroll, so the ticket gives a number to act on, not just a fraction."""
+    if kelly_frac <= 0:
+        return "—"
+    pct = kelly_frac * 100
+    if bankroll and bankroll > 0:
+        return f"{pct:.1f}% of bankroll (≈ {kelly_frac * bankroll:.0f})"
+    return f"{pct:.1f}% of bankroll"
+
+
+def action_ticket(ctx: "SignalCopyContext", bankroll: float | None = None) -> dict:
+    """The discrete inputs a human copies into their sportsbook, as structured rows — the
+    prose in `explain()` says *why*, this says *what to do*. Built from the same context so
+    it stays template-only (NON-NEGOTIABLE #1); never implies certainty for a single +EV bet.
+
+    Returns {type, rows|legs, note?}:
+      - single (ev/promo): rows = [{label, value}] → Book / Bet / Min odds / Stake.
+      - multi  (arb/middle): legs = [{book, pick, odds, stake}] + a plain-language note.
+    """
+    if ctx.kind in ("arb", "middle"):
+        legs = []
+        for leg in ctx.legs:
+            pick = selection_label(ctx.market_type, leg.get("line", ctx.line),
+                                   leg["selection"], ctx.home, ctx.away)
+            legs.append({
+                "book": book_label(leg["book"]),
+                "pick": pick,
+                "odds": decimal_to_american(leg["decimal"]),
+                # The split is the input you can't execute an arb/middle without.
+                "stake": f"{leg['stake_frac'] * 100:.0f}% of total stake",
+            })
+        if ctx.kind == "arb":
+            note = "Place every leg at the prices below to lock the profit regardless of result."
+        else:
+            win = ", ".join(str(n) for n in (ctx.window or []))
+            note = (f"Place both legs. You win one side always — and BOTH if the final total "
+                    f"lands on {win}.")
+        return {"type": "multi", "legs": legs, "note": note}
+
+    # ev / promo — a single price at one book
+    pick = selection_label(ctx.market_type, ctx.line, ctx.selection, ctx.home, ctx.away)
+    verb = "Opt into the boost, then bet" if ctx.kind == "promo" else "Bet"
+    return {
+        "type": "single",
+        "rows": [
+            {"label": "Book", "value": book_label(ctx.book)},
+            {"label": verb, "value": pick},
+            # "or better" — this is a floor; below it the edge is gone.
+            {"label": "Min odds", "value": f"{decimal_to_american(ctx.offered_decimal)} or better"},
+            {"label": "Stake", "value": _stake_value(ctx.kelly_frac, bankroll)},
+        ],
+    }
+
+
 def explain(ctx: SignalCopyContext) -> dict:
     """Render a signal into {title, body, footer, fields} from approved templates."""
     if ctx.kind == "middle":

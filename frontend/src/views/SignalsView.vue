@@ -28,8 +28,20 @@
         </div>
 
         <template v-if="!s.locked">
-          <div v-if="priced(s)" class="line">
-            <span class="at">at</span><span class="bk">{{ s.book }}</span><span class="o">{{ s.odds }}</span>
+          <div v-if="s.ticket" class="ticket">
+            <div class="tk-h">Your bet</div>
+            <template v-if="s.ticket.type === 'single'">
+              <div v-for="(r, i) in s.ticket.rows" :key="i" class="tk-row">
+                <span class="tk-k">{{ r.label }}</span><span class="tk-v">{{ r.value }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div v-for="(leg, i) in s.ticket.legs" :key="i" class="tk-leg">
+                <div class="tk-leg-top"><span class="tk-pick">{{ leg.pick }}</span><span class="tk-odds">{{ leg.odds }}</span></div>
+                <div class="tk-leg-sub">{{ leg.book }} · stake {{ leg.stake }}</div>
+              </div>
+              <div class="tk-note">{{ s.ticket.note }}</div>
+            </template>
           </div>
           <div class="why">{{ s.body }}</div>
           <div class="stats">
@@ -63,7 +75,11 @@ interface Signal {
   pick?: string; book?: string; odds?: string; fair_odds?: string
   edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number
   home_logo?: string | null; away_logo?: string | null; fixture_id?: string
+  ticket?: Ticket
 }
+interface TicketRow { label: string; value: string }
+interface TicketLeg { book: string; pick: string; odds: string; stake: string }
+interface Ticket { type: 'single' | 'multi'; rows?: TicketRow[]; legs?: TicketLeg[]; note?: string }
 
 const auth = useAuthStore()
 const ui = useUiStore()
@@ -159,6 +175,18 @@ onMounted(async () => {
 .line .at { font-size: 12.5px; color: var(--txt-3); }
 .line .bk { font-size: 13.5px; font-weight: 700; }
 .line .o { margin-left: auto; font-family: 'Spline Sans Mono', monospace; font-size: 22px; font-weight: 600; color: var(--green); }
+.ticket { margin-top: 16px; padding: 14px; border: 1px solid var(--hair-2); border-radius: 12px; background: var(--surface-2); }
+.tk-h { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--txt-3); margin-bottom: 10px; }
+.tk-row { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 0; }
+.tk-k { font-size: 12px; color: var(--txt-3); }
+.tk-v { font-size: 13.5px; font-weight: 700; text-align: right; }
+.tk-leg { padding: 7px 0; border-top: 1px solid var(--hair); }
+.tk-leg:first-of-type { border-top: none; }
+.tk-leg-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tk-pick { font-size: 13.5px; font-weight: 700; }
+.tk-odds { font-family: 'Spline Sans Mono', monospace; font-size: 15px; font-weight: 600; color: var(--green); }
+.tk-leg-sub { font-size: 11.5px; color: var(--txt-3); margin-top: 2px; }
+.tk-note { font-size: 11.5px; color: var(--txt-2); line-height: 1.5; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--hair); }
 .why { font-size: 13px; line-height: 1.6; color: var(--txt-2); margin-top: 15px; }
 .stats { display: flex; gap: 26px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--hair); }
 .stat .v { font-family: 'Spline Sans Mono', monospace; font-size: 16px; font-weight: 600; }
