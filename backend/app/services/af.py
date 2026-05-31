@@ -35,7 +35,12 @@ async def fixtures_by_date(date_str: str) -> list[dict]:
         resp.raise_for_status()
         raw = resp.json().get("response", [])
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    await set_cached(key, raw, ttl=120 if date_str == today else 86400)
+    # Don't pin an empty payload: a 200-with-[] is almost always a transient upstream blip
+    # (a real past date with football is never empty), and caching it for a day would hide
+    # those fixtures from the results resolver so their signals never get graded. Short TTL
+    # lets the next request self-heal.
+    ttl = 60 if not raw else (120 if date_str == today else 86400)
+    await set_cached(key, raw, ttl=ttl)
     return raw
 
 
@@ -109,5 +114,7 @@ async def standings(af_league_id: int, season: int) -> list[dict]:
                 "form": r.get("form"),
             } for r in table]
             groups.append({"group": table[0].get("group") if table else "", "rows": rows})
-    await set_cached(key, groups, ttl=600)
+    # As with fixtures_by_date: a transient empty standings response shouldn't pin "no table"
+    # for 10 minutes — cache empties briefly so the next request recovers.
+    await set_cached(key, groups, ttl=600 if groups else 60)
     return groups

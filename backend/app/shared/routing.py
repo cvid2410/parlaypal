@@ -43,9 +43,12 @@ async def index_subscription(r, user_id: int, tier: str, leagues: list[int],
 
 
 async def eligible_users(r, league_id: int, book: str, kind: str) -> set[int]:
-    """User ids that should see this signal. EV intersects league∩book; arb (book='multi')
-    routes by league only since it spans several books."""
-    if kind == "arb":
+    """User ids that should see this signal. Single-book signals (ev, promo) intersect
+    league∩book; cross-book signals carry book='multi' and route by league only since they
+    span several books. Keyed on the 'multi' marker, not the kind, so every cross-book kind
+    (arb AND middle) is covered — middle previously fell through to sinter against the empty
+    sub:book:multi set and reached zero users."""
+    if book == "multi":
         members = await r.smembers(_league_key(league_id))
     else:
         members = await r.sinter(_league_key(league_id), _book_key(book))

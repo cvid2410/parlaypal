@@ -35,6 +35,26 @@ class Opportunity:
     meta: dict = field(default_factory=dict)
 
 
+# A market's full selection set, so we never treat an incomplete market as a complete one: a
+# soccer h2h missing its draw price is NOT a 2-way market, and an "arb" priced across only
+# home+away is a coin-flip dressed up as guaranteed profit (it loses both legs on a draw).
+# Likewise the sharp devig is only valid over the whole market. Unknown types fall back to
+# ">= 2 selections" — we can't assert completeness we don't know.
+MARKET_SELECTIONS: dict[str, frozenset[str]] = {
+    "h2h": frozenset({"home", "draw", "away"}),
+    "total": frozenset({"over", "under"}),
+}
+
+
+def _complete(market_type: str, present) -> bool:
+    """True if `present` covers every selection the market type requires."""
+    expected = MARKET_SELECTIONS.get(market_type)
+    present = set(present)
+    if expected is None:
+        return len(present) >= 2
+    return expected.issubset(present)
+
+
 def _bucket(value: float, edge_bucket_pct: float) -> int:
     return int(value // edge_bucket_pct)
 
@@ -53,9 +73,10 @@ def find_opportunities(
     min_edge_pct: float,
     kelly_fraction: float,
     edge_bucket_pct: float,
+    market_type: str = "",
     max_offered_odds: float = 12.0,
     max_edge_pct: float = 20.0,
-    devig_method: str = "multiplicative",
+    devig_method: str = "shin",
 ) -> list[Opportunity]:
     """All opportunities in one market's current prices. Order is EV (soft only) then arb,
     matching the live consumer so dedup side effects apply identically."""
@@ -64,7 +85,7 @@ def find_opportunities(
 
     # ---- +EV vs the sharp fair line (soft leagues only — sharp/big leagues have no
     # soft-book edge; mechanical signals like arb still run for them below) ----
-    if is_soft and sharp and len(sharp) >= 2:
+    if is_soft and sharp and _complete(market_type, sharp):
         fair = devig(sharp, devig_method)
         for book, sels in by_book.items():
             if book == sharp_ref_book:
@@ -99,9 +120,15 @@ def find_opportunities(
     best: dict[str, tuple[str, float]] = {}
     for book, sels in by_book.items():
         for sel, dec in sels.items():
+            # Same junk/suspended-quote guard the +EV path uses (line ~78): a book parks an
+            # absurd price (e.g. decimal ~101) to effectively suspend a selection. Without
+            # this, that price becomes the "best" leg and manufactures a fake arb whose price
+            # isn't actually bettable (NON-NEGOTIABLE #1).
+            if dec > max_offered_odds:
+                continue
             if sel not in best or dec > best[sel][1]:
                 best[sel] = (book, dec)
-    if len(best) >= 2:
+    if _complete(market_type, best):
         arb = find_arb_multi({sel: dec for sel, (_, dec) in best.items()})
         if arb is not None:
             profit = arb["profit_pct"]

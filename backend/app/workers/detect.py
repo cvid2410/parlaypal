@@ -87,6 +87,7 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
             min_edge_pct=settings.min_edge_pct,
             kelly_fraction=settings.kelly_fraction,
             edge_bucket_pct=settings.edge_bucket_pct,
+            market_type=market.type,
             max_offered_odds=settings.max_offered_odds,
             max_edge_pct=settings.max_edge_pct,
             devig_method=settings.devig_method,

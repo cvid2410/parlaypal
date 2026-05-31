@@ -29,7 +29,7 @@ from itertools import groupby
 from sqlalchemy import delete, select
 
 from app.config import settings
-from app.models.core import Fixture, League
+from app.models.core import Fixture, League, Market
 from app.models.odds import OddsSnapshot
 from app.models.signals import Signal, SignalGrade
 from app.scheduler.settle import settle_once
@@ -85,6 +85,13 @@ async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
     state: dict[int, dict[str, dict[str, float]]] = defaultdict(lambda: defaultdict(dict))
     out: list[Signal] = []
 
+    # Market type per id — find_opportunities needs it to reject incomplete markets, exactly
+    # as the live worker does (parity is what keeps the CLV gate honest).
+    mids_all = {s.market_id for s in snaps}
+    market_type: dict[int, str] = dict((await session.execute(
+        select(Market.id, Market.type).where(Market.id.in_(mids_all))
+    )).all()) if mids_all else {}
+
     for ts, group in groupby(snaps, key=lambda s: s.ts):
         dirty: set[int] = set()
         for s in group:
@@ -100,6 +107,7 @@ async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
                 is_soft=lg.is_soft, sharp_ref_book=lg.sharp_ref_book,
                 min_edge_pct=min_edge, kelly_fraction=settings.kelly_fraction,
                 edge_bucket_pct=settings.edge_bucket_pct,
+                market_type=market_type.get(mid, ""),
                 max_offered_odds=settings.max_offered_odds,
                 max_edge_pct=settings.max_edge_pct,
                 devig_method=settings.devig_method,

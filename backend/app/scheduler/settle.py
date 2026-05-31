@@ -83,8 +83,13 @@ async def settle_once() -> dict:
 
         for sig, fx, market, league in rows:
             closing = beat = result = pnl = None
-            # CLV only applies to single-selection EV bets (arb is multi-book).
-            if sig.kind == "ev":
+            final = fx.home_score is not None and fx.away_score is not None
+
+            # CLV + result grading applies to single-selection bets (ev and promo) — both
+            # alert one selection at a posted price gradable against the sharp closing line.
+            # Arb/middle are mechanical multi-leg signals with no single-selection outcome, so
+            # they carry no grade row; they still reach a terminal state below.
+            if sig.kind in ("ev", "promo"):
                 # `closing` is the no-vig fair closing decimal, so beat = our odds longer
                 # than fair (genuine positive CLV).
                 closing = await _closing_sharp_fair_decimal(
@@ -92,22 +97,28 @@ async def settle_once() -> dict:
                     league.sharp_ref_book, fx.kickoff_utc,
                 )
                 beat = clv_beat(sig.offered_odds, closing)
-                if fx.home_score is not None and fx.away_score is not None:
+                if final:
                     result = compute_result(fx.home_score, fx.away_score,
                                             market.type, market.line, sig.selection)
                     pnl = pnl_units(result, sig.offered_odds)
 
-            await session.execute(
-                pg_insert(SignalGrade)
-                .values(signal_id=sig.id, closing_odds=closing, beat_clv=beat,
-                        result=result, pnl_units=pnl)
-                .on_conflict_do_update(
-                    index_elements=["signal_id"],
-                    set_={"closing_odds": closing, "beat_clv": beat,
-                          "result": result, "pnl_units": pnl},
-                )
-            )
-            sig.status = "settled" if result is not None else "expired"
+                # Only persist a grade row once we have something to record — never an
+                # all-NULL row (which previously kept every signal re-graded forever).
+                if closing is not None or result is not None:
+                    await session.execute(
+                        pg_insert(SignalGrade)
+                        .values(signal_id=sig.id, closing_odds=closing, beat_clv=beat,
+                                result=result, pnl_units=pnl)
+                        .on_conflict_do_update(
+                            index_elements=["signal_id"],
+                            set_={"closing_odds": closing, "beat_clv": beat,
+                                  "result": result, "pnl_units": pnl},
+                        )
+                    )
+
+            # Terminal state once the fixture is final — for EVERY kind, so arb/middle/promo
+            # stop being re-selected on each pass; pre-final they sit at 'expired'.
+            sig.status = "settled" if final else "expired"
             stats["graded"] += 1
             if beat:
                 stats["clv_beats"] += 1

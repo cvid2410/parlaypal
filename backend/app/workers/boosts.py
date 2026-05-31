@@ -14,32 +14,40 @@ from collections import defaultdict
 from sqlalchemy import select
 
 from app.config import settings
-from app.models.core import Market
+from app.models.core import Fixture, League, Market
 from app.models.signals import Signal
 from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
-from app.shared.math import american_to_decimal, devig_multi, ev_pct, kelly
+from app.shared.math import american_to_decimal, devig, ev_pct, kelly
 from app.shared.metrics import emit
 from app.workers.detect import _alert_allowed, _bucket, _dedup_hash
 
 log = logging.getLogger("boosts")
 
 
-def _fair_from_hotstate(by_book: dict[str, dict[str, float]]) -> dict[str, float]:
-    """Fair prob per selection: devig Pinnacle if present, else devig the book consensus."""
-    sharp = by_book.get("pinnacle")
+def _fair_from_hotstate(by_book: dict[str, dict[str, float]], sharp_book: str,
+                        method: str) -> dict[str, float]:
+    """Fair prob per selection: devig the sharp reference if present, else the book consensus.
+
+    Uses the league's `sharp_ref_book` and the configured devig `method` — the SAME fair line
+    EV/arb and the CLV gate use — so a promo's edge isn't measured against a different (or
+    absent) reference than everything else in the pipeline.
+    """
+    sharp = by_book.get(sharp_book)
     if sharp and len(sharp) >= 2:
-        return devig_multi(sharp)
-    inv_by_sel: dict[str, list[float]] = defaultdict(list)
+        return devig(sharp, method)
+    # Consensus fallback: the (still vigged) consensus decimal per selection — the harmonic
+    # mean of decimals == 1 / mean implied prob — then devig with the same method, rather than
+    # hand-rolling a proportional normalisation that silently pins the method to multiplicative.
+    dec_by_sel: dict[str, list[float]] = defaultdict(list)
     for sels in by_book.values():
         for sel, dec in sels.items():
             if dec > 1:
-                inv_by_sel[sel].append(1 / dec)
-    if not inv_by_sel:
+                dec_by_sel[sel].append(dec)
+    if len(dec_by_sel) < 2:
         return {}
-    avg = {sel: sum(v) / len(v) for sel, v in inv_by_sel.items()}
-    total = sum(avg.values())
-    return {sel: v / total for sel, v in avg.items()} if total > 0 else {}
+    consensus = {sel: len(v) / sum(1 / d for d in v) for sel, v in dec_by_sel.items()}
+    return devig(consensus, method)
 
 
 async def inject_boost(fixture_id: str, market_type: str, line: float | None,
@@ -48,6 +56,15 @@ async def inject_boost(fixture_id: str, market_type: str, line: float | None,
     r = get_redis()
     Session = get_sessionmaker()
     async with Session() as session:
+        fx = (await session.execute(
+            select(Fixture).where(Fixture.id == fixture_id)
+        )).scalar_one_or_none()
+        if fx is None:
+            return {"emitted": False, "error": "fixture not found"}
+        sharp_book = (await session.execute(
+            select(League.sharp_ref_book).where(League.id == fx.league_id)
+        )).scalar_one()
+
         q = select(Market.id).where(Market.type == market_type, Market.period == "FT")
         q = q.where(Market.line.is_(None) if line is None else Market.line == line)
         mid = (await session.execute(q)).scalar()
@@ -58,7 +75,7 @@ async def inject_boost(fixture_id: str, market_type: str, line: float | None,
         for field, val in (await r.hgetall(f"odds:{fixture_id}:{mid}")).items():
             b, _, sel = field.partition(":")
             by_book[b][sel] = float(val)
-        fair = _fair_from_hotstate(by_book)
+        fair = _fair_from_hotstate(by_book, sharp_book, settings.devig_method)
         if selection not in fair:
             return {"emitted": False, "error": "no fair reference for selection"}
 

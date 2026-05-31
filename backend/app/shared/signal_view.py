@@ -9,6 +9,9 @@ from app.shared.copy import SignalCopyContext
 
 
 async def signal_context(session, sig: Signal) -> SignalCopyContext | None:
+    # Any missing reference → skip this one card (caller treats None as "drop"), never raise:
+    # one orphaned row must not 500 the whole feed or crash the deliver job after the
+    # alerts_sent claim is committed.
     fixture = (await session.execute(
         select(Fixture).where(Fixture.id == sig.fixture_id)
     )).scalar_one_or_none()
@@ -16,12 +19,18 @@ async def signal_context(session, sig: Signal) -> SignalCopyContext | None:
         return None
     market = (await session.execute(
         select(Market).where(Market.id == sig.market_id)
-    )).scalar_one()
+    )).scalar_one_or_none()
     league = (await session.execute(
         select(League).where(League.id == fixture.league_id)
-    )).scalar_one()
-    home = (await session.execute(select(Team).where(Team.id == fixture.home_id))).scalar_one()
-    away = (await session.execute(select(Team).where(Team.id == fixture.away_id))).scalar_one()
+    )).scalar_one_or_none()
+    home = (await session.execute(
+        select(Team).where(Team.id == fixture.home_id)
+    )).scalar_one_or_none()
+    away = (await session.execute(
+        select(Team).where(Team.id == fixture.away_id)
+    )).scalar_one_or_none()
+    if market is None or league is None or home is None or away is None:
+        return None
 
     legs, window = [], None
     if sig.kind in ("arb", "middle") and sig.meta and "legs" in sig.meta:

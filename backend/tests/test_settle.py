@@ -144,3 +144,55 @@ async def test_stale_live_signal_expires_fresh_stays():
             await s.execute(delete(Team).where(Team.league_id == league_id))
             await s.execute(delete(League).where(League.id == league_id))
             await s.commit()
+
+
+async def test_promo_graded_and_arb_reaches_terminal_state():
+    """promo is a single-selection bet → it gets a real result/P&L grade (so it shows up in
+    the track record). arb is multi-leg → no single-selection grade row, but it must still
+    reach a terminal 'settled' state once the fixture is final, instead of an all-NULL grade
+    row that keeps it re-selected on every settle pass forever."""
+    Session = get_sessionmaker()
+    tag = uuid.uuid4().hex[:8]
+    fid = f"test_fx_{tag}"
+    kickoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)
+    await ensure_daily_partition(kickoff)
+    async with Session() as s:
+        lg = League(name=f"M {tag}", country="X", sport_key=f"tl_{tag}",
+                    sharp_ref_book="pinnacle", is_soft=True, ingest_enabled=False)
+        s.add(lg)
+        await s.flush()
+        h = Team(league_id=lg.id, name=f"H {tag}")
+        a = Team(league_id=lg.id, name=f"A {tag}")
+        s.add_all([h, a])
+        await s.flush()
+        # Final score: home 2–0 → 'home' wins (promo on home → win).
+        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
+                      kickoff_utc=kickoff, home_score=2, away_score=0))
+        mid = await _get_market_id(s, "h2h", None)
+        promo = Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
+                       kind="promo", offered_odds=2.50, fair_prob=0.5, edge_pct=25.0,
+                       kelly_frac=0.05, ttl_sec=1800, dedup_hash=f"promo_{tag}", status="live")
+        arb = Signal(fixture_id=fid, market_id=mid, selection="home+away", book="multi",
+                     kind="arb", offered_odds=0.0, fair_prob=0.0, edge_pct=3.0, kelly_frac=0.0,
+                     ttl_sec=1800, dedup_hash=f"arb_{tag}", status="live")
+        s.add_all([promo, arb])
+        await s.commit()
+        league_id, promo_id, arb_id = lg.id, promo.id, arb.id
+    try:
+        await settle_once()
+        async with Session() as s:
+            assert (await s.get(Signal, promo_id)).status == "settled"
+            assert (await s.get(Signal, arb_id)).status == "settled"
+        promo_grade = await _grade(promo_id)
+        assert promo_grade is not None and promo_grade.result == "win"
+        assert promo_grade.pnl_units == pytest.approx(1.50)  # (2.50 - 1) * 1u
+        # arb is multi-leg → no all-NULL grade row was written.
+        assert await _grade(arb_id) is None
+    finally:
+        async with Session() as s:
+            await s.execute(delete(SignalGrade).where(SignalGrade.signal_id.in_([promo_id, arb_id])))
+            await s.execute(delete(Signal).where(Signal.fixture_id == fid))
+            await s.execute(delete(Fixture).where(Fixture.id == fid))
+            await s.execute(delete(Team).where(Team.league_id == league_id))
+            await s.execute(delete(League).where(League.id == league_id))
+            await s.commit()

@@ -78,6 +78,16 @@ async def test_routing_index_and_eligibility(world):
     assert meta["tier"] == "bettor" and meta["channels"] == ["log"]
 
 
+async def test_cross_book_signals_route_by_league(world):
+    r = get_redis()
+    # Arb AND middle carry book='multi' (they span several books) and must route by league
+    # only — middle previously fell through to sinter(league, sub:book:multi) (empty) and
+    # reached zero users. The user follows 'fanduel', never 'multi'.
+    for kind in ("arb", "middle"):
+        users = await eligible_users(r, world["league_id"], "multi", kind)
+        assert world["uid"] in users, f"{kind} signal routed to zero users"
+
+
 async def test_route_signal_counts_eligible(world):
     out = await route_signal({}, world["sig_id"])
     assert out["eligible"] >= 1
