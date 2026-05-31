@@ -31,6 +31,10 @@ class League(Base):
     sharp_ref_book: Mapped[str] = mapped_column(String, default="pinnacle")
     is_soft: Mapped[bool] = mapped_column(Boolean, default=True)
     model_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # +EV launch gate (NON-NEGOTIABLE #2): EV is computed/stored for every soft league, but
+    # only reaches users once the league clears the CLV gate and this is flipped True.
+    # Arb/middle/promo are mechanical and not gated by this. Default False.
+    ev_certified: Mapped[bool] = mapped_column(Boolean, default=False)
     # API-Football league id (for the Scores tab). Null = no scores feed mapped.
     af_league_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Whether the ingestor polls this league at all (sharp leagues can be ingested for

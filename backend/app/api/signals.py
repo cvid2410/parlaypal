@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.models.users import User
 from app.api.auth import get_current_user
@@ -34,9 +35,18 @@ async def list_signals(
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(seconds=settings.signal_ttl_seconds)
 
+    # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
+    # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated — they're
+    # mechanical. Exclude uncertified EV right in the query.
     sigs = (await db.execute(
         select(Signal)
-        .where(Signal.status == "live", Signal.created_at >= cutoff)
+        .join(Fixture, Signal.fixture_id == Fixture.id)
+        .join(League, Fixture.league_id == League.id)
+        .where(
+            Signal.status == "live",
+            Signal.created_at >= cutoff,
+            ~((Signal.kind == "ev") & (League.ev_certified.is_(False))),
+        )
         .order_by(Signal.created_at.desc())
         .limit(50)
     )).scalars().all()

@@ -11,7 +11,7 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from app.config import settings
-from app.models.core import Fixture
+from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.services.cache import get_redis
 from app.shared.metrics import emit
@@ -30,11 +30,20 @@ async def route_signal(ctx: dict, signal_id: int) -> dict:
         ).scalar_one_or_none()
         if sig is None:
             return {"eligible": 0, "enqueued": 0}
-        league_id = (
+        league_id, ev_certified = (
             await session.execute(
-                select(Fixture.league_id).where(Fixture.id == sig.fixture_id)
+                select(Fixture.league_id, League.ev_certified)
+                .join(League, Fixture.league_id == League.id)
+                .where(Fixture.id == sig.fixture_id)
             )
-        ).scalar_one()
+        ).one()
+
+    # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for backtest/monitoring on every soft
+    # league, but only reaches users on a CLV-certified league. Arb/middle/promo are
+    # mechanical (math-guaranteed) and never gated here.
+    if sig.kind == "ev" and not ev_certified:
+        emit("fanout.gated", signal_id=signal_id, kind=sig.kind, reason="ev_uncertified")
+        return {"eligible": 0, "enqueued": 0, "gated": True}
 
     users = await eligible_users(r, league_id, sig.book, sig.kind)
     enqueued = 0
