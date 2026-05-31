@@ -73,3 +73,4 @@ onMounted(loadBilling)
 .cl { display: block; width: 100%; margin-top: 8px; background: none; border: none; color: #5f6f71; font-size: 13px; padding: 10px; cursor: pointer; font-weight: 500; }
 .devnote { text-align: center; color: #5f6f71; font-size: 10.5px; margin-top: 2px; }
 </style>
+

@@ -50,7 +50,7 @@
   <!-- auth wall / bare pages -->
   <div v-else class="bare">
     <RouterView />
-    <footer class="mini-foot">
+    <footer v-if="route.name !== 'login'" class="mini-foot">
       21+ only. Gambling problem? Call 1-800-GAMBLER.
       · <RouterLink to="/privacy">Privacy</RouterLink> · <RouterLink to="/terms">Terms</RouterLink>
     </footer>
