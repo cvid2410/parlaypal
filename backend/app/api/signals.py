@@ -18,7 +18,7 @@ from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.models.users import User
 from app.api.auth import get_current_user
-from app.shared.copy import explain
+from app.shared.copy import action_ticket, explain
 from app.shared.db import get_db
 from app.shared.routing import PAID_TIERS
 from app.shared.signal_view import signal_context
@@ -76,6 +76,8 @@ async def list_signals(
                 "title": copy["title"],
                 "body": copy["body"],
                 "footer": copy["footer"],
+                # Structured "Your bet" inputs (book/pick/min-odds/stake, or per-leg split).
+                "ticket": action_ticket(ctx, user.bankroll),
                 **copy["fields"],
             })
             # Unified headline metric (ev edge / arb profit / middle upside all live in edge_pct).
