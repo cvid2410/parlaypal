@@ -8,6 +8,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
   const tier = ref<string>('free')
   const email = ref<string>('')
+  const bankroll = ref<number>(1000)
   const ready = ref(false)
 
   const isAuthed = computed(() => !!token.value)
@@ -46,6 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
       const d = await res.json()
       tier.value = d.tier
       email.value = d.email
+      bankroll.value = d.bankroll
     } else {
       setToken(null)
     }
@@ -65,5 +67,5 @@ export const useAuthStore = defineStore('auth', () => {
     return res.ok
   }
 
-  return { token, tier, email, ready, isAuthed, isPaid, authFetch, signup, login, fetchMe, logout, upgrade }
+  return { token, tier, email, bankroll, ready, isAuthed, isPaid, authFetch, signup, login, fetchMe, logout, upgrade }
 })
