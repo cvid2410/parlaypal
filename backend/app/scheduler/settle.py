@@ -10,11 +10,12 @@ Re-running is safe (the grade row is upserted and status never moves backwards).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.config import settings
 from app.models.core import Fixture, League, Market
 from app.models.odds import OddsSnapshot
 from app.models.signals import Signal, SignalGrade
@@ -43,10 +44,21 @@ async def _closing_sharp_odds(session, fixture_id, market_id, selection, sharp_b
 
 async def settle_once() -> dict:
     now = datetime.now(timezone.utc)
+    ttl_cutoff = now - timedelta(seconds=settings.signal_ttl_seconds)
     Session = get_sessionmaker()
-    stats = {"graded": 0, "clv_beats": 0, "results": 0}
+    stats = {"graded": 0, "clv_beats": 0, "results": 0, "expired": 0}
 
     async with Session() as session:
+        # Expire stale 'live' signals (older than the alert TTL) so 'live' means fresh.
+        # They're still graded at kickoff below (the query includes 'expired').
+        res = await session.execute(
+            update(Signal)
+            .where(Signal.status == "live", Signal.created_at < ttl_cutoff)
+            .values(status="expired")
+        )
+        stats["expired"] = res.rowcount
+        await session.commit()
+
         rows = (await session.execute(
             select(Signal, Fixture, Market, League)
             .join(Fixture, Signal.fixture_id == Fixture.id)

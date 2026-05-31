@@ -94,3 +94,46 @@ async def test_clv_report_includes_league(settled_world):
         report = await clv_report_by_league(s)
     row = next(r for r in report if r.league_id == settled_world["league_id"])
     assert row.n == 1 and row.beats == 1 and row.beat_pct == pytest.approx(1.0)
+
+
+async def test_stale_live_signal_expires_fresh_stays():
+    """A live signal older than the alert TTL becomes 'expired'; a fresh one stays 'live'.
+    Fixture kicks off in the future so neither is graded — isolates the TTL expiry."""
+    Session = get_sessionmaker()
+    tag = uuid.uuid4().hex[:8]
+    fid = f"test_fx_{tag}"
+    now = dt.datetime.now(dt.timezone.utc)
+    async with Session() as s:
+        lg = League(name=f"E {tag}", country="X", sport_key=f"tl_{tag}",
+                    is_soft=True, ingest_enabled=False)
+        s.add(lg)
+        await s.flush()
+        h = Team(league_id=lg.id, name=f"H {tag}")
+        a = Team(league_id=lg.id, name=f"A {tag}")
+        s.add_all([h, a])
+        await s.flush()
+        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
+                      kickoff_utc=now + dt.timedelta(hours=2)))   # future → not graded
+        mid = await _get_market_id(s, "h2h", None)
+        old = Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
+                     kind="ev", offered_odds=2.1, fair_prob=0.5, edge_pct=5.0, kelly_frac=0.02,
+                     ttl_sec=1800, dedup_hash=f"old_{tag}", status="live",
+                     created_at=now - dt.timedelta(hours=1))
+        fresh = Signal(fixture_id=fid, market_id=mid, selection="away", book="fanduel",
+                       kind="ev", offered_odds=2.1, fair_prob=0.5, edge_pct=5.0, kelly_frac=0.02,
+                       ttl_sec=1800, dedup_hash=f"fresh_{tag}", status="live", created_at=now)
+        s.add_all([old, fresh])
+        await s.commit()
+        old_id, fresh_id, league_id = old.id, fresh.id, lg.id
+    try:
+        await settle_once()
+        async with Session() as s:
+            assert (await s.get(Signal, old_id)).status == "expired"
+            assert (await s.get(Signal, fresh_id)).status == "live"
+    finally:
+        async with Session() as s:
+            await s.execute(delete(Signal).where(Signal.fixture_id == fid))
+            await s.execute(delete(Fixture).where(Fixture.id == fid))
+            await s.execute(delete(Team).where(Team.league_id == league_id))
+            await s.execute(delete(League).where(League.id == league_id))
+            await s.commit()

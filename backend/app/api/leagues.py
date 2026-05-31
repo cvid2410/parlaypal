@@ -1,11 +1,14 @@
 """Leagues tab: our leagues with live-signal counts (all from our own DB)."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
+from app.config import settings
 from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.models.users import User
@@ -19,10 +22,13 @@ async def list_leagues(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    # Count only fresh live signals — the same window the Signals feed shows, so the two
+    # screens agree (an old 'live' row for an upcoming game isn't "live now").
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.signal_ttl_seconds)
     live_counts = (
         select(Fixture.league_id, func.count(Signal.id).label("c"))
         .join(Signal, Signal.fixture_id == Fixture.id)
-        .where(Signal.status == "live")
+        .where(Signal.status == "live", Signal.created_at >= cutoff)
         .group_by(Fixture.league_id)
         .subquery()
     )
