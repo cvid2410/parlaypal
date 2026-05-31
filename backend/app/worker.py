@@ -11,7 +11,9 @@ from arq.connections import RedisSettings
 from app.config import settings
 from app.ingestors.odds import ingest_once
 from app.shared.metrics import emit
+from app.workers.deliver import deliver
 from app.workers.detect import detect_market
+from app.workers.fanout import route_signal
 
 
 async def poll_odds(ctx: dict) -> dict:
@@ -36,7 +38,7 @@ async def startup(ctx: dict) -> None:
 
 class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    functions = [poll_odds, detect_market]
+    functions = [poll_odds, detect_market, route_signal, deliver]
     on_startup = startup
     # Legacy WC2026 `send_match_reminders` cron retired (it polled API-Football every
     # 5 min). Full WC cleanup is tracked separately; the job module still exists for now.

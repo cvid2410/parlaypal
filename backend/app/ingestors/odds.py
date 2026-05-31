@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.config import settings
 from app.models.core import Fixture, League, Market, Team
 from app.models.odds import OddsSnapshot
+from app.models.users import ReviewQueue
 from app.services.cache import get_redis
 from app.shared.db import ensure_daily_partition, get_sessionmaker
 
@@ -33,7 +34,9 @@ log = logging.getLogger("ingestor")
 
 THE_ODDS_BASE = "https://api.the-odds-api.com/v4"
 MARKETS = "h2h,totals"  # v1 main markets; props (corners/cards) come with the models in v2
+KNOWN_MARKETS = {"h2h", "totals"}
 HOT_STATE_TTL = 6 * 3600  # hot-state key lives ~6h past first sight
+REVIEW_DEDUP_TTL = 24 * 3600  # don't re-queue the same unmatched raw within a day
 
 EnqueueFn = Callable[[str, int], Awaitable[None]]
 
@@ -142,6 +145,26 @@ async def _upsert_fixture(session, event: dict, league_id: int, home_id: int, aw
     await session.execute(stmt)
 
 
+async def _queue_review(r, book: str, market_key: str, outcome: dict, fixture_id: str):
+    """Build a ReviewQueue row for an unmatched market/selection, or None if we've already
+    queued this raw shape within REVIEW_DEDUP_TTL (so it can't flood the queue)."""
+    raw = f"{market_key}:{outcome.get('name', '')}"
+    if not await r.set(f"reviewed:{raw}", 1, nx=True, ex=REVIEW_DEDUP_TTL):
+        return None
+    reason = "unknown_market" if market_key not in KNOWN_MARKETS else "unparseable_selection"
+    return ReviewQueue(
+        source=book,
+        raw_name=raw,
+        reason=reason,
+        context={
+            "fixture_id": fixture_id,
+            "market_key": market_key,
+            "outcome_name": outcome.get("name"),
+            "point": outcome.get("point"),
+        },
+    )
+
+
 async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
     """One ingestion pass over all enabled leagues. Returns counters for observability."""
     books = _combined_books()
@@ -149,9 +172,11 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
     Session = get_sessionmaker()
     await ensure_daily_partition()
 
-    stats = {"events": 0, "changes": 0, "markets_dirty": 0, "leagues": 0, "errors": 0}
+    stats = {"events": 0, "changes": 0, "markets_dirty": 0, "leagues": 0,
+             "errors": 0, "review": 0}
     dirty: set[tuple[str, int]] = set()
     snapshots: list[OddsSnapshot] = []
+    reviews: list[ReviewQueue] = []
     now = datetime.now(timezone.utc)
 
     async with Session() as session:
@@ -184,6 +209,11 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                             for outcome in market.get("outcomes", []):
                                 canon = canonical(mkey, outcome, home, away)
                                 if canon is None:
+                                    # Unmatched → review queue, never /dev/null (#6).
+                                    review = await _queue_review(r, book, mkey, outcome, fid)
+                                    if review is not None:
+                                        reviews.append(review)
+                                        stats["review"] += 1
                                     continue
                                 mtype, line, sel = canon
                                 price = outcome.get("price")
@@ -214,8 +244,9 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                                 )
                                 dirty.add((fid, mid))
 
-        if snapshots:
+        if snapshots or reviews:
             session.add_all(snapshots)
+            session.add_all(reviews)
             await session.commit()
 
     stats["markets_dirty"] = len(dirty)

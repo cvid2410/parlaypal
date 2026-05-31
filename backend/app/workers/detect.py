@@ -22,7 +22,6 @@ from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
 from app.shared.math import devig_multi, ev_pct, find_arb_multi, kelly
 from app.shared.metrics import emit
-from app.workers.fanout import handoff
 
 log = logging.getLogger("detect")
 
@@ -158,8 +157,12 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
         if new_signals:
             session.add_all(new_signals)
             await session.commit()
+            arq = ctx.get("redis") if isinstance(ctx, dict) else None
             for sig in new_signals:
-                await handoff(sig.id, sig.kind, sig.edge_pct)
+                emit("signal.accepted", signal_id=sig.id, kind=sig.kind,
+                     edge_pct=round(sig.edge_pct, 3))
+                if arq is not None:
+                    await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
 
     lag_ms = (time.perf_counter() - started) * 1000
     emit("detect.market", fixture_id=fixture_id, market_id=market_id,

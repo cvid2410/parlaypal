@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # Edge bucket width (percent) for dedup / re-alert-on-improvement.
     edge_bucket_pct: float = 1.0
 
+    # --- signals: delivery ---
+    # Free tier sees signals on a delay (the teaser model). Paid tiers are live.
+    free_delay_seconds: int = 12 * 60
+    # Optional Discord webhook. When unset, the 'discord' channel is a no-op and only the
+    # 'log' channel runs (lets us verify the full chain locally without external creds).
+    discord_webhook_url: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
