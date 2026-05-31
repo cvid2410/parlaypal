@@ -8,11 +8,13 @@
         <div class="nav-links">
           <RouterLink to="/">Schedule</RouterLink>
           <RouterLink to="/standings">Standings</RouterLink>
-          <RouterLink to="/bracket">Bracket</RouterLink>
+          <RouterLink to="/signals" class="signals-link">⚡ Signals</RouterLink>
           <RouterLink to="/parlay" class="parlay-link">
             My Parlay
             <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
           </RouterLink>
+          <a v-if="auth.isAuthed" href="#" class="auth-link" @click.prevent="doLogout">Log out</a>
+          <RouterLink v-else to="/login" class="auth-link">Log in</RouterLink>
         </div>
 
         <!-- Hamburger button (mobile only) -->
@@ -28,11 +30,13 @@
       <div class="mobile-menu" :class="{ open: menuOpen }" @click="menuOpen = false">
         <RouterLink to="/">Schedule</RouterLink>
         <RouterLink to="/standings">Standings</RouterLink>
-        <RouterLink to="/bracket">Bracket</RouterLink>
+        <RouterLink to="/signals" class="signals-link">⚡ Signals</RouterLink>
         <RouterLink to="/parlay" class="parlay-link">
           My Parlay
           <span v-if="parlay.picks.length" class="pick-badge">{{ parlay.picks.length }}</span>
         </RouterLink>
+        <a v-if="auth.isAuthed" href="#" class="auth-link" @click.prevent="doLogout">Log out</a>
+        <RouterLink v-else to="/login" class="auth-link">Log in</RouterLink>
       </div>
     </header>
 
@@ -54,11 +58,19 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useParlayStore } from './stores/parlay'
+import { useAuthStore } from './stores/auth'
 
 const parlay = useParlayStore()
+const auth = useAuthStore()
+const router = useRouter()
 const menuOpen = ref(false)
 
-useRouter().afterEach(() => { menuOpen.value = false })
+function doLogout() {
+  auth.logout()
+  router.push('/login')
+}
+
+router.afterEach(() => { menuOpen.value = false })
 </script>
 
 <style>

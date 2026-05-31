@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     # Google OAuth is deferred; this placeholder marks where it plugs in (provider-ready).
     google_client_id: str = ""
 
+    # --- billing ---
+    # Dev-only tier toggle so the UI can demo free<->paid before Stripe lands.
+    # MUST be False in production (Stripe webhooks become the only way to change tier).
+    allow_dev_upgrade: bool = True
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

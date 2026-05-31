@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createHead } from '@vueuse/head'
 import router from './router'
 import App from './App.vue'
+import { useAuthStore } from './stores/auth'
 import './assets/main.css'
 
 if ('serviceWorker' in navigator) {
@@ -10,7 +11,10 @@ if ('serviceWorker' in navigator) {
 }
 
 const app = createApp(App)
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(createHead())
 app.use(router)
-app.mount('#app')
+
+// Hydrate auth (validate stored token / load tier) before mount so guards see it.
+useAuthStore(pinia).fetchMe().finally(() => app.mount('#app'))

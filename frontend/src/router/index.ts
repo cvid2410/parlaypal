@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -8,6 +9,17 @@ const router = createRouter({
       path: '/',
       name: 'schedule',
       component: () => import('../views/ScheduleView.vue'),
+    },
+    {
+      path: '/signals',
+      name: 'signals',
+      component: () => import('../views/SignalsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/AuthView.vue'),
     },
     {
       path: '/parlay',
@@ -40,6 +52,13 @@ const router = createRouter({
       component: () => import('../views/TermsView.vue'),
     },
   ],
+})
+
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.isAuthed) return { name: 'login' }
+  }
 })
 
 export default router
