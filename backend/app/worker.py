@@ -6,12 +6,10 @@ is ever queued), giving a sub-minute poll loop that cron can't. Each pass enqueu
 """
 from datetime import timedelta
 
-from arq import cron
 from arq.connections import RedisSettings
 
 from app.config import settings
 from app.ingestors.odds import ingest_once
-from app.jobs.notify import send_match_reminders
 from app.shared.metrics import emit
 from app.workers.detect import detect_market
 
@@ -40,6 +38,6 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     functions = [poll_odds, detect_market]
     on_startup = startup
-    cron_jobs = [
-        cron(send_match_reminders, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
-    ]
+    # Legacy WC2026 `send_match_reminders` cron retired (it polled API-Football every
+    # 5 min). Full WC cleanup is tracked separately; the job module still exists for now.
+    cron_jobs = []
