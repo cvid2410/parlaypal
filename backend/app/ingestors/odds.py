@@ -16,11 +16,12 @@ Per poll it:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
@@ -48,6 +49,54 @@ _market_cache: dict[tuple[str, float | None, str], int] = {}
 def _combined_books() -> str:
     soft = [b.strip() for b in settings.soft_books.split(",") if b.strip()]
     return ",".join([*soft, settings.sharp_book])
+
+
+def league_tier(has_live: bool, next_kickoff: datetime | None, now: datetime) -> str:
+    """A league's polling urgency from its fixtures. 'fast' for live/imminent games,
+    'medium' for later-today games, 'slow' when nothing's near."""
+    if has_live:
+        return "fast"
+    if next_kickoff is not None:
+        mins = (next_kickoff - now).total_seconds() / 60
+        if mins <= settings.poll_near_window_min:
+            return "fast"
+        if mins <= settings.poll_upcoming_window_hours * 60:
+            return "medium"
+    return "slow"
+
+
+def tier_cadence(tier: str) -> int:
+    return {
+        "fast": settings.poll_fast_seconds,
+        "medium": settings.poll_medium_seconds,
+        "slow": settings.poll_slow_seconds,
+    }[tier]
+
+
+async def _due_leagues(session, r, leagues, now: datetime):
+    """Filter enabled leagues to those due to be polled this tick, by tier + last-poll time.
+    Never-polled leagues are always due (bootstraps fixtures on first run)."""
+    live_cutoff = now - timedelta(minutes=settings.poll_live_duration_min)
+    rows = (await session.execute(
+        select(
+            Fixture.league_id,
+            func.bool_or(
+                and_(Fixture.kickoff_utc <= now, Fixture.kickoff_utc > live_cutoff)
+            ).label("has_live"),
+            func.min(Fixture.kickoff_utc).filter(Fixture.kickoff_utc > now).label("next_ko"),
+        ).group_by(Fixture.league_id)
+    )).all()
+    timing = {lid: (bool(has_live), next_ko) for lid, has_live, next_ko in rows}
+
+    now_ts = time.time()
+    due = []
+    for lg in leagues:
+        has_live, next_ko = timing.get(lg.id, (False, None))
+        tier = league_tier(has_live, next_ko, now)
+        last = await r.get(f"lastpoll:{lg.id}")
+        if last is None or now_ts - float(last) >= tier_cadence(tier):
+            due.append(lg)
+    return due
 
 
 def _hot_key(fixture_id: str, market_id: int) -> str:
@@ -166,14 +215,15 @@ async def _queue_review(r, book: str, market_key: str, outcome: dict, fixture_id
 
 
 async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
-    """One ingestion pass over all enabled leagues. Returns counters for observability."""
+    """One ingestion tick. Fetches only the enabled leagues whose tier is due
+    (kickoff-aware), so fast polling is spent on live/imminent games. Returns counters."""
     books = _combined_books()
     r = get_redis()
     Session = get_sessionmaker()
     await ensure_daily_partition()
 
     stats = {"events": 0, "changes": 0, "markets_dirty": 0, "leagues": 0,
-             "errors": 0, "review": 0}
+             "enabled": 0, "errors": 0, "review": 0}
     dirty: set[tuple[str, int]] = set()
     snapshots: list[OddsSnapshot] = []
     reviews: list[ReviewQueue] = []
@@ -183,9 +233,14 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
         leagues = (
             await session.execute(select(League).where(League.ingest_enabled.is_(True)))
         ).scalars().all()
+        stats["enabled"] = len(leagues)
+        # Only poll leagues whose tier is due this tick (kickoff-aware).
+        due = await _due_leagues(session, r, leagues, now)
 
         async with httpx.AsyncClient(timeout=20) as client:
-            for lg in leagues:
+            for lg in due:
+                # Stamp now so a fetch (even a failing one) respects the cadence.
+                await r.set(f"lastpoll:{lg.id}", time.time())
                 try:
                     events = await _fetch_league(client, lg.sport_key, books)
                 except Exception as exc:  # one bad league must not sink the whole poll

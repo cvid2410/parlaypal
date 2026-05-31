@@ -1,11 +1,10 @@
-"""ARQ worker: the odds poll loop + the detection consumer.
+"""ARQ worker: the odds poll loop + the detection/delivery/settlement jobs.
 
-`poll_odds` re-schedules itself every `ingest_poll_seconds` (a fixed job_id means only one
-is ever queued), giving a sub-minute poll loop that cron can't. Each pass enqueues one
+The poll runs as a cron at the base tick (`poll_tick_seconds`) — cron is restart-safe and
+won't collide on a job id the way a self-rescheduling loop does. Each tick fetches only the
+leagues whose tier is due (kickoff-aware, see ingestors/odds.py) and enqueues one
 `detect_market` job per market that moved meaningfully.
 """
-from datetime import timedelta
-
 from arq import cron
 from arq.connections import RedisSettings
 
@@ -26,12 +25,6 @@ async def poll_odds(ctx: dict) -> dict:
 
     stats = await ingest_once(enqueue=_enqueue)
     emit("ingest.pass", **stats)
-    # Re-arm the loop. Fixed job_id => at most one queued poll at a time.
-    await ctx["redis"].enqueue_job(
-        "poll_odds",
-        _job_id="poll_odds",
-        _defer_by=timedelta(seconds=settings.ingest_poll_seconds),
-    )
     return stats
 
 
@@ -42,15 +35,19 @@ async def settle_cron(ctx: dict) -> dict:
     return await settle_once()
 
 
-async def startup(ctx: dict) -> None:
-    # Kick off the self-perpetuating poll loop once on boot.
-    await ctx["redis"].enqueue_job("poll_odds", _job_id="poll_odds")
+def _tick_seconds() -> set[int]:
+    """Cron `second` set for the base tick. Tick should divide 60 (15/20/30); otherwise
+    fall back to every 30s."""
+    t = settings.poll_tick_seconds
+    return set(range(0, 60, t)) if t and 60 % t == 0 else {0, 30}
 
 
 class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
-    functions = [poll_odds, detect_market, route_signal, deliver]
-    on_startup = startup
-    # Settlement runs every 10 min: grades CLV at kickoff, result/P&L once scored.
-    # (Legacy WC send_match_reminders cron retired — full WC cleanup tracked separately.)
-    cron_jobs = [cron(settle_cron, minute={0, 10, 20, 30, 40, 50})]
+    functions = [detect_market, route_signal, deliver]
+    cron_jobs = [
+        # Kickoff-aware odds poll at the base tick (run immediately on boot).
+        cron(poll_odds, second=_tick_seconds(), run_at_startup=True),
+        # Settlement every 10 min: grade CLV at kickoff, result/P&L once scored.
+        cron(settle_cron, minute={0, 10, 20, 30, 40, 50}),
+    ]

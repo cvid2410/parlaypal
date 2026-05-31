@@ -26,8 +26,18 @@ class Settings(BaseSettings):
     sharp_book: str = "pinnacle"
     # The Odds API regions. Pinnacle is served under eu/uk, soft US books under us.
     odds_regions: str = "us,eu,uk"
-    # Seconds between ingest polls (tighten near kickoff once live windows land).
-    ingest_poll_seconds: int = 30
+
+    # --- adaptive (kickoff-aware) polling ---
+    # The worker wakes every tick; each league is fetched only when its tier is due. This
+    # keeps fast polling for live/imminent games and barely touches idle leagues — the
+    # refresh rate is the real Odds API cost driver (CLAUDE.md / BUILD_PLAN 0.2).
+    poll_tick_seconds: int = 20            # base loop cadence (= the fast cadence)
+    poll_live_duration_min: int = 150      # treat a fixture as in-play this long after kickoff
+    poll_near_window_min: int = 75         # "imminent": kickoff within this window → fast
+    poll_upcoming_window_hours: int = 12   # has a game later today → medium
+    poll_fast_seconds: int = 20            # live / imminent leagues
+    poll_medium_seconds: int = 300         # upcoming-today leagues
+    poll_slow_seconds: int = 1800          # idle leagues (still discover fixtures + far odds)
 
     # --- signals: detection ---
     # Minimum +EV edge (percent) before a signal is emitted.
