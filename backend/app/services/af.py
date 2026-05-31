@@ -1,8 +1,9 @@
 """Shared API-Football client. One cached call per date powers both the results resolver
 and the Scores tab (no duplicate API spend)."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -34,7 +35,7 @@ async def fixtures_by_date(date_str: str) -> list[dict]:
         )
         resp.raise_for_status()
         raw = resp.json().get("response", [])
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     # Don't pin an empty payload: a 200-with-[] is almost always a transient upstream blip
     # (a real past date with football is never empty), and caching it for a day would hide
     # those fixtures from the results resolver so their signals never get graded. Short TTL
@@ -101,18 +102,21 @@ async def standings(af_league_id: int, season: int) -> list[dict]:
     groups: list[dict] = []
     if data:
         for table in data[0].get("league", {}).get("standings", []):
-            rows = [{
-                "rank": r.get("rank"),
-                "team": r["team"]["name"],
-                "logo": r["team"].get("logo"),
-                "points": r.get("points"),
-                "played": r.get("all", {}).get("played"),
-                "win": r.get("all", {}).get("win"),
-                "draw": r.get("all", {}).get("draw"),
-                "lose": r.get("all", {}).get("lose"),
-                "gd": r.get("goalsDiff"),
-                "form": r.get("form"),
-            } for r in table]
+            rows = [
+                {
+                    "rank": r.get("rank"),
+                    "team": r["team"]["name"],
+                    "logo": r["team"].get("logo"),
+                    "points": r.get("points"),
+                    "played": r.get("all", {}).get("played"),
+                    "win": r.get("all", {}).get("win"),
+                    "draw": r.get("all", {}).get("draw"),
+                    "lose": r.get("all", {}).get("lose"),
+                    "gd": r.get("goalsDiff"),
+                    "form": r.get("form"),
+                }
+                for r in table
+            ]
             groups.append({"group": table[0].get("group") if table else "", "rows": rows})
     # As with fixtures_by_date: a transient empty standings response shouldn't pin "no table"
     # for 10 minutes — cache empties briefly so the next request recovers.

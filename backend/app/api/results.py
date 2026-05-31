@@ -5,6 +5,7 @@ Returns ParlayPal's *verified track record* — graded signals at a flat 1-unit 
 results resolver scores fixtures. This is proof, shown to any signed-in user (settled picks
 leak no live edge), which is what sells the upgrade.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
@@ -26,22 +27,24 @@ async def results(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    rows = (await db.execute(
-        select(SignalGrade, Signal, Fixture, League, Market)
-        .join(Signal, SignalGrade.signal_id == Signal.id)
-        .join(Fixture, Signal.fixture_id == Fixture.id)
-        .join(League, Fixture.league_id == League.id)
-        .join(Market, Signal.market_id == Market.id)
-        .order_by(Signal.created_at)
-    )).all()
+    rows = (
+        await db.execute(
+            select(SignalGrade, Signal, Fixture, League, Market)
+            .join(Signal, SignalGrade.signal_id == Signal.id)
+            .join(Fixture, Signal.fixture_id == Fixture.id)
+            .join(League, Fixture.league_id == League.id)
+            .join(Market, Signal.market_id == Market.id)
+            .order_by(Signal.created_at)
+        )
+    ).all()
 
     # team names for labels (bulk)
     team_ids = {fx.home_id for _, _, fx, _, _ in rows} | {fx.away_id for _, _, fx, _, _ in rows}
     names: dict[int, str] = {}
     if team_ids:
-        for tid, nm in (await db.execute(
-            select(Team.id, Team.name).where(Team.id.in_(team_ids))
-        )).all():
+        for tid, nm in (
+            await db.execute(select(Team.id, Team.name).where(Team.id.in_(team_ids)))
+        ).all():
             names[tid] = nm
 
     clv_n = clv_beats = 0
@@ -65,14 +68,21 @@ async def results(
             if sig.kind == "arb":
                 pick = "Arbitrage"
             else:
-                pick = selection_label(market.type, market.line, sig.selection,
-                                       names.get(fx.home_id, "?"), names.get(fx.away_id, "?"))
-            recent.append({
-                "pick": pick,
-                "league": league.name,
-                "result": grade.result,
-                "pnl_units": round(grade.pnl_units or 0.0, 2),
-            })
+                pick = selection_label(
+                    market.type,
+                    market.line,
+                    sig.selection,
+                    names.get(fx.home_id, "?"),
+                    names.get(fx.away_id, "?"),
+                )
+            recent.append(
+                {
+                    "pick": pick,
+                    "league": league.name,
+                    "result": grade.result,
+                    "pnl_units": round(grade.pnl_units or 0.0, 2),
+                }
+            )
 
     settled = wins + losses + pushes
     decided = wins + losses

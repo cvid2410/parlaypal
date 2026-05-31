@@ -3,12 +3,12 @@
 The parent table is created with `PARTITION BY RANGE (ts)` in the Alembic migration; this
 ORM model maps the parent for inserts/queries (Postgres routes rows to the right child).
 """
+
 from __future__ import annotations
 
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, Integer, PrimaryKeyConstraint, String
-
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.db import Base

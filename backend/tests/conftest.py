@@ -4,6 +4,7 @@ pytest-asyncio runs each test in its own event loop. The module-global async eng
 Redis pool would otherwise carry a connection bound to a closed loop into the next test.
 Clearing the caches makes each test build fresh clients on its own loop.
 """
+
 import pytest
 
 import app.services.cache as cache

@@ -1,4 +1,5 @@
 """Integration test for the cross-market middle detector. Requires Postgres + Redis."""
+
 import datetime as dt
 import uuid
 
@@ -21,16 +22,24 @@ async def totals_world():
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
     async with Session() as s:
-        lg = League(name=f"M {tag}", country="X", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False)
+        lg = League(
+            name=f"M {tag}", country="X", sport_key=f"tl_{tag}", is_soft=True, ingest_enabled=False
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
         a = Team(league_id=lg.id, name=f"A {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.UTC),
+            )
+        )
         m15 = await _get_market_id(s, "total", 1.5)
         m25 = await _get_market_id(s, "total", 2.5)
         await s.commit()
@@ -63,6 +72,6 @@ async def test_middle_detected(totals_world):
     async with get_sessionmaker()() as s:
         sigs = (await s.execute(select(Signal).where(Signal.fixture_id == fid))).scalars().all()
     middle = next(x for x in sigs if x.kind == "middle")
-    assert middle.edge_pct == pytest.approx(100.0)        # free middle (s=1.0)
+    assert middle.edge_pct == pytest.approx(100.0)  # free middle (s=1.0)
     assert middle.meta["window"] == [2]
-    assert {leg for leg in middle.meta["legs"]} == {"over", "under"}
+    assert set(middle.meta["legs"]) == {"over", "under"}

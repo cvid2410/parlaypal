@@ -1,4 +1,5 @@
 """Kickoff-aware polling: tier logic (pure) + due-league selection (integration)."""
+
 import datetime as dt
 import time
 import uuid
@@ -11,7 +12,7 @@ from app.models.core import Fixture, League, Team
 from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
 
-NOW = dt.datetime(2026, 6, 1, 12, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 6, 1, 12, 0, tzinfo=dt.UTC)
 
 
 def test_league_tier():
@@ -38,21 +39,30 @@ async def league_soon():
     Session = get_sessionmaker()
     tag = uuid.uuid4().hex[:8]
     async with Session() as s:
-        lg = League(name=f"P {tag}", country="T", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=True)
+        lg = League(
+            name=f"P {tag}", country="T", sport_key=f"tl_{tag}", is_soft=True, ingest_enabled=True
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
         a = Team(league_id=lg.id, name=f"A {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=f"pf_{tag}", league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=30)))
+        s.add(
+            Fixture(
+                id=f"pf_{tag}",
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime.now(dt.UTC) + dt.timedelta(minutes=30),
+            )
+        )
         await s.commit()
         lg_id = lg.id
     yield lg_id
     async with Session() as s:
         from sqlalchemy import delete
+
         await s.execute(delete(Fixture).where(Fixture.league_id == lg_id))
         await s.execute(delete(Team).where(Team.league_id == lg_id))
         await s.execute(delete(League).where(League.id == lg_id))
@@ -64,11 +74,11 @@ async def test_due_leagues_respects_last_poll(league_soon):
     Session = get_sessionmaker()
     r = get_redis()
     await r.delete(f"lastpoll:{league_soon}")
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     async with Session() as s:
-        lg = (await s.execute(
-            __import__("sqlalchemy").select(League).where(League.id == league_soon)
-        )).scalar_one()
+        lg = (
+            await s.execute(__import__("sqlalchemy").select(League).where(League.id == league_soon))
+        ).scalar_one()
 
         # Never polled → due.
         due = await _due_leagues(s, r, [lg], now)

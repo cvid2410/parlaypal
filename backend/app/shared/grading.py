@@ -4,6 +4,7 @@ CLV is the metric that matters (CLAUDE.md NON-NEGOTIABLE #2): if our +EV picks d
 the closing line, our fair-prob is wrong. It's computable purely from our own odds history
 (no results feed). Win/loss needs the final score.
 """
+
 from __future__ import annotations
 
 
@@ -18,11 +19,14 @@ def clv_beat(offered_decimal: float, closing_decimal: float | None) -> bool | No
     return offered_decimal > closing_decimal
 
 
-def compute_result(home_score: int, away_score: int, market_type: str,
-                  line: float | None, selection: str) -> str | None:
+def compute_result(
+    home_score: int, away_score: int, market_type: str, line: float | None, selection: str
+) -> str | None:
     """win | loss | push for a settled fixture, or None if not gradable."""
     if market_type == "h2h":
-        winner = "home" if home_score > away_score else "away" if away_score > home_score else "draw"
+        winner = (
+            "home" if home_score > away_score else "away" if away_score > home_score else "draw"
+        )
         return "win" if selection == winner else "loss"
     if market_type == "total":
         if line is None:

@@ -1,11 +1,12 @@
 """users, subscriptions, alerts_sent (idempotency), review_queue (NON-NEGOTIABLE #6)."""
+
 from __future__ import annotations
 
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON,
     ARRAY,
+    JSON,
     Boolean,
     DateTime,
     Float,
@@ -31,9 +32,7 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     provider: Mapped[str] = mapped_column(String, default="password")  # password|google
     stripe_customer_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Subscription(Base):
@@ -57,9 +56,7 @@ class AlertSent(Base):
     signal_id: Mapped[int] = mapped_column(ForeignKey("signals.id"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     channel: Mapped[str] = mapped_column(String, nullable=False)
-    ts: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ReviewQueue(Base):
@@ -73,6 +70,4 @@ class ReviewQueue(Base):
     context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     reason: Mapped[str] = mapped_column(String, nullable=False)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

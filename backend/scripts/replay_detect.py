@@ -20,10 +20,11 @@ Run from backend/:
   python -m scripts.replay_detect --sport-key soccer_mexico_ligamx \
       --start 2026-03-01 --end 2026-04-15 --reset --settle --report --min-edge 3.0
 """
+
 import argparse
 import asyncio
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from itertools import groupby
 
 from sqlalchemy import delete, select
@@ -45,8 +46,8 @@ def _parse_dt(s: str) -> datetime:
     except ValueError:
         dt = datetime.strptime(s, "%Y-%m-%d")
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 class _Dedup:
@@ -65,8 +66,9 @@ class _Dedup:
         return True
 
 
-async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
-                          min_edge: float, max_lead_min: float | None) -> list[Signal]:
+async def _replay_fixture(
+    session, fx: Fixture, lg: League, dedup: _Dedup, min_edge: float, max_lead_min: float | None
+) -> list[Signal]:
     """Sweep one fixture's snapshots in time order, detecting on each market as it moves —
     mirroring the live 'detect the market that just changed' path.
 
@@ -75,11 +77,17 @@ async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
     correct when we do detect), but detection/dedup only run inside the window — simulating
     'only alert near kickoff', where the soft price is actually bettable and the CLV test
     isn't confounded by hours of unrelated line drift before the close."""
-    snaps = (await session.execute(
-        select(OddsSnapshot)
-        .where(OddsSnapshot.fixture_id == fx.id)
-        .order_by(OddsSnapshot.ts)
-    )).scalars().all()
+    snaps = (
+        (
+            await session.execute(
+                select(OddsSnapshot)
+                .where(OddsSnapshot.fixture_id == fx.id)
+                .order_by(OddsSnapshot.ts)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # state[market_id][book][selection] = decimal — the reconstructed hot state at 'now'.
     state: dict[int, dict[str, dict[str, float]]] = defaultdict(lambda: defaultdict(dict))
@@ -88,9 +96,15 @@ async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
     # Market type per id — find_opportunities needs it to reject incomplete markets, exactly
     # as the live worker does (parity is what keeps the CLV gate honest).
     mids_all = {s.market_id for s in snaps}
-    market_type: dict[int, str] = dict((await session.execute(
-        select(Market.id, Market.type).where(Market.id.in_(mids_all))
-    )).all()) if mids_all else {}
+    market_type: dict[int, str] = (
+        dict(
+            (
+                await session.execute(select(Market.id, Market.type).where(Market.id.in_(mids_all)))
+            ).all()
+        )
+        if mids_all
+        else {}
+    )
 
     for ts, group in groupby(snaps, key=lambda s: s.ts):
         dirty: set[int] = set()
@@ -103,9 +117,13 @@ async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
                 continue
         for mid in dirty:
             opps = find_opportunities(
-                fx.id, mid, state[mid],
-                is_soft=lg.is_soft, sharp_ref_book=lg.sharp_ref_book,
-                min_edge_pct=min_edge, kelly_fraction=settings.kelly_fraction,
+                fx.id,
+                mid,
+                state[mid],
+                is_soft=lg.is_soft,
+                sharp_ref_book=lg.sharp_ref_book,
+                min_edge_pct=min_edge,
+                kelly_fraction=settings.kelly_fraction,
                 edge_bucket_pct=settings.edge_bucket_pct,
                 market_type=market_type.get(mid, ""),
                 max_offered_odds=settings.max_offered_odds,
@@ -115,14 +133,24 @@ async def _replay_fixture(session, fx: Fixture, lg: League, dedup: _Dedup,
             for opp in opps:
                 if not dedup.allowed(opp.scope, opp.bucket, ts):
                     continue
-                out.append(Signal(
-                    fixture_id=fx.id, market_id=mid, selection=opp.selection,
-                    book=opp.book, kind=opp.kind, offered_odds=opp.offered_odds,
-                    fair_prob=opp.fair_prob, edge_pct=opp.edge_pct,
-                    kelly_frac=opp.kelly_frac, ttl_sec=settings.signal_ttl_seconds,
-                    dedup_hash=opp.dedup_hash, status="live", meta=opp.meta,
-                    created_at=ts,  # historical detection time (overrides server default)
-                ))
+                out.append(
+                    Signal(
+                        fixture_id=fx.id,
+                        market_id=mid,
+                        selection=opp.selection,
+                        book=opp.book,
+                        kind=opp.kind,
+                        offered_odds=opp.offered_odds,
+                        fair_prob=opp.fair_prob,
+                        edge_pct=opp.edge_pct,
+                        kelly_frac=opp.kelly_frac,
+                        ttl_sec=settings.signal_ttl_seconds,
+                        dedup_hash=opp.dedup_hash,
+                        status="live",
+                        meta=opp.meta,
+                        created_at=ts,  # historical detection time (overrides server default)
+                    )
+                )
     return out
 
 
@@ -133,10 +161,14 @@ def _print_report(report) -> None:
     print(f"\n{'League':24} {'n':>5} {'beats':>6} {'beat%':>7} {'lo95%':>7}  gate")
     print("-" * 60)
     for r in report:
-        print(f"{r.league:24} {r.n:>5} {r.beats:>6} {r.beat_pct*100:>6.1f}% "
-              f"{r.lower_bound*100:>6.1f}%  {'PASS' if r.passes() else 'hold'}")
-    print(f"\nGate: Wilson lower bound (1-sided 95%) of beat-CLV >= {GATE_BEAT_THRESHOLD*100:.0f}% "
-          f"over >= {GATE_MIN_SAMPLE} graded signals (NON-NEGOTIABLE #2).")
+        print(
+            f"{r.league:24} {r.n:>5} {r.beats:>6} {r.beat_pct * 100:>6.1f}% "
+            f"{r.lower_bound * 100:>6.1f}%  {'PASS' if r.passes() else 'hold'}"
+        )
+    print(
+        f"\nGate: Wilson lower bound (1-sided 95%) of beat-CLV >= {GATE_BEAT_THRESHOLD * 100:.0f}% "
+        f"over >= {GATE_MIN_SAMPLE} graded signals (NON-NEGOTIABLE #2)."
+    )
 
 
 async def main() -> None:
@@ -144,13 +176,24 @@ async def main() -> None:
     ap.add_argument("--sport-key", help="limit to one league (default: all leagues)")
     ap.add_argument("--start", required=True, help="kickoff window start, ISO (UTC)")
     ap.add_argument("--end", required=True, help="kickoff window end, ISO (UTC)")
-    ap.add_argument("--min-edge", type=float, default=settings.min_edge_pct,
-                    help=f"+EV threshold %% to replay (default {settings.min_edge_pct})")
-    ap.add_argument("--max-lead-min", type=float, default=None,
-                    help="only emit signals detected within N minutes of kickoff "
-                         "(realizability window; default: no filter)")
-    ap.add_argument("--reset", action="store_true",
-                    help="delete prior signals+grades for in-window fixtures first")
+    ap.add_argument(
+        "--min-edge",
+        type=float,
+        default=settings.min_edge_pct,
+        help=f"+EV threshold %% to replay (default {settings.min_edge_pct})",
+    )
+    ap.add_argument(
+        "--max-lead-min",
+        type=float,
+        default=None,
+        help="only emit signals detected within N minutes of kickoff "
+        "(realizability window; default: no filter)",
+    )
+    ap.add_argument(
+        "--reset",
+        action="store_true",
+        help="delete prior signals+grades for in-window fixtures first",
+    )
     ap.add_argument("--settle", action="store_true", help="run settle_once() after replay")
     ap.add_argument("--report", action="store_true", help="print the CLV gate report after")
     args = ap.parse_args()
@@ -159,8 +202,10 @@ async def main() -> None:
     Session = get_sessionmaker()
 
     async with Session() as session:
-        fq = select(Fixture, League).join(League, Fixture.league_id == League.id).where(
-            Fixture.kickoff_utc >= start, Fixture.kickoff_utc <= end
+        fq = (
+            select(Fixture, League)
+            .join(League, Fixture.league_id == League.id)
+            .where(Fixture.kickoff_utc >= start, Fixture.kickoff_utc <= end)
         )
         if args.sport_key:
             fq = fq.where(League.sport_key == args.sport_key)
@@ -169,23 +214,26 @@ async def main() -> None:
             print("No fixtures in window — backfill snapshots first.")
             return
         lead_desc = f", lead<={args.max_lead_min}min" if args.max_lead_min else ""
-        print(f"Replaying {len(rows)} fixtures, min_edge={args.min_edge}%, "
-              f"devig={settings.devig_method}{lead_desc}"
-              + (f", league={args.sport_key}" if args.sport_key else " (all leagues)"))
+        print(
+            f"Replaying {len(rows)} fixtures, min_edge={args.min_edge}%, "
+            f"devig={settings.devig_method}{lead_desc}"
+            + (f", league={args.sport_key}" if args.sport_key else " (all leagues)")
+        )
 
         if args.reset:
             fids = [fx.id for fx, _ in rows]
-            await session.execute(delete(SignalGrade).where(
-                SignalGrade.signal_id.in_(select(Signal.id).where(Signal.fixture_id.in_(fids)))
-            ))
+            await session.execute(
+                delete(SignalGrade).where(
+                    SignalGrade.signal_id.in_(select(Signal.id).where(Signal.fixture_id.in_(fids)))
+                )
+            )
             await session.execute(delete(Signal).where(Signal.fixture_id.in_(fids)))
             await session.commit()
 
         dedup = _Dedup(settings.signal_ttl_seconds)
         produced = {"ev": 0, "arb": 0}
         for fx, lg in rows:
-            sigs = await _replay_fixture(session, fx, lg, dedup, args.min_edge,
-                                         args.max_lead_min)
+            sigs = await _replay_fixture(session, fx, lg, dedup, args.min_edge, args.max_lead_min)
             for s in sigs:
                 produced[s.kind] = produced.get(s.kind, 0) + 1
             session.add_all(sigs)

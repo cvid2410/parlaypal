@@ -9,6 +9,7 @@ it mathematically is.
 deterministic: the same `dedup_hash` always picks the same template variant, so re-rendering
 a signal yields identical text.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -33,8 +34,19 @@ _BOOK_LABELS = {
 
 # Phrases that must never appear for an individual +EV bet. Checked by the lint test.
 BANNED_EV_PHRASES = [
-    "guaranteed", "guarantee", "can't lose", "cannot lose", "sure thing", "sure bet",
-    "risk-free", "riskless", "no risk", "100%", "easy money", "free money", "lock",
+    "guaranteed",
+    "guarantee",
+    "can't lose",
+    "cannot lose",
+    "sure thing",
+    "sure bet",
+    "risk-free",
+    "riskless",
+    "no risk",
+    "100%",
+    "easy money",
+    "free money",
+    "lock",
 ]
 
 
@@ -42,8 +54,9 @@ def book_label(book: str) -> str:
     return _BOOK_LABELS.get(book, book.replace("_", " ").title())
 
 
-def selection_label(market_type: str, line: float | None, selection: str,
-                    home: str, away: str) -> str:
+def selection_label(
+    market_type: str, line: float | None, selection: str, home: str, away: str
+) -> str:
     if market_type == "h2h":
         return {"home": f"{home} to win", "away": f"{away} to win", "draw": "Draw"}.get(
             selection, selection
@@ -135,7 +148,7 @@ def _stake_value(kelly_frac: float, bankroll: float | None) -> str:
     return f"{pct:.1f}% of bankroll"
 
 
-def action_ticket(ctx: "SignalCopyContext", bankroll: float | None = None) -> dict:
+def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict:
     """The discrete inputs a human copies into their sportsbook, as structured rows — the
     prose in `explain()` says *why*, this says *what to do*. Built from the same context so
     it stays template-only (NON-NEGOTIABLE #1); never implies certainty for a single +EV bet.
@@ -147,21 +160,26 @@ def action_ticket(ctx: "SignalCopyContext", bankroll: float | None = None) -> di
     if ctx.kind in ("arb", "middle"):
         legs = []
         for leg in ctx.legs:
-            pick = selection_label(ctx.market_type, leg.get("line", ctx.line),
-                                   leg["selection"], ctx.home, ctx.away)
-            legs.append({
-                "book": book_label(leg["book"]),
-                "pick": pick,
-                "odds": decimal_to_american(leg["decimal"]),
-                # The split is the input you can't execute an arb/middle without.
-                "stake": f"{leg['stake_frac'] * 100:.0f}% of total stake",
-            })
+            pick = selection_label(
+                ctx.market_type, leg.get("line", ctx.line), leg["selection"], ctx.home, ctx.away
+            )
+            legs.append(
+                {
+                    "book": book_label(leg["book"]),
+                    "pick": pick,
+                    "odds": decimal_to_american(leg["decimal"]),
+                    # The split is the input you can't execute an arb/middle without.
+                    "stake": f"{leg['stake_frac'] * 100:.0f}% of total stake",
+                }
+            )
         if ctx.kind == "arb":
             note = "Place every leg at the prices below to lock the profit regardless of result."
         else:
             win = ", ".join(str(n) for n in (ctx.window or []))
-            note = (f"Place both legs. You win one side always — and BOTH if the final total "
-                    f"lands on {win}.")
+            note = (
+                f"Place both legs. You win one side always — and BOTH if the final total "
+                f"lands on {win}."
+            )
         return {"type": "multi", "legs": legs, "note": note}
 
     # ev / promo — a single price at one book
@@ -196,8 +214,12 @@ def explain(ctx: SignalCopyContext) -> dict:
             "title": f"Middle — {ctx.fixture_label}",
             "body": body,
             "footer": RG_FOOTER,
-            "fields": {"league": ctx.league_name, "fixture": ctx.fixture_label,
-                       "middle_pct": round(ctx.edge_pct, 2), "window": ctx.window},
+            "fields": {
+                "league": ctx.league_name,
+                "fixture": ctx.fixture_label,
+                "middle_pct": round(ctx.edge_pct, 2),
+                "window": ctx.window,
+            },
         }
 
     if ctx.kind == "arb":
@@ -224,10 +246,18 @@ def explain(ctx: SignalCopyContext) -> dict:
     odds_am = decimal_to_american(ctx.offered_decimal)
     fair_am = decimal_to_american(1 / ctx.fair_prob) if ctx.fair_prob > 0 else "n/a"
     pool = _PROMO_TEMPLATES if ctx.kind == "promo" else _EV_TEMPLATES
-    body = _variant(pool, ctx.dedup_hash).format(
-        pick=pick, book=book_label(ctx.book), odds=odds_am, fair_am=fair_am,
-        edge=f"{ctx.edge_pct:.1f}", stake=_stake_sentence(ctx.kelly_frac),
-    ).strip()
+    body = (
+        _variant(pool, ctx.dedup_hash)
+        .format(
+            pick=pick,
+            book=book_label(ctx.book),
+            odds=odds_am,
+            fair_am=fair_am,
+            edge=f"{ctx.edge_pct:.1f}",
+            stake=_stake_sentence(ctx.kelly_frac),
+        )
+        .strip()
+    )
     title = f"Boost — {pick}" if ctx.kind == "promo" else f"Value Bet — {pick}"
     fields = {
         "league": ctx.league_name,

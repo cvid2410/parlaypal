@@ -3,6 +3,7 @@ every market that moved. Prints a summary. Not used in production (the worker lo
 
 Run from backend/:  python -m scripts.ingest_once
 """
+
 import asyncio
 
 from sqlalchemy import func, select

@@ -3,6 +3,7 @@
 Provider-ready: a future Google flow adds another route that resolves/creates a user and
 calls `create_access_token` — the token + `get_current_user` path stay identical.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -63,8 +64,9 @@ async def signup(body: Credentials, db: AsyncSession = Depends(get_db)) -> Token
     exists = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if exists is not None:
         raise HTTPException(status_code=409, detail="Email already registered")
-    user = User(email=email, tier="free", provider="password",
-                password_hash=hash_password(body.password))
+    user = User(
+        email=email, tier="free", provider="password", password_hash=hash_password(body.password)
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -75,7 +77,11 @@ async def signup(body: Credentials, db: AsyncSession = Depends(get_db)) -> Token
 async def login(body: Credentials, db: AsyncSession = Depends(get_db)) -> TokenOut:
     email = body.email.lower()
     user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
-    if user is None or not user.password_hash or not verify_password(body.password, user.password_hash):
+    if (
+        user is None
+        or not user.password_hash
+        or not verify_password(body.password, user.password_hash)
+    ):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return TokenOut(access_token=create_access_token(user.id), tier=user.tier)
 

@@ -1,4 +1,5 @@
 """Canonical reference entities: leagues, teams, aliases, fixtures, markets."""
+
 from __future__ import annotations
 
 from datetime import datetime

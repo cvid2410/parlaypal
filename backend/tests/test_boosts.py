@@ -1,4 +1,5 @@
 """Boost/promo injection. Requires Postgres + Redis."""
+
 import datetime as dt
 import uuid
 
@@ -20,24 +21,37 @@ async def world():
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
     async with Session() as s:
-        lg = League(name=f"B {tag}", country="X", sport_key=f"tl_{tag}",
-                    is_soft=False, ingest_enabled=False)  # promo works on sharp leagues too
+        lg = League(
+            name=f"B {tag}", country="X", sport_key=f"tl_{tag}", is_soft=False, ingest_enabled=False
+        )  # promo works on sharp leagues too
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
         a = Team(league_id=lg.id, name=f"A {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.UTC),
+            )
+        )
         mid = await _get_market_id(s, "h2h", None)
         await s.commit()
         league_id = lg.id
     # Pinnacle fair (home ~0.526). Boost will price home far above fair.
     await r.delete(f"odds:{fid}:{mid}")
-    await r.hset(f"odds:{fid}:{mid}", mapping={
-        "pinnacle:home": 1.8, "pinnacle:draw": 3.6, "pinnacle:away": 4.5,
-    })
+    await r.hset(
+        f"odds:{fid}:{mid}",
+        mapping={
+            "pinnacle:home": 1.8,
+            "pinnacle:draw": 3.6,
+            "pinnacle:away": 4.5,
+        },
+    )
     yield {"fid": fid, "league_id": league_id}
     async with Session() as s:
         await s.execute(delete(Signal).where(Signal.fixture_id == fid))
@@ -57,9 +71,11 @@ async def test_boost_emits_promo_when_plus_ev(world):
     assert out["emitted"] is True
     assert out["edge_pct"] > 20
     async with get_sessionmaker()() as s:
-        sig = (await s.execute(select(Signal).where(
-            Signal.fixture_id == world["fid"], Signal.kind == "promo"
-        ))).scalar_one()
+        sig = (
+            await s.execute(
+                select(Signal).where(Signal.fixture_id == world["fid"], Signal.kind == "promo")
+            )
+        ).scalar_one()
     assert sig.book == "fanduel"
     assert sig.meta["boost"] is True
 

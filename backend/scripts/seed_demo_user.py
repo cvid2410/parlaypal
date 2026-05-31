@@ -3,6 +3,7 @@ detect→fanout→deliver chain has someone to deliver to.
 
 Run from backend/:  python -m scripts.seed_demo_user [tier]   (tier: free|bettor|sharp)
 """
+
 import asyncio
 import sys
 
@@ -32,11 +33,11 @@ async def main(tier: str) -> None:
         else:
             user.tier = tier
         soft_league_ids = (
-            await s.execute(select(League.id).where(League.is_soft.is_(True)))
-        ).scalars().all()
-        sub = (await s.execute(
-            select(Subscription).where(Subscription.user_id == user.id)
-        )).scalar_one_or_none()
+            (await s.execute(select(League.id).where(League.is_soft.is_(True)))).scalars().all()
+        )
+        sub = (
+            await s.execute(select(Subscription).where(Subscription.user_id == user.id))
+        ).scalar_one_or_none()
         if sub is None:
             sub = Subscription(user_id=user.id)
             s.add(sub)
@@ -48,8 +49,10 @@ async def main(tier: str) -> None:
         uid = user.id
 
     await index_subscription(r, uid, tier, list(soft_league_ids), books, 0.0, channels)
-    print(f"demo user {uid} ({tier}) indexed for {len(soft_league_ids)} leagues, "
-          f"books={books}, channels={channels}")
+    print(
+        f"demo user {uid} ({tier}) indexed for {len(soft_league_ids)} leagues, "
+        f"books={books}, channels={channels}"
+    )
 
 
 if __name__ == "__main__":

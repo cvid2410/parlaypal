@@ -4,9 +4,9 @@ from app.shared.grading import clv_beat, compute_result, pnl_units
 
 
 def test_clv_beat():
-    assert clv_beat(2.35, 2.20) is True   # we got longer odds than close → beat
+    assert clv_beat(2.35, 2.20) is True  # we got longer odds than close → beat
     assert clv_beat(1.80, 2.00) is False  # close was longer → we didn't beat
-    assert clv_beat(2.35, None) is None    # no closing reference
+    assert clv_beat(2.35, None) is None  # no closing reference
     assert clv_beat(2.35, 1.0) is None
 
 
@@ -19,10 +19,10 @@ def test_compute_result_h2h():
 
 
 def test_compute_result_totals():
-    assert compute_result(2, 1, "total", 2.5, "over") == "win"    # 3 > 2.5
+    assert compute_result(2, 1, "total", 2.5, "over") == "win"  # 3 > 2.5
     assert compute_result(2, 1, "total", 2.5, "under") == "loss"
-    assert compute_result(1, 0, "total", 2.5, "under") == "win"   # 1 < 2.5
-    assert compute_result(2, 1, "total", 3.0, "over") == "push"   # 3 == 3
+    assert compute_result(1, 0, "total", 2.5, "under") == "win"  # 1 < 2.5
+    assert compute_result(2, 1, "total", 3.0, "over") == "push"  # 3 == 3
     assert compute_result(2, 1, "total", 3.0, "under") == "push"
 
 

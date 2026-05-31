@@ -1,4 +1,5 @@
 """Integration test for settlement + CLV grading. Requires Postgres + Redis."""
+
 import datetime as dt
 import uuid
 
@@ -20,11 +21,17 @@ async def settled_world():
     Session = get_sessionmaker()
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
-    kickoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)
+    kickoff = dt.datetime.now(dt.UTC) - dt.timedelta(hours=1)
     await ensure_daily_partition(kickoff)
     async with Session() as s:
-        lg = League(name=f"Test {tag}", country="Testland", sport_key=f"tl_{tag}",
-                    sharp_ref_book="pinnacle", is_soft=True, ingest_enabled=False)
+        lg = League(
+            name=f"Test {tag}",
+            country="Testland",
+            sport_key=f"tl_{tag}",
+            sharp_ref_book="pinnacle",
+            is_soft=True,
+            ingest_enabled=False,
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"Home {tag}")
@@ -33,20 +40,45 @@ async def settled_world():
         await s.flush()
         s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id, kickoff_utc=kickoff))
         mid = await _get_market_id(s, "h2h", None)
-        sig = Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
-                     kind="ev", offered_odds=2.35, fair_prob=0.5, edge_pct=9.1,
-                     kelly_frac=0.03, ttl_sec=1800, dedup_hash=f"h_{tag}", status="live")
+        sig = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="home",
+            book="fanduel",
+            kind="ev",
+            offered_odds=2.35,
+            fair_prob=0.5,
+            edge_pct=9.1,
+            kelly_frac=0.03,
+            ttl_sec=1800,
+            dedup_hash=f"h_{tag}",
+            status="live",
+        )
         s.add(sig)
         # Closing Pinnacle market: home/away both 1.90 (raw, ~5% vig) → no-vig fair = 0.5
         # each → fair closing decimal 2.0. We alerted 2.35 (> 2.0) so we beat CLV on the
         # devigged line, which is what settle now grades against.
         close_ts = kickoff - dt.timedelta(minutes=5)
-        s.add_all([
-            OddsSnapshot(fixture_id=fid, book="pinnacle", market_id=mid, selection="home",
-                         decimal_odds=1.90, ts=close_ts),
-            OddsSnapshot(fixture_id=fid, book="pinnacle", market_id=mid, selection="away",
-                         decimal_odds=1.90, ts=close_ts),
-        ])
+        s.add_all(
+            [
+                OddsSnapshot(
+                    fixture_id=fid,
+                    book="pinnacle",
+                    market_id=mid,
+                    selection="home",
+                    decimal_odds=1.90,
+                    ts=close_ts,
+                ),
+                OddsSnapshot(
+                    fixture_id=fid,
+                    book="pinnacle",
+                    market_id=mid,
+                    selection="away",
+                    decimal_odds=1.90,
+                    ts=close_ts,
+                ),
+            ]
+        )
         await s.commit()
         ids = (lg.id, fid, sig.id, mid)
     yield {"league_id": ids[0], "fid": ids[1], "sig_id": ids[2], "mid": ids[3], "kickoff": kickoff}
@@ -62,7 +94,9 @@ async def settled_world():
 
 async def _grade(sig_id):
     async with get_sessionmaker()() as s:
-        return (await s.execute(select(SignalGrade).where(SignalGrade.signal_id == sig_id))).scalar_one_or_none()
+        return (
+            await s.execute(select(SignalGrade).where(SignalGrade.signal_id == sig_id))
+        ).scalar_one_or_none()
 
 
 async def _signal(sig_id):
@@ -75,16 +109,18 @@ async def test_clv_graded_at_kickoff_before_score(settled_world):
     assert stats["graded"] >= 1
     g = await _grade(settled_world["sig_id"])
     assert g is not None
-    assert g.closing_odds == pytest.approx(2.0)   # no-vig fair from 1.90/1.90
-    assert g.beat_clv is True       # 2.35 > 2.0 fair
-    assert g.result is None          # no score yet
+    assert g.closing_odds == pytest.approx(2.0)  # no-vig fair from 1.90/1.90
+    assert g.beat_clv is True  # 2.35 > 2.0 fair
+    assert g.result is None  # no score yet
     assert (await _signal(settled_world["sig_id"])).status == "expired"
 
 
 async def test_result_and_pnl_after_score(settled_world):
     await settle_once()  # CLV first
     async with get_sessionmaker()() as s:
-        fx = (await s.execute(select(Fixture).where(Fixture.id == settled_world["fid"]))).scalar_one()
+        fx = (
+            await s.execute(select(Fixture).where(Fixture.id == settled_world["fid"]))
+        ).scalar_one()
         fx.home_score, fx.away_score = 2, 1  # home wins → our 'home' pick wins
         await s.commit()
     await settle_once()  # now grades result
@@ -109,26 +145,57 @@ async def test_stale_live_signal_expires_fresh_stays():
     Session = get_sessionmaker()
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     async with Session() as s:
-        lg = League(name=f"E {tag}", country="X", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False)
+        lg = League(
+            name=f"E {tag}", country="X", sport_key=f"tl_{tag}", is_soft=True, ingest_enabled=False
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
         a = Team(league_id=lg.id, name=f"A {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=now + dt.timedelta(hours=2)))   # future → not graded
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=now + dt.timedelta(hours=2),
+            )
+        )  # future → not graded
         mid = await _get_market_id(s, "h2h", None)
-        old = Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
-                     kind="ev", offered_odds=2.1, fair_prob=0.5, edge_pct=5.0, kelly_frac=0.02,
-                     ttl_sec=1800, dedup_hash=f"old_{tag}", status="live",
-                     created_at=now - dt.timedelta(hours=1))
-        fresh = Signal(fixture_id=fid, market_id=mid, selection="away", book="fanduel",
-                       kind="ev", offered_odds=2.1, fair_prob=0.5, edge_pct=5.0, kelly_frac=0.02,
-                       ttl_sec=1800, dedup_hash=f"fresh_{tag}", status="live", created_at=now)
+        old = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="home",
+            book="fanduel",
+            kind="ev",
+            offered_odds=2.1,
+            fair_prob=0.5,
+            edge_pct=5.0,
+            kelly_frac=0.02,
+            ttl_sec=1800,
+            dedup_hash=f"old_{tag}",
+            status="live",
+            created_at=now - dt.timedelta(hours=1),
+        )
+        fresh = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="away",
+            book="fanduel",
+            kind="ev",
+            offered_odds=2.1,
+            fair_prob=0.5,
+            edge_pct=5.0,
+            kelly_frac=0.02,
+            ttl_sec=1800,
+            dedup_hash=f"fresh_{tag}",
+            status="live",
+            created_at=now,
+        )
         s.add_all([old, fresh])
         await s.commit()
         old_id, fresh_id, league_id = old.id, fresh.id, lg.id
@@ -154,11 +221,17 @@ async def test_promo_graded_and_arb_reaches_terminal_state():
     Session = get_sessionmaker()
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
-    kickoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)
+    kickoff = dt.datetime.now(dt.UTC) - dt.timedelta(hours=1)
     await ensure_daily_partition(kickoff)
     async with Session() as s:
-        lg = League(name=f"M {tag}", country="X", sport_key=f"tl_{tag}",
-                    sharp_ref_book="pinnacle", is_soft=True, ingest_enabled=False)
+        lg = League(
+            name=f"M {tag}",
+            country="X",
+            sport_key=f"tl_{tag}",
+            sharp_ref_book="pinnacle",
+            is_soft=True,
+            ingest_enabled=False,
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
@@ -166,15 +239,46 @@ async def test_promo_graded_and_arb_reaches_terminal_state():
         s.add_all([h, a])
         await s.flush()
         # Final score: home 2–0 → 'home' wins (promo on home → win).
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=kickoff, home_score=2, away_score=0))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=kickoff,
+                home_score=2,
+                away_score=0,
+            )
+        )
         mid = await _get_market_id(s, "h2h", None)
-        promo = Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
-                       kind="promo", offered_odds=2.50, fair_prob=0.5, edge_pct=25.0,
-                       kelly_frac=0.05, ttl_sec=1800, dedup_hash=f"promo_{tag}", status="live")
-        arb = Signal(fixture_id=fid, market_id=mid, selection="home+away", book="multi",
-                     kind="arb", offered_odds=0.0, fair_prob=0.0, edge_pct=3.0, kelly_frac=0.0,
-                     ttl_sec=1800, dedup_hash=f"arb_{tag}", status="live")
+        promo = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="home",
+            book="fanduel",
+            kind="promo",
+            offered_odds=2.50,
+            fair_prob=0.5,
+            edge_pct=25.0,
+            kelly_frac=0.05,
+            ttl_sec=1800,
+            dedup_hash=f"promo_{tag}",
+            status="live",
+        )
+        arb = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="home+away",
+            book="multi",
+            kind="arb",
+            offered_odds=0.0,
+            fair_prob=0.0,
+            edge_pct=3.0,
+            kelly_frac=0.0,
+            ttl_sec=1800,
+            dedup_hash=f"arb_{tag}",
+            status="live",
+        )
         s.add_all([promo, arb])
         await s.commit()
         league_id, promo_id, arb_id = lg.id, promo.id, arb.id
@@ -190,7 +294,9 @@ async def test_promo_graded_and_arb_reaches_terminal_state():
         assert await _grade(arb_id) is None
     finally:
         async with Session() as s:
-            await s.execute(delete(SignalGrade).where(SignalGrade.signal_id.in_([promo_id, arb_id])))
+            await s.execute(
+                delete(SignalGrade).where(SignalGrade.signal_id.in_([promo_id, arb_id]))
+            )
             await s.execute(delete(Signal).where(Signal.fixture_id == fid))
             await s.execute(delete(Fixture).where(Fixture.id == fid))
             await s.execute(delete(Team).where(Team.league_id == league_id))

@@ -1,7 +1,8 @@
 """Leagues tab: our leagues with live-signal counts (all from our own DB)."""
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -26,7 +27,7 @@ async def list_leagues(
     # Count only fresh live signals — the same window AND the same user-facing gate the
     # Signals feed uses, so the two screens agree (no counting uncertified +EV the feed
     # hides — NON-NEGOTIABLE #2; and an old 'live' row for an upcoming game isn't "live now").
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.signal_ttl_seconds)
+    cutoff = datetime.now(UTC) - timedelta(seconds=settings.signal_ttl_seconds)
     live_counts = (
         select(Fixture.league_id, func.count(Signal.id).label("c"))
         .join(Signal, Signal.fixture_id == Fixture.id)
@@ -35,18 +36,26 @@ async def list_leagues(
         .group_by(Fixture.league_id)
         .subquery()
     )
-    rows = (await db.execute(
-        select(League, func.coalesce(live_counts.c.c, 0))
-        .outerjoin(live_counts, live_counts.c.league_id == League.id)
-        .order_by(func.coalesce(live_counts.c.c, 0).desc(), League.name)
-    )).all()
+    rows = (
+        await db.execute(
+            select(League, func.coalesce(live_counts.c.c, 0))
+            .outerjoin(live_counts, live_counts.c.league_id == League.id)
+            .order_by(func.coalesce(live_counts.c.c, 0).desc(), League.name)
+        )
+    ).all()
 
-    leagues = [{
-        "id": lg.id,
-        "name": lg.name,
-        "country": lg.country,
-        "is_soft": lg.is_soft,
-        "live_signals": int(c),
-    } for lg, c in rows]
-    return {"count": len(leagues), "live_total": sum(l["live_signals"] for l in leagues),
-            "leagues": leagues}
+    leagues = [
+        {
+            "id": lg.id,
+            "name": lg.name,
+            "country": lg.country,
+            "is_soft": lg.is_soft,
+            "live_signals": int(c),
+        }
+        for lg, c in rows
+    ]
+    return {
+        "count": len(leagues),
+        "live_total": sum(item["live_signals"] for item in leagues),
+        "leagues": leagues,
+    }

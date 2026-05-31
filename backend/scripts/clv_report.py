@@ -2,6 +2,7 @@
 
 Run from backend/:  python -m scripts.clv_report
 """
+
 import asyncio
 
 from app.shared.clv import GATE_BEAT_THRESHOLD, GATE_MIN_SAMPLE, clv_report_by_league
@@ -20,10 +21,14 @@ async def main() -> None:
     print("-" * 60)
     for r in report:
         verdict = "PASS" if r.passes() else "hold"
-        print(f"{r.league:24} {r.n:>5} {r.beats:>6} {r.beat_pct*100:>6.1f}% "
-              f"{r.lower_bound*100:>6.1f}%  {verdict}")
-    print(f"\nGate: Wilson lower bound (1-sided 95%) of beat-CLV >= {GATE_BEAT_THRESHOLD*100:.0f}% "
-          f"over >= {GATE_MIN_SAMPLE} graded signals.")
+        print(
+            f"{r.league:24} {r.n:>5} {r.beats:>6} {r.beat_pct * 100:>6.1f}% "
+            f"{r.lower_bound * 100:>6.1f}%  {verdict}"
+        )
+    print(
+        f"\nGate: Wilson lower bound (1-sided 95%) of beat-CLV >= {GATE_BEAT_THRESHOLD * 100:.0f}% "
+        f"over >= {GATE_MIN_SAMPLE} graded signals."
+    )
     print("Leagues marked 'hold' stay internal-only until they clear the gate (NON-NEGOTIABLE #2).")
 
 

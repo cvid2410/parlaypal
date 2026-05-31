@@ -2,6 +2,7 @@
 
 Run from backend/:  python -m scripts.discover_sports
 """
+
 import asyncio
 
 from app.scheduler.discovery import discover_sports

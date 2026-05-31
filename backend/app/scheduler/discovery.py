@@ -10,6 +10,7 @@ seasonal leagues. Instead of a static seed, this pulls The Odds API's active spo
 Existing leagues' manual config (is_soft, af_league_id, name) is preserved — only
 `ingest_enabled` is toggled. New leagues still route +EV through the CLV gate before users.
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,11 +29,17 @@ THE_ODDS_BASE = "https://api.the-odds-api.com/v4"
 
 # Sharp / efficient markets: ingested for arb/best-price/Scores but NOT classic +EV.
 SHARP_KEYS = {
-    "soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a",
-    "soccer_germany_bundesliga", "soccer_france_ligue_one",
-    "soccer_uefa_champs_league", "soccer_uefa_europa_league",
-    "soccer_uefa_europa_conference_league", "soccer_fifa_world_cup",
-    "soccer_uefa_european_championship", "soccer_uefa_nations_league",
+    "soccer_epl",
+    "soccer_spain_la_liga",
+    "soccer_italy_serie_a",
+    "soccer_germany_bundesliga",
+    "soccer_france_ligue_one",
+    "soccer_uefa_champs_league",
+    "soccer_uefa_europa_league",
+    "soccer_uefa_europa_conference_league",
+    "soccer_fifa_world_cup",
+    "soccer_uefa_european_championship",
+    "soccer_uefa_nations_league",
 }
 
 # Curated (name, country) for The Odds API soccer keys — tidies the Leagues tab. Unknown
@@ -147,9 +154,9 @@ async def discover_sports(fetch=None, manage_disable: bool = True) -> dict:
 
     Session = get_sessionmaker()
     async with Session() as session:
-        existing = {lg.sport_key: lg for lg in (
-            await session.execute(select(League))
-        ).scalars().all()}
+        existing = {
+            lg.sport_key: lg for lg in (await session.execute(select(League))).scalars().all()
+        }
 
         for s in active:
             key = s["key"]
@@ -164,11 +171,17 @@ async def discover_sports(fetch=None, manage_disable: bool = True) -> dict:
                     lg.name, lg.country = name, country
                     stats["tidied"] += 1
                 continue
-            session.add(League(
-                name=name, country=country, sport_key=key,
-                sharp_ref_book="pinnacle", is_soft=is_soft, model_enabled=False,
-                ingest_enabled=True,
-            ))
+            session.add(
+                League(
+                    name=name,
+                    country=country,
+                    sport_key=key,
+                    sharp_ref_book="pinnacle",
+                    is_soft=is_soft,
+                    model_enabled=False,
+                    ingest_enabled=True,
+                )
+            )
             stats["added"] += 1
 
         if manage_disable:

@@ -1,4 +1,5 @@
 """Integration test for routing + delivery. Requires Postgres + Redis."""
+
 import datetime as dt
 import uuid
 
@@ -24,26 +25,53 @@ async def world():
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
     async with Session() as s:
-        lg = League(name="Test", country="T", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False, ev_certified=True)
+        lg = League(
+            name="Test",
+            country="T",
+            sport_key=f"tl_{tag}",
+            is_soft=True,
+            ingest_enabled=False,
+            ev_certified=True,
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"Home {tag}")
         a = Team(league_id=lg.id, name=f"Away {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.UTC),
+            )
+        )
         mid = await _get_market_id(s, "h2h", None)
-        sig = Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
-                     kind="ev", offered_odds=2.35, fair_prob=0.5, edge_pct=9.1,
-                     kelly_frac=0.03, ttl_sec=1800, dedup_hash=f"hash_{tag}", status="live")
+        sig = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="home",
+            book="fanduel",
+            kind="ev",
+            offered_odds=2.35,
+            fair_prob=0.5,
+            edge_pct=9.1,
+            kelly_frac=0.03,
+            ttl_sec=1800,
+            dedup_hash=f"hash_{tag}",
+            status="live",
+        )
         s.add(sig)
         user = User(email=f"u_{tag}@x.com", tier="bettor", bankroll=1000.0)
         s.add(user)
         await s.flush()
-        s.add(Subscription(user_id=user.id, leagues=[lg.id], books=["fanduel"],
-                           min_edge=0.0, channels=["log"]))
+        s.add(
+            Subscription(
+                user_id=user.id, leagues=[lg.id], books=["fanduel"], min_edge=0.0, channels=["log"]
+            )
+        )
         await s.commit()
         league_id, sig_id, uid = lg.id, sig.id, user.id
 
@@ -101,16 +129,19 @@ async def test_deliver_is_idempotent(world):
     # Second attempt is a no-op (claim-first dedup), no double-send.
     assert await deliver({}, world["sig_id"], world["uid"], "log") is False
     async with Session() as s:
-        rows = (await s.execute(
-            select(AlertSent).where(AlertSent.signal_id == world["sig_id"])
-        )).scalars().all()
+        rows = (
+            (await s.execute(select(AlertSent).where(AlertSent.signal_id == world["sig_id"])))
+            .scalars()
+            .all()
+        )
     assert len(rows) == 1
 
 
 async def test_min_edge_filters_out(world):
     r = get_redis()
     # Raise the user's min_edge above the signal's edge → routed to zero deliveries.
-    await index_subscription(r, world["uid"], "bettor", [world["league_id"]],
-                            ["fanduel"], 50.0, ["log"])
+    await index_subscription(
+        r, world["uid"], "bettor", [world["league_id"]], ["fanduel"], 50.0, ["log"]
+    )
     out = await route_signal({}, world["sig_id"])
     assert out["enqueued"] == 0

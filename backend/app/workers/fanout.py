@@ -4,6 +4,7 @@ For an accepted signal: find eligible users via the precomputed routing index (n
 scan), filter by each user's min_edge, gate by tier (free → delayed delivery, paid → live),
 and enqueue one idempotent `deliver` job per (signal, user, channel).
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -14,9 +15,9 @@ from app.config import settings
 from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.services.cache import get_redis
+from app.shared.db import get_sessionmaker
 from app.shared.metrics import emit
 from app.shared.routing import PAID_TIERS, eligible_users, user_route_meta
-from app.shared.db import get_sessionmaker
 
 
 async def route_signal(ctx: dict, signal_id: int) -> dict:
@@ -55,12 +56,16 @@ async def route_signal(ctx: dict, signal_id: int) -> dict:
         for channel in meta["channels"]:
             if arq is not None:
                 await arq.enqueue_job(
-                    "deliver", signal_id, uid, channel,
+                    "deliver",
+                    signal_id,
+                    uid,
+                    channel,
                     _job_id=f"deliver:{signal_id}:{uid}:{channel}",
                     _defer_by=timedelta(seconds=defer),
                 )
             enqueued += 1
 
-    emit("fanout.routed", signal_id=signal_id, kind=sig.kind,
-         eligible=len(users), enqueued=enqueued)
+    emit(
+        "fanout.routed", signal_id=signal_id, kind=sig.kind, eligible=len(users), enqueued=enqueued
+    )
     return {"eligible": len(users), "enqueued": enqueued}

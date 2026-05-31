@@ -1,7 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, billing, config, health, leagues, lines, push, results, scores, signals, standings
+from app.api import (
+    auth,
+    billing,
+    config,
+    health,
+    leagues,
+    lines,
+    push,
+    results,
+    scores,
+    signals,
+    standings,
+)
 
 app = FastAPI(title="parlaypal.gg API", version="0.1.0")
 

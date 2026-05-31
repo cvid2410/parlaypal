@@ -1,6 +1,7 @@
 """Delivery job (2.5). Idempotent per (signal, user, channel) via `alerts_sent`
 (NON-NEGOTIABLE #4): claim-first, so a retried/duplicate job never double-sends.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import delete, select
@@ -46,7 +47,9 @@ async def deliver(ctx: dict, signal_id: int, user_id: int, channel: str) -> bool
             emit("deliver.duplicate", signal_id=signal_id, user_id=user_id, channel=channel)
             return False
 
-        sig = (await session.execute(select(Signal).where(Signal.id == signal_id))).scalar_one_or_none()
+        sig = (
+            await session.execute(select(Signal).where(Signal.id == signal_id))
+        ).scalar_one_or_none()
         copy_ctx = await signal_context(session, sig) if sig else None
 
     # Orphaned signal / unknown channel: nothing is deliverable and a retry won't help, so the

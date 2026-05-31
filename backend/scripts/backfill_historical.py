@@ -31,10 +31,11 @@ Run from backend/:
   python -m scripts.backfill_historical --sport-key soccer_mexico_ligamx \
       --start 2026-03-01 --end 2026-04-15 --stride-min 30 --dry-run
 """
+
 import argparse
 import asyncio
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -66,8 +67,8 @@ def _parse_dt(s: str) -> datetime:
     except ValueError:
         dt = datetime.strptime(s, "%Y-%m-%d")
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _uniform_grid(start: datetime, end: datetime, stride_min: int) -> list[datetime]:
@@ -147,15 +148,23 @@ async def _ingest_snapshot(session, payload, league, last_price, ensured) -> tup
                         continue
                     last_price[key] = price
                     counts["changes"] += 1
-                    rows.append({
-                        "fixture_id": fid, "book": book, "market_id": mid,
-                        "selection": sel, "decimal_odds": price, "ts": snap_ts,
-                    })
+                    rows.append(
+                        {
+                            "fixture_id": fid,
+                            "book": book,
+                            "market_id": mid,
+                            "selection": sel,
+                            "decimal_odds": price,
+                            "ts": snap_ts,
+                        }
+                    )
 
     if rows:
         # Idempotent: re-runs (or a finer stride hitting the same snapshot) collide on the PK.
         await session.execute(
-            pg_insert(OddsSnapshot).values(rows).on_conflict_do_nothing(
+            pg_insert(OddsSnapshot)
+            .values(rows)
+            .on_conflict_do_nothing(
                 index_elements=["fixture_id", "book", "market_id", "selection", "ts"]
             )
         )
@@ -181,14 +190,21 @@ async def _discover(client, sport_key, books, markets, start, end, stride_hours)
         try:
             payload, headers = await _fetch_historical(client, sport_key, books, markets, when)
         except httpx.HTTPStatusError as exc:
-            log.warning("  discover [%s] HTTP %s — skipped",
-                        when.strftime("%Y-%m-%d %H:%M"), exc.response.status_code)
+            log.warning(
+                "  discover [%s] HTTP %s — skipped",
+                when.strftime("%Y-%m-%d %H:%M"),
+                exc.response.status_code,
+            )
             continue
         cache[when] = (payload, headers)
         _kickoffs_from(payload, kickoffs)
-        log.info("  discover [%s] events=%d cost=%s remaining=%s",
-                 when.strftime("%Y-%m-%d %H:%M"), len(payload.get("data", []) or []),
-                 headers.get("x-requests-last", "?"), headers.get("x-requests-remaining", "?"))
+        log.info(
+            "  discover [%s] events=%d cost=%s remaining=%s",
+            when.strftime("%Y-%m-%d %H:%M"),
+            len(payload.get("data", []) or []),
+            headers.get("x-requests-last", "?"),
+            headers.get("x-requests-remaining", "?"),
+        )
     return cache, kickoffs
 
 
@@ -214,22 +230,40 @@ async def main() -> None:
     ap.add_argument("--sport-key", required=True, help="Odds API sport key (must be seeded)")
     ap.add_argument("--start", required=True, help="ISO date/datetime (UTC), inclusive")
     ap.add_argument("--end", help="ISO date/datetime (UTC), inclusive; default now")
-    ap.add_argument("--stride-min", type=int, default=30,
-                    help="minutes between snapshots (coarse = cheaper; default 30)")
+    ap.add_argument(
+        "--stride-min",
+        type=int,
+        default=30,
+        help="minutes between snapshots (coarse = cheaper; default 30)",
+    )
     ap.add_argument("--markets", default=MARKETS, help=f"comma markets (default {MARKETS})")
-    ap.add_argument("--match-day", action="store_true",
-                    help="discover kickoffs then sample only around games (recommended)")
-    ap.add_argument("--pre-hours", type=int, default=6,
-                    help="[match-day] hours before kickoff to start sampling (default 6)")
-    ap.add_argument("--discover-stride-hours", type=int, default=24,
-                    help="[match-day] hours between discovery calls (default 24)")
+    ap.add_argument(
+        "--match-day",
+        action="store_true",
+        help="discover kickoffs then sample only around games (recommended)",
+    )
+    ap.add_argument(
+        "--pre-hours",
+        type=int,
+        default=6,
+        help="[match-day] hours before kickoff to start sampling (default 6)",
+    )
+    ap.add_argument(
+        "--discover-stride-hours",
+        type=int,
+        default=24,
+        help="[match-day] hours between discovery calls (default 24)",
+    )
     ap.add_argument("--sleep", type=float, default=0.0, help="seconds between calls")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="estimate call count / credit cost without backfilling")
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="estimate call count / credit cost without backfilling",
+    )
     args = ap.parse_args()
 
     start = _parse_dt(args.start)
-    end = _parse_dt(args.end) if args.end else datetime.now(timezone.utc)
+    end = _parse_dt(args.end) if args.end else datetime.now(UTC)
     if end < start:
         ap.error("--end is before --start")
     n_markets = len([m for m in args.markets.split(",") if m.strip()])
@@ -242,17 +276,23 @@ async def main() -> None:
         n_discover = len(_uniform_grid(start, end, args.discover_stride_hours * 60))
         print(f"Discovery calls  : {n_discover} (every {args.discover_stride_hours}h)")
         print(f"Dense sampling   : {args.stride_min} min stride, {args.pre_hours}h pre-kickoff")
-        print(f"Est. credit cost : discovery >= {n_discover * 10 * n_markets}; "
-              f"dense unknown until games are discovered (10 x {n_markets} markets x regions/call)")
+        print(
+            f"Est. credit cost : discovery >= {n_discover * 10 * n_markets}; "
+            f"dense unknown until games are discovered (10 x {n_markets} markets x regions/call)"
+        )
         if args.dry_run:
-            print("\n--dry-run: discovery would spend credits to find games, so dense cost "
-                  "can't be estimated dry. Run a short window live to gauge it.")
+            print(
+                "\n--dry-run: discovery would spend credits to find games, so dense cost "
+                "can't be estimated dry. Run a short window live to gauge it."
+            )
             return
     else:
         grid = _uniform_grid(start, end, args.stride_min)
         print(f"Stride / grid pts: {args.stride_min} min / {len(grid)} calls")
-        print(f"Est. credit cost : >= {len(grid) * 10 * n_markets} "
-              f"(10 x {n_markets} markets x regions); actual prints per call below")
+        print(
+            f"Est. credit cost : >= {len(grid) * 10 * n_markets} "
+            f"(10 x {n_markets} markets x regions); actual prints per call below"
+        )
         if args.dry_run:
             print("\n--dry-run: no API calls made. Re-run without --dry-run to backfill.")
             return
@@ -262,9 +302,9 @@ async def main() -> None:
 
     Session = get_sessionmaker()
     async with Session() as session:
-        league = (await session.execute(
-            select(League).where(League.sport_key == args.sport_key)
-        )).scalar_one_or_none()
+        league = (
+            await session.execute(select(League).where(League.sport_key == args.sport_key))
+        ).scalar_one_or_none()
         if league is None:
             ap.error(f"league '{args.sport_key}' not seeded — add it to seed_leagues and re-run")
 
@@ -279,14 +319,21 @@ async def main() -> None:
             cache: dict[datetime, tuple] = {}
             if args.match_day:
                 cache, kickoffs = await _discover(
-                    client, args.sport_key, books, args.markets, start, end,
+                    client,
+                    args.sport_key,
+                    books,
+                    args.markets,
+                    start,
+                    end,
                     args.discover_stride_hours,
                 )
                 calls += len(cache)
                 dense = _dense_grid(kickoffs, start, end, args.stride_min, args.pre_hours)
                 request_times = sorted(set(cache) | dense)
-                print(f"Discovered {len(kickoffs)} kickoffs → {len(request_times)} total calls "
-                      f"({len(request_times) - len(cache)} new dense + {len(cache)} cached).")
+                print(
+                    f"Discovered {len(kickoffs)} kickoffs → {len(request_times)} total calls "
+                    f"({len(request_times) - len(cache)} new dense + {len(cache)} cached)."
+                )
             else:
                 request_times = _uniform_grid(start, end, args.stride_min)
 
@@ -300,8 +347,11 @@ async def main() -> None:
                         )
                     except httpx.HTTPStatusError as exc:
                         errors += 1
-                        log.warning("  [%s] HTTP %s — skipped",
-                                    rt.strftime("%Y-%m-%d %H:%M"), exc.response.status_code)
+                        log.warning(
+                            "  [%s] HTTP %s — skipped",
+                            rt.strftime("%Y-%m-%d %H:%M"),
+                            exc.response.status_code,
+                        )
                         if errors >= 5 and calls == 0:
                             ap.error("first 5 calls all failed — check key/plan/coverage; aborting")
                         continue
@@ -319,8 +369,11 @@ async def main() -> None:
                     total[k] += counts[k]
                 log.info(
                     "  [%s] snap=%s events=%2d changes=%3d skip=%2d  cost=%s remaining=%s",
-                    rt.strftime("%Y-%m-%d %H:%M"), snap_ts.strftime("%m-%d %H:%M"),
-                    counts["events"], counts["changes"], counts["skipped"],
+                    rt.strftime("%Y-%m-%d %H:%M"),
+                    snap_ts.strftime("%m-%d %H:%M"),
+                    counts["events"],
+                    counts["changes"],
+                    counts["skipped"],
                     headers.get("x-requests-last", "?"),
                     headers.get("x-requests-remaining", "?"),
                 )
@@ -328,10 +381,14 @@ async def main() -> None:
                     await asyncio.sleep(args.sleep)
 
         print(f"\nDone. calls={calls} errors={errors} distinct_snapshots={len(seen_ts)}")
-        print(f"  events={total['events']} snapshot_rows_written={total['changes']} "
-              f"unmatched_skipped={total['skipped']}")
-        print("Next: python -m scripts.replay_detect --sport-key "
-              f"{args.sport_key} --start {start:%Y-%m-%d} --end {end:%Y-%m-%d} --settle --report")
+        print(
+            f"  events={total['events']} snapshot_rows_written={total['changes']} "
+            f"unmatched_skipped={total['skipped']}"
+        )
+        print(
+            "Next: python -m scripts.replay_detect --sport-key "
+            f"{args.sport_key} --start {start:%Y-%m-%d} --end {end:%Y-%m-%d} --settle --report"
+        )
 
 
 if __name__ == "__main__":

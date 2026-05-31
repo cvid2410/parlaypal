@@ -31,13 +31,13 @@ class Settings(BaseSettings):
     # The worker wakes every tick; each league is fetched only when its tier is due. This
     # keeps fast polling for live/imminent games and barely touches idle leagues — the
     # refresh rate is the real Odds API cost driver (CLAUDE.md / BUILD_PLAN 0.2).
-    poll_tick_seconds: int = 20            # base loop cadence (= the fast cadence)
-    poll_live_duration_min: int = 150      # treat a fixture as in-play this long after kickoff
-    poll_near_window_min: int = 75         # "imminent": kickoff within this window → fast
-    poll_upcoming_window_hours: int = 12   # has a game later today → medium
-    poll_fast_seconds: int = 20            # live / imminent leagues
-    poll_medium_seconds: int = 300         # upcoming-today leagues
-    poll_slow_seconds: int = 1800          # idle leagues (still discover fixtures + far odds)
+    poll_tick_seconds: int = 20  # base loop cadence (= the fast cadence)
+    poll_live_duration_min: int = 150  # treat a fixture as in-play this long after kickoff
+    poll_near_window_min: int = 75  # "imminent": kickoff within this window → fast
+    poll_upcoming_window_hours: int = 12  # has a game later today → medium
+    poll_fast_seconds: int = 20  # live / imminent leagues
+    poll_medium_seconds: int = 300  # upcoming-today leagues
+    poll_slow_seconds: int = 1800  # idle leagues (still discover fixtures + far odds)
     # Auto-discover active soccer competitions from The Odds API (friendlies, cups, seasons).
     discovery_enabled: bool = True
 
@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_bettor: str = ""  # Stripe Price id for the $29 Bettor plan
-    stripe_price_sharp: str = ""   # Stripe Price id for the $79 Sharp plan
+    stripe_price_sharp: str = ""  # Stripe Price id for the $79 Sharp plan
     public_base_url: str = "http://localhost:5173"  # for checkout success/cancel redirects
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

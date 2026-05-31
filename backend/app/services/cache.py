@@ -1,5 +1,8 @@
 import json
+from typing import Any
+
 import redis.asyncio as redis
+
 from app.config import settings
 
 _pool: redis.Redis | None = None
@@ -12,7 +15,8 @@ def get_redis() -> redis.Redis:
     return _pool
 
 
-async def get_cached(key: str) -> dict | list | None:
+async def get_cached(key: str) -> Any:
+    # Deserialised JSON — the shape depends on the key, so callers annotate their own return.
     r = get_redis()
     raw = await r.get(key)
     return json.loads(raw) if raw else None

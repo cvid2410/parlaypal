@@ -1,4 +1,5 @@
 """Tier gating for GET /api/signals. Requires Postgres + Redis."""
+
 import datetime as dt
 import uuid
 
@@ -26,28 +27,59 @@ async def world():
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
     async with Session() as s:
-        lg = League(name="Test", country="Testland", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False, ev_certified=True)
+        lg = League(
+            name="Test",
+            country="Testland",
+            sport_key=f"tl_{tag}",
+            is_soft=True,
+            ingest_enabled=False,
+            ev_certified=True,
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"Home {tag}")
         a = Team(league_id=lg.id, name=f"Away {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.UTC),
+            )
+        )
         mid = await _get_market_id(s, "h2h", None)
-        s.add(Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
-                     kind="ev", offered_odds=2.35, fair_prob=0.5, edge_pct=9.1,
-                     kelly_frac=0.03, ttl_sec=1800, dedup_hash=f"h_{tag}", status="live"))
+        s.add(
+            Signal(
+                fixture_id=fid,
+                market_id=mid,
+                selection="home",
+                book="fanduel",
+                kind="ev",
+                offered_odds=2.35,
+                fair_prob=0.5,
+                edge_pct=9.1,
+                kelly_frac=0.03,
+                ttl_sec=1800,
+                dedup_hash=f"h_{tag}",
+                status="live",
+            )
+        )
         free = User(email=f"free_{tag}@x.com", tier="free")
         paid = User(email=f"paid_{tag}@x.com", tier="bettor")
         s.add_all([free, paid])
         await s.commit()
         ids = (lg.id, fid, free.id, paid.id)
-    yield {"league_id": ids[0], "fid": ids[1],
-           "free_token": create_access_token(ids[2]), "paid_token": create_access_token(ids[3]),
-           "free_id": ids[2], "paid_id": ids[3]}
+    yield {
+        "league_id": ids[0],
+        "fid": ids[1],
+        "free_token": create_access_token(ids[2]),
+        "paid_token": create_access_token(ids[3]),
+        "free_id": ids[2],
+        "paid_id": ids[3],
+    }
     async with Session() as s:
         await s.execute(delete(Signal).where(Signal.fixture_id == fid))
         await s.execute(delete(Fixture).where(Fixture.id == fid))
@@ -99,27 +131,68 @@ async def test_uncertified_ev_hidden_arb_shown():
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
     async with Session() as s:
-        lg = League(name="Unc", country="Uncertia", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False, ev_certified=False)
+        lg = League(
+            name="Unc",
+            country="Uncertia",
+            sport_key=f"tl_{tag}",
+            is_soft=True,
+            ingest_enabled=False,
+            ev_certified=False,
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"H {tag}")
         a = Team(league_id=lg.id, name=f"A {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.UTC),
+            )
+        )
         mid = await _get_market_id(s, "h2h", None)
-        s.add_all([
-            Signal(fixture_id=fid, market_id=mid, selection="home", book="fanduel",
-                   kind="ev", offered_odds=2.2, fair_prob=0.5, edge_pct=10.0, kelly_frac=0.05,
-                   ttl_sec=1800, dedup_hash=f"ev_{tag}", status="live"),
-            Signal(fixture_id=fid, market_id=mid, selection="home+away", book="multi",
-                   kind="arb", offered_odds=0.0, fair_prob=0.0, edge_pct=2.0, kelly_frac=0.0,
-                   ttl_sec=1800, dedup_hash=f"arb_{tag}", status="live",
-                   meta={"legs": {"home": {"book": "betmgm", "odds": 2.1, "stake_frac": 0.5},
-                                  "away": {"book": "fanduel", "odds": 2.1, "stake_frac": 0.5}}}),
-        ])
+        s.add_all(
+            [
+                Signal(
+                    fixture_id=fid,
+                    market_id=mid,
+                    selection="home",
+                    book="fanduel",
+                    kind="ev",
+                    offered_odds=2.2,
+                    fair_prob=0.5,
+                    edge_pct=10.0,
+                    kelly_frac=0.05,
+                    ttl_sec=1800,
+                    dedup_hash=f"ev_{tag}",
+                    status="live",
+                ),
+                Signal(
+                    fixture_id=fid,
+                    market_id=mid,
+                    selection="home+away",
+                    book="multi",
+                    kind="arb",
+                    offered_odds=0.0,
+                    fair_prob=0.0,
+                    edge_pct=2.0,
+                    kelly_frac=0.0,
+                    ttl_sec=1800,
+                    dedup_hash=f"arb_{tag}",
+                    status="live",
+                    meta={
+                        "legs": {
+                            "home": {"book": "betmgm", "odds": 2.1, "stake_frac": 0.5},
+                            "away": {"book": "fanduel", "odds": 2.1, "stake_frac": 0.5},
+                        }
+                    },
+                ),
+            ]
+        )
         paid = User(email=f"p_{tag}@x.com", tier="bettor")
         s.add(paid)
         await s.commit()

@@ -2,6 +2,7 @@
 
 All probability/EV math works in DECIMAL odds. American is display-only.
 """
+
 from __future__ import annotations
 
 
@@ -115,8 +116,9 @@ def devig(odds_by_sel: dict[str, float], method: str = "multiplicative") -> dict
     return shin_devig(odds_by_sel) if method == "shin" else devig_multi(odds_by_sel)
 
 
-def find_middle(over_dec: float, over_line: float,
-               under_dec: float, under_line: float) -> dict | None:
+def find_middle(
+    over_dec: float, over_line: float, under_dec: float, under_line: float
+) -> dict | None:
     """A totals 'middle': back Over at a low line and Under at a high line so a final total
     landing strictly between wins BOTH. Returns the window + P&L, or None if no middle.
 
@@ -126,10 +128,12 @@ def find_middle(over_dec: float, over_line: float,
     s < 1 means it's also an arb (profits even on a miss).
     """
     import math as _m
+
     if over_line >= under_line:
         return None
-    window = [n for n in range(_m.floor(over_line) + 1, _m.ceil(under_line))
-              if over_line < n < under_line]
+    window = [
+        n for n in range(_m.floor(over_line) + 1, _m.ceil(under_line)) if over_line < n < under_line
+    ]
     if not window:
         return None
     s = 1 / over_dec + 1 / under_dec

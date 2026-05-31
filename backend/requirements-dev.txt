@@ -1,0 +1,5 @@
+# Dev-only tooling (not installed in the runtime image). Install into a local venv:
+#   python3 -m venv backend/.venv
+#   backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+ruff==0.15.15
+pyright==1.1.409

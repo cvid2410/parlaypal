@@ -49,7 +49,9 @@ async def test_signup_login_me_flow():
             # /me without token
             assert (await c.get("/api/auth/me")).status_code == 401
             # /me with garbage token
-            assert (await c.get("/api/auth/me", headers={"Authorization": "Bearer nope"})).status_code == 401
+            assert (
+                await c.get("/api/auth/me", headers={"Authorization": "Bearer nope"})
+            ).status_code == 401
     finally:
         await _cleanup(email)
 

@@ -1,4 +1,5 @@
 """Standings tab: a league's table(s) from API-Football, with team logos."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException

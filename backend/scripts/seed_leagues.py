@@ -5,6 +5,7 @@ Adding a league later is just another row here (+ a re-run) — the ingestor is 
 
 Run from the backend/ dir:  python -m scripts.seed_leagues
 """
+
 import asyncio
 
 from sqlalchemy import select
@@ -56,8 +57,7 @@ async def main() -> None:
     Session = get_sessionmaker()
     async with Session() as session:
         by_key = {
-            lg.sport_key: lg
-            for lg in (await session.execute(select(League))).scalars().all()
+            lg.sport_key: lg for lg in (await session.execute(select(League))).scalars().all()
         }
         added = updated = 0
         for name, country, sport_key, is_soft, ingest_enabled, af_id, ev_certified in LEAGUES:
@@ -89,8 +89,10 @@ async def main() -> None:
             )
             added += 1
         await session.commit()
-        print(f"Seeded {added} new league(s); backfilled af id on {updated}; "
-              f"{len(by_key)} already present.")
+        print(
+            f"Seeded {added} new league(s); backfilled af id on {updated}; "
+            f"{len(by_key)} already present."
+        )
 
 
 if __name__ == "__main__":

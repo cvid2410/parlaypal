@@ -6,6 +6,7 @@ injection entry point (a feed or admin UI plugs in here later). Given a boosted 
 compute the fair probability from current hot state (devig Pinnacle, else book consensus)
 and emit a promo signal when it's +EV.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,8 +26,9 @@ from app.workers.detect import _alert_allowed, _bucket, _dedup_hash
 log = logging.getLogger("boosts")
 
 
-def _fair_from_hotstate(by_book: dict[str, dict[str, float]], sharp_book: str,
-                        method: str) -> dict[str, float]:
+def _fair_from_hotstate(
+    by_book: dict[str, dict[str, float]], sharp_book: str, method: str
+) -> dict[str, float]:
     """Fair prob per selection: devig the sharp reference if present, else the book consensus.
 
     Uses the league's `sharp_ref_book` and the configured devig `method` — the SAME fair line
@@ -50,20 +52,26 @@ def _fair_from_hotstate(by_book: dict[str, dict[str, float]], sharp_book: str,
     return devig(consensus, method)
 
 
-async def inject_boost(fixture_id: str, market_type: str, line: float | None,
-                      selection: str, book: str, boosted_american: float,
-                      ctx: dict | None = None) -> dict:
+async def inject_boost(
+    fixture_id: str,
+    market_type: str,
+    line: float | None,
+    selection: str,
+    book: str,
+    boosted_american: float,
+    ctx: dict | None = None,
+) -> dict:
     r = get_redis()
     Session = get_sessionmaker()
     async with Session() as session:
-        fx = (await session.execute(
-            select(Fixture).where(Fixture.id == fixture_id)
-        )).scalar_one_or_none()
+        fx = (
+            await session.execute(select(Fixture).where(Fixture.id == fixture_id))
+        ).scalar_one_or_none()
         if fx is None:
             return {"emitted": False, "error": "fixture not found"}
-        sharp_book = (await session.execute(
-            select(League.sharp_ref_book).where(League.id == fx.league_id)
-        )).scalar_one()
+        sharp_book = (
+            await session.execute(select(League.sharp_ref_book).where(League.id == fx.league_id))
+        ).scalar_one()
 
         q = select(Market.id).where(Market.type == market_type, Market.period == "FT")
         q = q.where(Market.line.is_(None) if line is None else Market.line == line)
@@ -91,12 +99,19 @@ async def inject_boost(fixture_id: str, market_type: str, line: float | None,
             return {"emitted": False, "edge_pct": round(edge, 2), "dedup": True}
 
         sig = Signal(
-            fixture_id=fixture_id, market_id=mid, selection=selection, book=book,
-            kind="promo", offered_odds=dec, fair_prob=p, edge_pct=edge,
+            fixture_id=fixture_id,
+            market_id=mid,
+            selection=selection,
+            book=book,
+            kind="promo",
+            offered_odds=dec,
+            fair_prob=p,
+            edge_pct=edge,
             kelly_frac=kelly(p, dec, settings.kelly_fraction),
             ttl_sec=settings.signal_ttl_seconds,
             dedup_hash=_dedup_hash(fixture_id, mid, selection, book, "promo", bucket),
-            status="live", meta={"boost": True, "boosted_american": boosted_american},
+            status="live",
+            meta={"boost": True, "boosted_american": boosted_american},
         )
         session.add(sig)
         await session.commit()

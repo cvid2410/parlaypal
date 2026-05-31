@@ -91,7 +91,7 @@ def test_find_arb_multi_3way():
     arb = find_arb_multi({"home": 3.0, "draw": 4.0, "away": 4.0})
     assert arb is not None  # 1/3 + 1/4 + 1/4 = 0.833 < 1
     assert sum(arb["stake_fracs"].values()) == pytest.approx(1.0)
-    assert arb["profit_pct"] == pytest.approx((1 - (1/3 + 1/4 + 1/4)) * 100)
+    assert arb["profit_pct"] == pytest.approx((1 - (1 / 3 + 1 / 4 + 1 / 4)) * 100)
 
 
 def test_find_arb_multi_none_with_hold():
@@ -104,8 +104,8 @@ def test_find_middle_basic():
     assert m is not None
     assert m["window"] == [2]
     assert m["hold"] == pytest.approx(1.0)
-    assert m["miss_pnl_pct"] == pytest.approx(0.0)        # break-even on a miss
-    assert m["middle_pnl_pct"] == pytest.approx(100.0)    # doubles if it middles
+    assert m["miss_pnl_pct"] == pytest.approx(0.0)  # break-even on a miss
+    assert m["middle_pnl_pct"] == pytest.approx(100.0)  # doubles if it middles
 
 
 def test_find_middle_wide_window():
@@ -114,8 +114,8 @@ def test_find_middle_wide_window():
 
 
 def test_find_middle_none():
-    assert find_middle(2.0, 2.5, 2.0, 1.5) is None   # over line >= under line
-    assert find_middle(2.0, 1.5, 2.0, 2.0) is None   # no integer strictly between
+    assert find_middle(2.0, 2.5, 2.0, 1.5) is None  # over line >= under line
+    assert find_middle(2.0, 1.5, 2.0, 2.0) is None  # no integer strictly between
 
 
 def test_kelly_sizing_and_floor():

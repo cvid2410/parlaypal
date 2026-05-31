@@ -5,6 +5,7 @@ won't collide on a job id the way a self-rescheduling loop does. Each tick fetch
 leagues whose tier is due (kickoff-aware, see ingestors/odds.py) and enqueues one
 `detect_market` job per market that moved meaningfully.
 """
+
 from arq import cron
 from arq.connections import RedisSettings
 

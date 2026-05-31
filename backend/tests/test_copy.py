@@ -17,10 +17,19 @@ def _hash(seed: str) -> str:
 
 def _ev_ctx(seed: str, edge: float = 9.1) -> SignalCopyContext:
     return SignalCopyContext(
-        kind="ev", dedup_hash=_hash(seed), league_name="Liga MX",
-        home="Tigres UANL", away="Atlas", market_type="h2h", line=None,
-        selection="home", book="fanduel", offered_decimal=2.35, fair_prob=0.5,
-        edge_pct=edge, kelly_frac=0.031,
+        kind="ev",
+        dedup_hash=_hash(seed),
+        league_name="Liga MX",
+        home="Tigres UANL",
+        away="Atlas",
+        market_type="h2h",
+        line=None,
+        selection="home",
+        book="fanduel",
+        offered_decimal=2.35,
+        fair_prob=0.5,
+        edge_pct=edge,
+        kelly_frac=0.031,
     )
 
 
@@ -63,9 +72,15 @@ def test_different_hash_can_pick_different_variant():
 
 def test_arb_copy_may_say_guaranteed_and_lists_legs():
     ctx = SignalCopyContext(
-        kind="arb", dedup_hash=_hash("arb1"), league_name="Série A",
-        home="Flamengo", away="Palmeiras", market_type="h2h", line=None,
-        selection="home+away+draw", edge_pct=3.2,
+        kind="arb",
+        dedup_hash=_hash("arb1"),
+        league_name="Série A",
+        home="Flamengo",
+        away="Palmeiras",
+        market_type="h2h",
+        line=None,
+        selection="home+away+draw",
+        edge_pct=3.2,
         legs=[
             {"selection": "home", "book": "draftkings", "decimal": 2.18, "stake_frac": 0.46},
             {"selection": "away", "book": "betmgm", "decimal": 2.05, "stake_frac": 0.54},

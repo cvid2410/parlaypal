@@ -9,6 +9,7 @@ Keys:
   sub:book:{book}         -> set of user ids
   usermeta:{user_id}      -> hash {tier, min_edge, channels(csv)}
 """
+
 from __future__ import annotations
 
 PAID_TIERS = {"bettor", "sharp"}
@@ -26,9 +27,15 @@ def _meta_key(user_id: int) -> str:
     return f"usermeta:{user_id}"
 
 
-async def index_subscription(r, user_id: int, tier: str, leagues: list[int],
-                            books: list[str], min_edge: float,
-                            channels: list[str]) -> None:
+async def index_subscription(
+    r,
+    user_id: int,
+    tier: str,
+    leagues: list[int],
+    books: list[str],
+    min_edge: float,
+    channels: list[str],
+) -> None:
     """(Re)write one user's routing membership + meta."""
     pipe = r.pipeline()
     for lid in leagues:

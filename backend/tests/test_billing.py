@@ -1,4 +1,5 @@
 """Stripe billing: webhook event application (the network-free core) + endpoint guards."""
+
 import uuid
 
 import httpx
@@ -36,11 +37,13 @@ async def test_checkout_completed_upgrades_and_stores_customer():
     try:
         event = {
             "type": "checkout.session.completed",
-            "data": {"object": {
-                "client_reference_id": str(uid),
-                "customer": "cus_123",
-                "metadata": {"user_id": str(uid), "tier": "bettor"},
-            }},
+            "data": {
+                "object": {
+                    "client_reference_id": str(uid),
+                    "customer": "cus_123",
+                    "metadata": {"user_id": str(uid), "tier": "bettor"},
+                }
+            },
         }
         async with get_sessionmaker()() as s:
             assert await apply_stripe_event(s, event) is not None
@@ -55,8 +58,7 @@ async def test_checkout_completed_upgrades_and_stores_customer():
 async def test_subscription_deleted_downgrades_to_free():
     uid = await _mk_user("sharp", customer="cus_x")
     try:
-        event = {"type": "customer.subscription.deleted",
-                 "data": {"object": {"customer": "cus_x"}}}
+        event = {"type": "customer.subscription.deleted", "data": {"object": {"customer": "cus_x"}}}
         async with get_sessionmaker()() as s:
             assert await apply_stripe_event(s, event) is not None
         async with get_sessionmaker()() as s:
@@ -84,8 +86,11 @@ async def test_checkout_503_without_stripe_config():
     try:
         token = create_access_token(uid)
         async with _client() as c:
-            r = await c.post("/api/billing/checkout", json={"tier": "bettor"},
-                             headers={"Authorization": f"Bearer {token}"})
+            r = await c.post(
+                "/api/billing/checkout",
+                json={"tier": "bettor"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
         assert r.status_code == 503
     finally:
         await _del_user(uid)

@@ -13,12 +13,13 @@ Per poll it:
      change-gate, NON-NEGOTIABLE #3), and
   5. enqueues one coalesced `detect_market` job per market that moved.
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import and_, func, select
@@ -77,15 +78,17 @@ async def _due_leagues(session, r, leagues, now: datetime):
     """Filter enabled leagues to those due to be polled this tick, by tier + last-poll time.
     Never-polled leagues are always due (bootstraps fixtures on first run)."""
     live_cutoff = now - timedelta(minutes=settings.poll_live_duration_min)
-    rows = (await session.execute(
-        select(
-            Fixture.league_id,
-            func.bool_or(
-                and_(Fixture.kickoff_utc <= now, Fixture.kickoff_utc > live_cutoff)
-            ).label("has_live"),
-            func.min(Fixture.kickoff_utc).filter(Fixture.kickoff_utc > now).label("next_ko"),
-        ).group_by(Fixture.league_id)
-    )).all()
+    rows = (
+        await session.execute(
+            select(
+                Fixture.league_id,
+                func.bool_or(
+                    and_(Fixture.kickoff_utc <= now, Fixture.kickoff_utc > live_cutoff)
+                ).label("has_live"),
+                func.min(Fixture.kickoff_utc).filter(Fixture.kickoff_utc > now).label("next_ko"),
+            ).group_by(Fixture.league_id)
+        )
+    ).all()
     timing = {lid: (bool(has_live), next_ko) for lid, has_live, next_ko in rows}
 
     now_ts = time.time()
@@ -187,9 +190,7 @@ async def _upsert_fixture(session, event: dict, league_id: int, home_id: int, aw
             kickoff_utc=kickoff,
             status="scheduled",
         )
-        .on_conflict_do_update(
-            index_elements=["id"], set_={"kickoff_utc": kickoff}
-        )
+        .on_conflict_do_update(index_elements=["id"], set_={"kickoff_utc": kickoff})
     )
     await session.execute(stmt)
 
@@ -222,17 +223,26 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
     Session = get_sessionmaker()
     await ensure_daily_partition()
 
-    stats = {"events": 0, "changes": 0, "markets_dirty": 0, "leagues": 0,
-             "enabled": 0, "errors": 0, "review": 0}
+    stats = {
+        "events": 0,
+        "changes": 0,
+        "markets_dirty": 0,
+        "leagues": 0,
+        "enabled": 0,
+        "errors": 0,
+        "review": 0,
+    }
     dirty: set[tuple[str, int]] = set()
     snapshots: list[OddsSnapshot] = []
     reviews: list[ReviewQueue] = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async with Session() as session:
         leagues = (
-            await session.execute(select(League).where(League.ingest_enabled.is_(True)))
-        ).scalars().all()
+            (await session.execute(select(League).where(League.ingest_enabled.is_(True))))
+            .scalars()
+            .all()
+        )
         stats["enabled"] = len(leagues)
         # Only poll leagues whose tier is due this tick (kickoff-aware).
         due = await _due_leagues(session, r, leagues, now)
@@ -279,8 +289,7 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                                 field = f"{book}:{sel}"
                                 old = await r.hget(key, field)
                                 changed = old is None or (
-                                    abs(price - float(old)) / float(old)
-                                    >= settings.move_threshold
+                                    abs(price - float(old)) / float(old) >= settings.move_threshold
                                 )
                                 if not changed:
                                     continue

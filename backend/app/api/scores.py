@@ -3,9 +3,10 @@
 One /fixtures?date=today call (shared, cached) → filter to leagues we map by af_league_id.
 No edge here (scores aren't an edge), so this is a free-tier surface.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -27,11 +28,11 @@ async def scores(
 ) -> dict:
     af_map = {
         lg.af_league_id: lg
-        for lg in (await db.execute(
-            select(League).where(League.af_league_id.isnot(None))
-        )).scalars().all()
+        for lg in (await db.execute(select(League).where(League.af_league_id.isnot(None))))
+        .scalars()
+        .all()
     }
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     raw = await fixtures_by_date(today)
 
     live, upcoming, finished, off = [], [], [], []

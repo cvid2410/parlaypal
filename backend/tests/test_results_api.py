@@ -1,4 +1,5 @@
 """GET /api/results aggregation. Requires Postgres + Redis."""
+
 import datetime as dt
 import uuid
 
@@ -26,16 +27,28 @@ async def graded_world():
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
     async with Session() as s:
-        lg = League(name=f"TR {tag}", country="Testland", sport_key=f"tl_{tag}",
-                    is_soft=True, ingest_enabled=False)
+        lg = League(
+            name=f"TR {tag}",
+            country="Testland",
+            sport_key=f"tl_{tag}",
+            is_soft=True,
+            ingest_enabled=False,
+        )
         s.add(lg)
         await s.flush()
         h = Team(league_id=lg.id, name=f"Home {tag}")
         a = Team(league_id=lg.id, name=f"Away {tag}")
         s.add_all([h, a])
         await s.flush()
-        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id,
-                      kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)))
+        s.add(
+            Fixture(
+                id=fid,
+                league_id=lg.id,
+                home_id=h.id,
+                away_id=a.id,
+                kickoff_utc=dt.datetime(2026, 6, 1, tzinfo=dt.UTC),
+            )
+        )
         mid = await _get_market_id(s, "h2h", None)
         # three settled EV signals: 2 wins (CLV beat) + 1 loss (no CLV beat)
         specs = [
@@ -45,13 +58,31 @@ async def graded_world():
         ]
         sig_ids = []
         for sel, odds, beat, result, pnl in specs:
-            sig = Signal(fixture_id=fid, market_id=mid, selection=sel, book="fanduel",
-                         kind="ev", offered_odds=odds, fair_prob=0.5, edge_pct=5.0,
-                         kelly_frac=0.02, ttl_sec=1800, dedup_hash=f"{tag}_{sel}", status="settled")
+            sig = Signal(
+                fixture_id=fid,
+                market_id=mid,
+                selection=sel,
+                book="fanduel",
+                kind="ev",
+                offered_odds=odds,
+                fair_prob=0.5,
+                edge_pct=5.0,
+                kelly_frac=0.02,
+                ttl_sec=1800,
+                dedup_hash=f"{tag}_{sel}",
+                status="settled",
+            )
             s.add(sig)
             await s.flush()
-            s.add(SignalGrade(signal_id=sig.id, closing_odds=odds - 0.1, beat_clv=beat,
-                              result=result, pnl_units=pnl))
+            s.add(
+                SignalGrade(
+                    signal_id=sig.id,
+                    closing_odds=odds - 0.1,
+                    beat_clv=beat,
+                    result=result,
+                    pnl_units=pnl,
+                )
+            )
             sig_ids.append(sig.id)
         user = User(email=f"tr_{tag}@x.com", tier="bettor")
         s.add(user)
@@ -70,7 +101,9 @@ async def graded_world():
 
 async def test_results_aggregates(graded_world):
     async with _client() as c:
-        r = await c.get("/api/results", headers={"Authorization": f"Bearer {graded_world['token']}"})
+        r = await c.get(
+            "/api/results", headers={"Authorization": f"Bearer {graded_world['token']}"}
+        )
     assert r.status_code == 200
     d = r.json()
     # CLV: 2 of 3 beat → 66.7%

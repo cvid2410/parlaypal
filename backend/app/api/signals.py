@@ -5,19 +5,20 @@ engine. Free tier sees the same activity as *locked teasers* — league/fixture/
 with the pick, book, and odds redacted so no edge leaks (CLAUDE.md: scores aren't an edge,
 but picks are). Upgrading flips the same cards to full detail.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import get_current_user
 from app.config import settings
 from app.models.core import Fixture, League
 from app.models.signals import Signal
 from app.models.users import User
-from app.api.auth import get_current_user
 from app.shared.copy import action_ticket, explain
 from app.shared.db import get_db
 from app.shared.routing import PAID_TIERS
@@ -33,24 +34,30 @@ async def list_signals(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     paid = user.tier in PAID_TIERS
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - timedelta(seconds=settings.signal_ttl_seconds)
 
     # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
     # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated — they're
     # mechanical. The same clause gates the Leagues badge so the two screens agree.
-    sigs = (await db.execute(
-        select(Signal)
-        .join(Fixture, Signal.fixture_id == Fixture.id)
-        .join(League, Fixture.league_id == League.id)
-        .where(
-            Signal.status == "live",
-            Signal.created_at >= cutoff,
-            user_facing_clause(),
+    sigs = (
+        (
+            await db.execute(
+                select(Signal)
+                .join(Fixture, Signal.fixture_id == Fixture.id)
+                .join(League, Fixture.league_id == League.id)
+                .where(
+                    Signal.status == "live",
+                    Signal.created_at >= cutoff,
+                    user_facing_clause(),
+                )
+                .order_by(Signal.created_at.desc())
+                .limit(50)
+            )
         )
-        .order_by(Signal.created_at.desc())
-        .limit(50)
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     cards = []
     for sig in sigs:
@@ -73,19 +80,23 @@ async def list_signals(
         }
         if paid:
             copy = explain(ctx)
-            card.update({
-                "title": copy["title"],
-                "body": copy["body"],
-                "footer": copy["footer"],
-                # Structured "Your bet" inputs (book/pick/min-odds/stake, or per-leg split).
-                "ticket": action_ticket(ctx, user.bankroll),
-                **copy["fields"],
-            })
+            card.update(
+                {
+                    "title": copy["title"],
+                    "body": copy["body"],
+                    "footer": copy["footer"],
+                    # Structured "Your bet" inputs (book/pick/min-odds/stake, or per-leg split).
+                    "ticket": action_ticket(ctx, user.bankroll),
+                    **copy["fields"],
+                }
+            )
             # Unified headline metric (ev edge / arb profit / middle upside all live in edge_pct).
             card["edge_pct"] = round(sig.edge_pct, 2)
         else:
             # Redacted teaser — show that an edge exists, not what it is.
-            label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(sig.kind, "value bet")
+            label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(
+                sig.kind, "value bet"
+            )
             card["title"] = f"Live {label} — unlock to see the pick"
         cards.append(card)
 

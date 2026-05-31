@@ -4,6 +4,7 @@ In production (stripe configured, allow_dev_upgrade=False) the Stripe webhook is
 way `users.tier` changes. Locally, with no Stripe keys, the frontend falls back to
 `/billing/dev-upgrade` so the Free/Pro flow stays demoable.
 """
+
 from __future__ import annotations
 
 import logging
@@ -101,9 +102,9 @@ async def apply_stripe_event(db: AsyncSession, event: dict) -> str | None:
         cust = obj.get("customer")
         if not cust:
             return None
-        user = (await db.execute(
-            select(User).where(User.stripe_customer_id == cust)
-        )).scalar_one_or_none()
+        user = (
+            await db.execute(select(User).where(User.stripe_customer_id == cust))
+        ).scalar_one_or_none()
         if user is None:
             return None
         user.tier = "free"
@@ -122,7 +123,7 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
     try:
         event = stripe.Webhook.construct_event(payload, sig, settings.stripe_webhook_secret)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        raise HTTPException(status_code=400, detail="Invalid signature") from None
     result = await apply_stripe_event(db, event)
     log.info("stripe webhook %s -> %s", event.get("type"), result)
     return {"ok": True}

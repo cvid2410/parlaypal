@@ -6,6 +6,7 @@ to the feed but not the badge — so the gate predicate lives here, imported by 
 
 Requires the query to already join Signal -> Fixture -> League.
 """
+
 from __future__ import annotations
 
 from app.models.core import League

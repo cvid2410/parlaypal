@@ -1,12 +1,14 @@
 """Manually inject an odds boost → a promo signal (no auto-feed yet).
 
 Usage (from backend/):
-  python -m scripts.inject_boost <fixture_id> <market_type> <line|none> <selection> <book> <boosted_american>
+  python -m scripts.inject_boost \
+      <fixture_id> <market_type> <line|none> <selection> <book> <boosted_american>
 
 Examples:
   python -m scripts.inject_boost e912... h2h none home draftkings 250
   python -m scripts.inject_boost e912... total 2.5 over fanduel 180
 """
+
 import asyncio
 import sys
 

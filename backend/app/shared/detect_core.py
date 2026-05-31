@@ -10,6 +10,7 @@ Input is the per-market book→selection→decimal map; output is a list of `Opp
 candidates including their dedup scope/bucket/hash. The caller owns the side effects:
 flap-dedup (`_alert_allowed`), persistence, and fan-out.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -20,7 +21,7 @@ from app.shared.math import devig, ev_pct, find_arb_multi, kelly
 
 @dataclass
 class Opportunity:
-    kind: str           # "ev" | "arb"
+    kind: str  # "ev" | "arb"
     selection: str
     book: str
     offered_odds: float
@@ -102,19 +103,21 @@ def find_opportunities(
                 if edge < min_edge_pct or edge > max_edge_pct:
                     continue
                 bucket = _bucket(edge, edge_bucket_pct)
-                opps.append(Opportunity(
-                    kind="ev",
-                    selection=sel,
-                    book=book,
-                    offered_odds=dec,
-                    fair_prob=p,
-                    edge_pct=edge,
-                    kelly_frac=kelly(p, dec, kelly_fraction),
-                    scope=f"ev:{fixture_id}:{market_id}:{sel}:{book}",
-                    bucket=bucket,
-                    dedup_hash=_dedup_hash(fixture_id, market_id, sel, book, bucket),
-                    meta={"sharp_book": sharp_ref_book},
-                ))
+                opps.append(
+                    Opportunity(
+                        kind="ev",
+                        selection=sel,
+                        book=book,
+                        offered_odds=dec,
+                        fair_prob=p,
+                        edge_pct=edge,
+                        kelly_frac=kelly(p, dec, kelly_fraction),
+                        scope=f"ev:{fixture_id}:{market_id}:{sel}:{book}",
+                        bucket=bucket,
+                        dedup_hash=_dedup_hash(fixture_id, market_id, sel, book, bucket),
+                        meta={"sharp_book": sharp_ref_book},
+                    )
+                )
 
     # ---- cross-book arbitrage (best price per selection across all books) ----
     best: dict[str, tuple[str, float]] = {}
@@ -137,18 +140,20 @@ def find_opportunities(
                 sel: {"book": bk, "odds": dec, "stake_frac": arb["stake_fracs"][sel]}
                 for sel, (bk, dec) in best.items()
             }
-            opps.append(Opportunity(
-                kind="arb",
-                selection="+".join(sorted(best)),
-                book="multi",
-                offered_odds=0.0,
-                fair_prob=0.0,
-                edge_pct=profit,
-                kelly_frac=0.0,
-                scope=f"arb:{fixture_id}:{market_id}",
-                bucket=bucket,
-                dedup_hash=_dedup_hash(fixture_id, market_id, "arb", bucket),
-                meta={"legs": legs},
-            ))
+            opps.append(
+                Opportunity(
+                    kind="arb",
+                    selection="+".join(sorted(best)),
+                    book="multi",
+                    offered_odds=0.0,
+                    fair_prob=0.0,
+                    edge_pct=profit,
+                    kelly_frac=0.0,
+                    scope=f"arb:{fixture_id}:{market_id}",
+                    bucket=bucket,
+                    dedup_hash=_dedup_hash(fixture_id, market_id, "arb", bucket),
+                    meta={"legs": legs},
+                )
+            )
 
     return opps

@@ -6,10 +6,11 @@ otherwise), (b) have kicked off, and (c) aren't scored yet. Results are matched 
 covers every league that day, so no per-league id/season mapping is needed. Long-unmatched
 fixtures land in review_queue for manual aliasing.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -44,21 +45,26 @@ async def _af_results_by_date(date_str: str) -> dict[tuple[str, str], tuple[int,
 
 
 async def resolve_results() -> dict:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     Session = get_sessionmaker()
     r = get_redis()
     stats = {"candidates": 0, "matched": 0, "review": 0}
 
     async with Session() as session:
         # Fixtures with signals, kicked off, not yet scored.
-        rows = (await session.execute(
-            select(Fixture)
-            .where(
-                Fixture.kickoff_utc <= now,
-                Fixture.home_score.is_(None),
-                Fixture.id.in_(select(Signal.fixture_id).distinct()),
+        rows = (
+            (
+                await session.execute(
+                    select(Fixture).where(
+                        Fixture.kickoff_utc <= now,
+                        Fixture.home_score.is_(None),
+                        Fixture.id.in_(select(Signal.fixture_id).distinct()),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         if not rows:
             emit("results.pass", **stats)
             return stats
@@ -68,15 +74,15 @@ async def resolve_results() -> dict:
 
         async def name_of(team_id: int) -> str:
             if team_id not in team_name:
-                team_name[team_id] = (await session.execute(
-                    select(Team.name).where(Team.id == team_id)
-                )).scalar_one()
+                team_name[team_id] = (
+                    await session.execute(select(Team.name).where(Team.id == team_id))
+                ).scalar_one()
             return team_name[team_id]
 
         date_cache: dict[str, dict] = {}
         for fx in rows:
             stats["candidates"] += 1
-            date_str = fx.kickoff_utc.astimezone(timezone.utc).strftime("%Y-%m-%d")
+            date_str = fx.kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")
             if date_str not in date_cache:
                 date_cache[date_str] = await _af_results_by_date(date_str)
             index = date_cache[date_str]
@@ -90,11 +96,19 @@ async def resolve_results() -> dict:
             elif now - fx.kickoff_utc > REVIEW_GRACE:
                 raw = f"{home}|{away}"
                 if await r.set(f"reviewed:result:{fx.id}", 1, nx=True, ex=86400):
-                    session.add(ReviewQueue(
-                        source="api_football", raw_name=raw, reason="result_unmatched",
-                        context={"fixture_id": fx.id, "date": date_str,
-                                 "home": home, "away": away},
-                    ))
+                    session.add(
+                        ReviewQueue(
+                            source="api_football",
+                            raw_name=raw,
+                            reason="result_unmatched",
+                            context={
+                                "fixture_id": fx.id,
+                                "date": date_str,
+                                "home": home,
+                                "away": away,
+                            },
+                        )
+                    )
                     stats["review"] += 1
         await session.commit()
 

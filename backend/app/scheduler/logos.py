@@ -5,11 +5,12 @@ API calls on teams we never display). Matches by normalized name within the fixt
 kickoff date — AF's fixtures for that date list every team playing, with its logo. Reuses
 the same cached day fetch as the results resolver and Scores.
 """
+
 from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import timezone
+from datetime import UTC
 
 from sqlalchemy import select
 
@@ -28,9 +29,15 @@ async def resolve_team_logos() -> dict:
     stats = {"candidates": 0, "matched": 0}
 
     async with Session() as session:
-        fixtures = (await session.execute(
-            select(Fixture).where(Fixture.id.in_(select(Signal.fixture_id).distinct()))
-        )).scalars().all()
+        fixtures = (
+            (
+                await session.execute(
+                    select(Fixture).where(Fixture.id.in_(select(Signal.fixture_id).distinct()))
+                )
+            )
+            .scalars()
+            .all()
+        )
         if not fixtures:
             emit("logos.pass", **stats)
             return stats
@@ -39,14 +46,16 @@ async def resolve_team_logos() -> dict:
         team_date: dict[int, str] = {}
         team_ids: set[int] = set()
         for fx in fixtures:
-            d = fx.kickoff_utc.astimezone(timezone.utc).strftime("%Y-%m-%d")
+            d = fx.kickoff_utc.astimezone(UTC).strftime("%Y-%m-%d")
             team_date.setdefault(fx.home_id, d)
             team_date.setdefault(fx.away_id, d)
             team_ids.update((fx.home_id, fx.away_id))
 
-        teams = (await session.execute(
-            select(Team).where(Team.id.in_(team_ids), Team.logo.is_(None))
-        )).scalars().all()
+        teams = (
+            (await session.execute(select(Team).where(Team.id.in_(team_ids), Team.logo.is_(None))))
+            .scalars()
+            .all()
+        )
         stats["candidates"] = len(teams)
 
         by_date: dict[str, list[Team]] = defaultdict(list)

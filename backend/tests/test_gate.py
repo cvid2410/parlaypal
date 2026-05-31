@@ -1,5 +1,6 @@
 """Unit tests for the CLV launch gate (NON-NEGOTIABLE #2): it must require statistical
 confidence (Wilson lower bound), not just a high point estimate on a thin sample."""
+
 from app.shared.clv import GATE_BEAT_THRESHOLD, LeagueCLV, wilson_lower_bound
 
 
@@ -19,8 +20,8 @@ def test_high_rate_thin_sample_does_not_pass():
     """21/36 = 58.3% looks like a pass on the point estimate, but the CI floor sits below
     52% — the gate must HOLD it (this is the underpowered-league trap)."""
     lg = _lg(21, 36)
-    assert lg.beat_pct > GATE_BEAT_THRESHOLD          # point estimate clears the bar
-    assert lg.lower_bound < GATE_BEAT_THRESHOLD        # but the confident floor does not
+    assert lg.beat_pct > GATE_BEAT_THRESHOLD  # point estimate clears the bar
+    assert lg.lower_bound < GATE_BEAT_THRESHOLD  # but the confident floor does not
     assert lg.passes() is False
 
 

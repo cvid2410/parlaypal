@@ -1,6 +1,7 @@
 """Delivery channels. v1: a local LogChannel (always on, for verification) and an optional
 Discord webhook. SES email and per-user Twilio/web-push come later.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,11 +31,13 @@ class DiscordChannel:
             emit("deliver.skipped", channel="discord", reason="no_webhook", to=to)
             return False
         payload = {
-            "embeds": [{
-                "title": copy["title"],
-                "description": f"{copy['body']}\n\n_{copy['footer']}_",
-                "color": 0x1FD65F if copy["title"].startswith("Value") else 0xFFC94D,
-            }]
+            "embeds": [
+                {
+                    "title": copy["title"],
+                    "description": f"{copy['body']}\n\n_{copy['footer']}_",
+                    "color": 0x1FD65F if copy["title"].startswith("Value") else 0xFFC94D,
+                }
+            ]
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(settings.discord_webhook_url, json=payload)

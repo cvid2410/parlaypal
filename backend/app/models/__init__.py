@@ -1,4 +1,5 @@
 """Import all models so they register on Base.metadata (for Alembic + create_all)."""
+
 from app.models.core import Fixture, League, Market, Team, TeamAlias
 from app.models.odds import OddsSnapshot
 from app.models.signals import Signal, SignalGrade

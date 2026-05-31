@@ -4,6 +4,7 @@ Deliberately light: lowercase, strip accents, drop common club-type tokens, coll
 whitespace. Good enough to match most soft-league names; the misses are exactly what the
 review_queue surfaces for manual aliasing (NON-NEGOTIABLE #6).
 """
+
 from __future__ import annotations
 
 import re

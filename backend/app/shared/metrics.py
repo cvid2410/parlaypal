@@ -4,6 +4,7 @@ Writes one JSON line per event to stdout. In ECS this is picked up by the CloudW
 logs driver; a metric filter / EMF wrapper can be layered on later without touching call
 sites.
 """
+
 from __future__ import annotations
 
 import json

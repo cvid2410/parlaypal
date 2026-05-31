@@ -4,9 +4,10 @@
 The parent table is created in the Alembic migration; daily child partitions are created
 on demand via `ensure_daily_partition` so inserts always have a home.
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -60,9 +61,9 @@ async def get_db():
 async def ensure_daily_partition(when: datetime | date | None = None) -> str:
     """Create today's (or `when`'s) odds_snapshots partition if absent. Idempotent."""
     if when is None:
-        when = datetime.now(timezone.utc).date()
+        when = datetime.now(UTC).date()
     elif isinstance(when, datetime):
-        when = when.astimezone(timezone.utc).date()
+        when = when.astimezone(UTC).date()
 
     start = when
     end = when + timedelta(days=1)

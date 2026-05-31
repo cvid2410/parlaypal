@@ -6,6 +6,7 @@ prices and cross-book arbitrage. Accepted opportunities become `signals` rows, d
 a flapping line can't spam and we only re-alert when the edge bucket improves
 (NON-NEGOTIABLE #3).
 """
+
 from __future__ import annotations
 
 import logging
@@ -121,17 +122,26 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
             session.add_all(new_signals)
             await session.commit()
             for sig in new_signals:
-                emit("signal.accepted", signal_id=sig.id, kind=sig.kind,
-                     edge_pct=round(sig.edge_pct, 3))
+                emit(
+                    "signal.accepted",
+                    signal_id=sig.id,
+                    kind=sig.kind,
+                    edge_pct=round(sig.edge_pct, 3),
+                )
                 if arq is not None:
                     await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
 
         # A totals move can create a cross-market middle — hand off to the middle detector.
         if market.type == "total" and arq is not None:
-            await arq.enqueue_job("detect_middles", fixture_id,
-                                  _job_id=f"middles:{fixture_id}")
+            await arq.enqueue_job("detect_middles", fixture_id, _job_id=f"middles:{fixture_id}")
 
     lag_ms = (time.perf_counter() - started) * 1000
-    emit("detect.market", fixture_id=fixture_id, market_id=market_id,
-         ev=stats["ev"], arb=stats["arb"], lag_ms=round(lag_ms, 1))
+    emit(
+        "detect.market",
+        fixture_id=fixture_id,
+        market_id=market_id,
+        ev=stats["ev"],
+        arb=stats["arb"],
+        lag_ms=round(lag_ms, 1),
+    )
     return stats
