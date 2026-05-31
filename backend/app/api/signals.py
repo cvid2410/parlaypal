@@ -50,6 +50,7 @@ async def list_signals(
         card = {
             "id": sig.id,
             "kind": sig.kind,
+            "fixture_id": sig.fixture_id,
             "league": ctx.league_name,
             "country": ctx.country,
             "fixture": ctx.fixture_label,

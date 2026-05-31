@@ -88,6 +88,7 @@ const TITLES: Record<string, [string, string]> = {
   ask: ['Ask', 'Anything about soccer — scores, fixtures, standings'],
   leagues: ['Leagues', 'We hunt where the lines are soft'],
   league: ['Standings', 'League table, live from the season'],
+  lines: ['Compare odds', 'Best available price across every book'],
   results: ['Results', 'Your record against the closing line'],
 }
 const title = computed(() => TITLES[route.name as string] || ['ParlayPal', ''])

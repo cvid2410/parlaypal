@@ -37,6 +37,7 @@
             <div v-if="s.kind === 'ev'" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
             <div v-if="s.kind === 'ev'" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
           </div>
+          <RouterLink v-if="s.fixture_id" :to="`/lines/${s.fixture_id}`" class="compare">Compare prices across books →</RouterLink>
         </template>
 
         <div v-else class="lockmask">
@@ -61,7 +62,7 @@ interface Signal {
   age_seconds: number; locked: boolean; title?: string; body?: string
   pick?: string; book?: string; odds?: string; fair_odds?: string
   edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number
-  home_logo?: string | null; away_logo?: string | null
+  home_logo?: string | null; away_logo?: string | null; fixture_id?: string
 }
 
 const auth = useAuthStore()
@@ -168,5 +169,7 @@ onMounted(async () => {
 .lockmask .t { font-size: 13px; color: var(--txt-2); font-weight: 500; text-align: center; padding: 0 28px; line-height: 1.5; }
 .lockmask .u { background: var(--green); color: #04210f; border: none; font-weight: 800; font-size: 12.5px; padding: 10px 22px; border-radius: 100px; cursor: pointer; text-transform: uppercase; letter-spacing: .3px; }
 
+.compare { display: inline-block; margin-top: 14px; font-size: 12.5px; font-weight: 600; color: var(--green); }
+.compare:hover { opacity: .85; }
 .foot { color: var(--txt-3); font-size: 11px; margin-top: 24px; }
 </style>
