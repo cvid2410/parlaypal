@@ -53,12 +53,19 @@ async def main() -> None:
             for lg in (await session.execute(select(League))).scalars().all()
         }
         added = updated = 0
-        for name, country, sport_key, is_soft, ingest_enabled, af_id in LEAGUES:
+        for name, country, sport_key, is_soft, ingest_enabled, af_id, ev_certified in LEAGUES:
             existing = by_key.get(sport_key)
             if existing is not None:
-                if existing.af_league_id != af_id:  # backfill af id on re-run
+                # Reconcile the curated flags on re-run (af id, and the EV launch gate so
+                # certification is reproducible from this file, not just a one-off script run).
+                changed = False
+                if existing.af_league_id != af_id:
                     existing.af_league_id = af_id
-                    updated += 1
+                    changed = True
+                if existing.ev_certified != ev_certified:
+                    existing.ev_certified = ev_certified
+                    changed = True
+                updated += int(changed)
                 continue
             session.add(
                 League(
@@ -70,6 +77,7 @@ async def main() -> None:
                     model_enabled=False,
                     ingest_enabled=ingest_enabled,
                     af_league_id=af_id,
+                    ev_certified=ev_certified,
                 )
             )
             added += 1
