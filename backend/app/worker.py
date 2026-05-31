@@ -11,6 +11,7 @@ from arq.connections import RedisSettings
 
 from app.config import settings
 from app.ingestors.odds import ingest_once
+from app.scheduler.results import resolve_results
 from app.scheduler.settle import settle_once
 from app.shared.metrics import emit
 from app.workers.deliver import deliver
@@ -34,6 +35,8 @@ async def poll_odds(ctx: dict) -> dict:
 
 
 async def settle_cron(ctx: dict) -> dict:
+    # Pull final scores first, then grade (CLV always; result/P&L once scored).
+    await resolve_results()
     return await settle_once()
 
 
