@@ -37,6 +37,11 @@ LEAGUES = [
     ("Premier League", "England", "soccer_epl", False, True, 39),
     ("La Liga", "Spain", "soccer_spain_la_liga", False, True, 140),
     ("World Cup", "International", "soccer_fifa_world_cup", False, True, 1),
+    # --- Scores-only: The Odds API carries no international-friendlies feed, so ingest is
+    #     off (no odds → no signals). af id 10 = men's international friendlies (verified
+    #     against today's API-Football fixtures), so they still show on the live Scores tab.
+    #     The sport_key is a placeholder (no active Odds API key); reconcile if one appears. ---
+    ("Friendlies", "World", "soccer_friendlies_international", True, False, 10),
 ]
 
 
