@@ -53,8 +53,12 @@ class Settings(BaseSettings):
     max_edge_pct: float = 50.0
     # Devig method for the sharp fair line: 'multiplicative' (proportional) or 'shin'
     # (insider-trading model; corrects the favourite-longshot bias in the tails). Used in
-    # BOTH detection and CLV grading so the gate measures what we ship.
-    devig_method: str = "multiplicative"
+    # BOTH detection and CLV grading so the gate measures what we ship. Default 'shin': the
+    # backtest showed multiplicative inflates away/draw +EV (the favourite-longshot bias —
+    # e.g. La Liga 2 cards showing 40%+ edges on the long side). Shin is identical on
+    # symmetric markets and bias-corrected in the tails, so it's the safe default everywhere
+    # (don't rely on a per-deploy env var to get it right).
+    devig_method: str = "shin"
     # A selection's decimal odds must move at least this fraction to count as a
     # meaningful change (NON-NEGOTIABLE #3). 0.01 == 1%.
     move_threshold: float = 0.01
