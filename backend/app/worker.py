@@ -6,10 +6,12 @@ is ever queued), giving a sub-minute poll loop that cron can't. Each pass enqueu
 """
 from datetime import timedelta
 
+from arq import cron
 from arq.connections import RedisSettings
 
 from app.config import settings
 from app.ingestors.odds import ingest_once
+from app.scheduler.settle import settle_once
 from app.shared.metrics import emit
 from app.workers.deliver import deliver
 from app.workers.detect import detect_market
@@ -31,6 +33,10 @@ async def poll_odds(ctx: dict) -> dict:
     return stats
 
 
+async def settle_cron(ctx: dict) -> dict:
+    return await settle_once()
+
+
 async def startup(ctx: dict) -> None:
     # Kick off the self-perpetuating poll loop once on boot.
     await ctx["redis"].enqueue_job("poll_odds", _job_id="poll_odds")
@@ -40,6 +46,6 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     functions = [poll_odds, detect_market, route_signal, deliver]
     on_startup = startup
-    # Legacy WC2026 `send_match_reminders` cron retired (it polled API-Football every
-    # 5 min). Full WC cleanup is tracked separately; the job module still exists for now.
-    cron_jobs = []
+    # Settlement runs every 10 min: grades CLV at kickoff, result/P&L once scored.
+    # (Legacy WC send_match_reminders cron retired — full WC cleanup tracked separately.)
+    cron_jobs = [cron(settle_cron, minute={0, 10, 20, 30, 40, 50})]

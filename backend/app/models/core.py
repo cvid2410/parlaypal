@@ -68,6 +68,9 @@ class Fixture(Base):
     away_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
     kickoff_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String, default="scheduled")
+    # Final score, populated by the results resolver (API-Football). Null until settled.
+    home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     league: Mapped[League] = relationship()
 
