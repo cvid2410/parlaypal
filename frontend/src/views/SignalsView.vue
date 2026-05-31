@@ -73,7 +73,8 @@
           <div class="pd">Everything + arbs · instant push · custom alerts</div>
         </div>
         <button class="close" @click="showUpgrade = false">Maybe later</button>
-        <p class="devnote">Dev build: this flips your tier instantly (Stripe checkout wires in next).</p>
+        <p v-if="!billing.stripe_enabled" class="devnote">Dev build: flips your tier instantly (no Stripe key set).</p>
+        <p v-else class="devnote">Secure checkout via Stripe · cancel anytime.</p>
       </div>
     </div>
   </div>
@@ -81,7 +82,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 interface Signal {
@@ -93,10 +94,12 @@ interface Signal {
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const signals = ref<Signal[]>([])
 const loading = ref(false)
 const error = ref('')
 const showUpgrade = ref(false)
+const billing = ref<{ stripe_enabled: boolean; allow_dev_upgrade: boolean }>({ stripe_enabled: false, allow_dev_upgrade: true })
 
 function ago(sec: number) {
   if (sec < 60) return 'just now'
@@ -125,14 +128,30 @@ async function load() {
   }
 }
 
+async function loadBilling() {
+  try {
+    const res = await auth.authFetch('/billing/config')
+    if (res.ok) billing.value = await res.json()
+  } catch { /* keep dev defaults */ }
+}
+
 async function choose(tier: string) {
+  if (billing.value.stripe_enabled) {
+    const res = await auth.authFetch('/billing/checkout', { method: 'POST', body: JSON.stringify({ tier }) })
+    if (res.ok) { window.location.href = (await res.json()).url; return }
+    error.value = 'Checkout is unavailable right now.'
+    return
+  }
+  // Dev fallback: flip tier directly.
   await auth.upgrade(tier)
   showUpgrade.value = false
   await load()
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!auth.isAuthed) { router.push('/login'); return }
+  loadBilling()
+  if (route.query.upgraded) await auth.fetchMe() // tier may have changed via Stripe webhook
   load()
 })
 </script>

@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     # Dev-only tier toggle so the UI can demo free<->paid before Stripe lands.
     # MUST be False in production (Stripe webhooks become the only way to change tier).
     allow_dev_upgrade: bool = True
+    # Stripe. When stripe_secret_key is unset, billing falls back to dev-upgrade.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_bettor: str = ""  # Stripe Price id for the $29 Bettor plan
+    stripe_price_sharp: str = ""   # Stripe Price id for the $79 Sharp plan
+    public_base_url: str = "http://localhost:5173"  # for checkout success/cancel redirects
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
