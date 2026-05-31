@@ -10,10 +10,13 @@ from app.shared.db import get_sessionmaker
 
 
 def test_classify():
-    assert classify("soccer_sweden_allsvenskan", "Allsvenskan - Sweden") == ("Allsvenskan", "Sweden", True)
-    assert classify("soccer_conmebol_copa_libertadores", "Copa Libertadores") == ("Copa Libertadores", "", True)
-    assert classify("soccer_epl", "EPL") == ("EPL", "", False)            # sharp → not soft
+    # curated map
+    assert classify("soccer_conmebol_copa_libertadores", "Copa Libertadores") == ("Copa Libertadores", "South America", True)
+    assert classify("soccer_epl", "EPL") == ("Premier League", "England", False)  # sharp → not soft
     assert classify("soccer_fifa_world_cup", "FIFA World Cup")[2] is False
+    # unknown key → fall back to parsing the title
+    assert classify("soccer_intl_friendlies", "Friendlies - International") == ("Friendlies", "International", True)
+    assert classify("soccer_made_up", "Made Up League") == ("Made Up League", "", True)
 
 
 def test_is_soccer_match_sport():
