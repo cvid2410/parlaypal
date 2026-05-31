@@ -65,7 +65,9 @@ async def test_ev_signal_dedup_and_improvement(scenario):
     fid, mid = scenario
     r = get_redis()
 
-    # Pinnacle fair: devig(1.8, 3.6, 4.5) → home ~0.526. FanDuel home at 2.2 is +EV (~15.8%).
+    # Shin devig of (1.8, 3.6, 4.5) → home fair ~0.534. FanDuel home at 2.2 is +EV (~17.5%).
+    # (The multiplicative method gives ~0.526 / 15.8%; Shin pulls the favourite up — see
+    # the devig_method default in config, set to 'shin'.)
     await _hot(r, fid, mid, {
         "pinnacle:home": 1.8, "pinnacle:draw": 3.6, "pinnacle:away": 4.5,
         "fanduel:home": 2.2, "fanduel:draw": 3.5, "fanduel:away": 3.4,
@@ -74,7 +76,7 @@ async def test_ev_signal_dedup_and_improvement(scenario):
     sigs = await _signals(fid)
     ev = [x for x in sigs if x.kind == "ev" and x.selection == "home" and x.book == "fanduel"]
     assert len(ev) == 1
-    assert ev[0].edge_pct == pytest.approx(15.79, abs=0.5)
+    assert ev[0].edge_pct == pytest.approx(17.54, abs=0.5)
     assert ev[0].kelly_frac > 0
 
     # Flap within the same edge bucket → no new signal.
