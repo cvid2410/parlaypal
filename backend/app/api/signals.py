@@ -72,7 +72,7 @@ async def list_signals(
             card["edge_pct"] = round(sig.edge_pct, 2)
         else:
             # Redacted teaser — show that an edge exists, not what it is.
-            label = {"arb": "arbitrage", "middle": "middle"}.get(sig.kind, "value bet")
+            label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(sig.kind, "value bet")
             card["title"] = f"Live {label} — unlock to see the pick"
         cards.append(card)
 

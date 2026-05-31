@@ -28,14 +28,14 @@
         </div>
 
         <template v-if="!s.locked">
-          <div v-if="s.kind === 'ev'" class="line">
+          <div v-if="priced(s)" class="line">
             <span class="at">at</span><span class="bk">{{ s.book }}</span><span class="o">{{ s.odds }}</span>
           </div>
           <div class="why">{{ s.body }}</div>
           <div class="stats">
             <div class="stat"><div class="v green">+{{ s.edge_pct }}%</div><div class="k">{{ metricLabel(s) }}</div></div>
-            <div v-if="s.kind === 'ev'" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
-            <div v-if="s.kind === 'ev'" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
+            <div v-if="priced(s)" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
+            <div v-if="priced(s)" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
           </div>
           <RouterLink v-if="s.fixture_id" :to="`/lines/${s.fixture_id}`" class="compare">Compare prices across books →</RouterLink>
         </template>
@@ -91,8 +91,9 @@ function ago(sec: number) {
   const m = Math.floor(sec / 60)
   return m < 60 ? `${m} min ago` : `${Math.floor(m / 60)}h ago`
 }
+const priced = (s: Signal) => s.kind === 'ev' || s.kind === 'promo'
 function kindLabel(s: Signal) {
-  return ({ arb: 'Arbitrage', middle: 'Middle' } as Record<string, string>)[s.kind] || 'Value bet'
+  return ({ arb: 'Arbitrage', middle: 'Middle', promo: 'Boost' } as Record<string, string>)[s.kind] || 'Value bet'
 }
 function pickLabel(s: Signal) {
   if (s.kind === 'arb') return 'Win either way'
@@ -100,7 +101,7 @@ function pickLabel(s: Signal) {
   return s.pick || s.title || ''
 }
 function metricLabel(s: Signal) {
-  return ({ arb: 'locked profit', middle: 'middle upside' } as Record<string, string>)[s.kind] || 'your edge'
+  return ({ arb: 'locked profit', middle: 'middle upside', promo: 'boost edge' } as Record<string, string>)[s.kind] || 'your edge'
 }
 
 async function load() {
@@ -146,6 +147,7 @@ onMounted(async () => {
 .kind.ev { background: var(--green-dim); color: var(--green); }
 .kind.arb { background: var(--surface-2); color: var(--txt); border: 1px solid var(--hair-2); }
 .kind.middle { background: #0c2536; color: #5cb3ff; }
+.kind.promo { background: #3a2f08; color: #ffc94d; }
 .lg { font-size: 12px; color: var(--txt-3); }
 .reups { font-size: 9.5px; font-weight: 700; color: var(--green); border: 1px solid var(--green-dim); padding: 2px 6px; border-radius: 100px; }
 .ago { margin-left: auto; font-family: 'Spline Sans Mono', monospace; font-size: 12px; color: var(--txt-3); }

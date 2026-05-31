@@ -93,6 +93,13 @@ _EV_TEMPLATES = [
     "an edge of about {edge}%. {stake}",
 ]
 
+_PROMO_TEMPLATES = [
+    "{book} boosted {pick} to {odds}. The fair price is {fair_am}, so the boost hands you "
+    "about {edge}% of value the book is subsidizing. {stake}",
+    "Odds boost: {book} is paying {odds} on {pick} (fair {fair_am}) — roughly {edge}% in your "
+    "favor while the promo lasts. {stake}",
+]
+
 _ARB_TEMPLATES = [
     "Arbitrage on {fixture}: cover every outcome across books for a locked-in {profit}% "
     "profit no matter the result. {legs}",
@@ -157,15 +164,16 @@ def explain(ctx: SignalCopyContext) -> dict:
         }
         return {"title": title, "body": body, "footer": RG_FOOTER, "fields": fields}
 
-    # ---- EV ----
+    # ---- EV / promo (boost) — both are a single-book price vs a fair line ----
     pick = selection_label(ctx.market_type, ctx.line, ctx.selection, ctx.home, ctx.away)
     odds_am = decimal_to_american(ctx.offered_decimal)
     fair_am = decimal_to_american(1 / ctx.fair_prob) if ctx.fair_prob > 0 else "n/a"
-    body = _variant(_EV_TEMPLATES, ctx.dedup_hash).format(
+    pool = _PROMO_TEMPLATES if ctx.kind == "promo" else _EV_TEMPLATES
+    body = _variant(pool, ctx.dedup_hash).format(
         pick=pick, book=book_label(ctx.book), odds=odds_am, fair_am=fair_am,
         edge=f"{ctx.edge_pct:.1f}", stake=_stake_sentence(ctx.kelly_frac),
     ).strip()
-    title = f"Value Bet — {pick}"
+    title = f"Boost — {pick}" if ctx.kind == "promo" else f"Value Bet — {pick}"
     fields = {
         "league": ctx.league_name,
         "fixture": ctx.fixture_label,
