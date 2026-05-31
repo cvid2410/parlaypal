@@ -3,22 +3,22 @@
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
-      <div v-if="data.live.length" class="sect"><span class="live" /> Live now</div>
-      <div v-for="(m, i) in data.live" :key="'l' + i" class="match">
-        <div class="lg">{{ m.league }} · {{ m.country }} <span class="min">{{ m.minute ? m.minute + "'" : 'LIVE' }}</span></div>
-        <Row :m="m" />
+      <div class="cols">
+        <div class="panel">
+          <div class="ph"><span class="d" /> Live now</div>
+          <div v-if="!data.live.length" class="pe">No live matches in your leagues.</div>
+          <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : 'LIVE'" />
+        </div>
+        <div class="panel">
+          <div class="ph">Today · upcoming</div>
+          <div v-if="!data.upcoming.length" class="pe">Nothing left to kick off today.</div>
+          <Match v-for="(m, i) in data.upcoming" :key="'u' + i" :m="m" :label="time(m.kickoff)" />
+        </div>
       </div>
 
-      <div v-if="data.upcoming.length" class="sect">Today · upcoming</div>
-      <div v-for="(m, i) in data.upcoming" :key="'u' + i" class="match">
-        <div class="lg">{{ m.league }} · {{ m.country }} <span class="min ft">{{ time(m.kickoff) }}</span></div>
-        <Row :m="m" />
-      </div>
-
-      <div v-if="data.finished.length" class="sect">Finished today</div>
-      <div v-for="(m, i) in data.finished" :key="'f' + i" class="match">
-        <div class="lg">{{ m.league }} · {{ m.country }} <span class="min ft">FT</span></div>
-        <Row :m="m" />
+      <div v-if="data.finished.length" class="panel wide">
+        <div class="ph">Finished today</div>
+        <Match v-for="(m, i) in data.finished" :key="'f' + i" :m="m" label="FT" />
       </div>
 
       <p v-if="!data.live.length && !data.upcoming.length && !data.finished.length" class="empty">
@@ -46,18 +46,18 @@ function time(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-// Inline score row (avoids a separate file for one tiny component).
-const Row = (props: { m: M }) => {
-  const { m } = props
-  const score = (s: number | null) => (s == null ? '–' : String(s))
-  const win = (a: number | null, b: number | null) => a != null && b != null && a > b
-  return h('div', {}, [
-    h('div', { class: ['team', win(m.home_score, m.away_score) ? 'w' : ''] }, [
-      h('span', { class: 'nm' }, m.home), h('span', { class: 'sc' }, score(m.home_score)),
-    ]),
-    h('div', { class: ['team', win(m.away_score, m.home_score) ? 'w' : ''] }, [
-      h('span', { class: 'nm' }, m.away), h('span', { class: 'sc' }, score(m.away_score)),
-    ]),
+const Match = (props: { m: M; label: string }) => {
+  const { m, label } = props
+  const sc = (s: number | null) => (s == null ? '—' : String(s))
+  const w = (a: number | null, b: number | null) => a != null && b != null && a > b
+  const team = (name: string, score: number | null, win: boolean) =>
+    h('div', { class: ['trow', win ? 'w' : ''] }, [
+      h('span', { class: 'dt' }), h('span', { class: 'n' }, name), h('span', { class: 'sc' }, sc(score)),
+    ])
+  return h('div', { class: 'match' }, [
+    h('div', { class: 'meta' }, [h('span', `${m.league} · ${m.country}`), h('span', { class: 'm' }, label)]),
+    team(m.home, m.home_score, w(m.home_score, m.away_score)),
+    team(m.away, m.away_score, w(m.away_score, m.home_score)),
   ])
 }
 
@@ -77,17 +77,26 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.scr { max-width: 460px; margin: 0 auto; padding: 14px 12px 30px; color: #eef3f2; font-family: 'Archivo', sans-serif; }
-.sect { font-size: 11px; color: #5f6f71; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin: 16px 4px 10px; display: flex; align-items: center; gap: 7px; }
-.sect .live { width: 7px; height: 7px; border-radius: 50%; background: #ff5a52; }
-.match { background: #13191b; border: 1px solid #222d30; border-radius: 13px; padding: 12px 13px; margin-bottom: 9px; }
-.lg { font-size: 10px; color: #5f6f71; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; display: flex; justify-content: space-between; }
-.lg .min { color: #ff5a52; font-family: 'Spline Sans Mono', monospace; font-weight: 600; }
-.lg .min.ft { color: #5f6f71; }
-:deep(.team) { display: flex; align-items: center; gap: 9px; padding: 3px 0; }
-:deep(.team .nm) { font-size: 14px; font-weight: 600; flex: 1; }
-:deep(.team .sc) { font-family: 'Spline Sans Mono', monospace; font-weight: 600; font-size: 16px; }
-:deep(.team.w .nm) { font-weight: 700; }
-.err { color: #ff5a52; padding: 10px 4px; }
-.empty { color: #8a9a9c; font-size: 13px; padding: 16px 4px; }
+.scr { color: var(--txt); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.panel { border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: var(--panel); }
+.panel.wide { margin-top: 16px; max-width: 560px; }
+.ph { padding: 14px 18px; border-bottom: 1px solid var(--hair); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--txt-3); display: flex; align-items: center; gap: 9px; }
+.ph .d { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.pe { padding: 18px; color: var(--txt-3); font-size: 13px; }
+:deep(.match) { padding: 15px 18px; }
+:deep(.match + .match) { border-top: 1px solid var(--hair); }
+:deep(.match .meta) { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--txt-3); margin-bottom: 11px; font-weight: 500; }
+:deep(.match .meta .m) { font-family: 'Spline Sans Mono', monospace; color: var(--green); }
+:deep(.trow) { display: flex; align-items: center; gap: 11px; padding: 4px 0; }
+:deep(.trow .dt) { width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); }
+:deep(.trow.w .dt) { background: var(--green); }
+:deep(.trow .n) { flex: 1; font-size: 14.5px; }
+:deep(.trow.w .n) { font-weight: 700; }
+:deep(.trow .sc) { font-family: 'Spline Sans Mono', monospace; font-size: 16px; color: var(--txt-3); font-weight: 600; }
+:deep(.trow.w .sc) { color: var(--txt); }
+.err { color: #ff5a52; padding: 8px 0; }
+.empty { color: var(--txt-2); font-size: 13.5px; padding: 16px 0; }
+
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
 </style>
