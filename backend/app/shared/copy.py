@@ -65,6 +65,8 @@ class SignalCopyContext:
     line: float | None
     selection: str
     country: str = ""
+    home_logo: str | None = None
+    away_logo: str | None = None
     # EV fields
     book: str = ""
     offered_decimal: float = 0.0

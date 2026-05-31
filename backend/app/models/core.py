@@ -45,6 +45,8 @@ class Team(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
+    # Crest URL, backfilled from API-Football (see scheduler/logos.py). Null until matched.
+    logo: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class TeamAlias(Base):

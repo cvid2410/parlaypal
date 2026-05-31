@@ -31,7 +31,8 @@ async def signal_context(session, sig: Signal) -> SignalCopyContext | None:
         ]
     return SignalCopyContext(
         kind=sig.kind, dedup_hash=sig.dedup_hash, league_name=league.name,
-        country=league.country, home=home.name, away=away.name, market_type=market.type,
+        country=league.country, home=home.name, away=away.name,
+        home_logo=home.logo, away_logo=away.logo, market_type=market.type,
         line=market.line, selection=sig.selection, book=sig.book,
         offered_decimal=sig.offered_odds, fair_prob=sig.fair_prob,
         edge_pct=sig.edge_pct, kelly_frac=sig.kelly_frac, legs=legs,

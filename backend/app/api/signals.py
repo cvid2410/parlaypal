@@ -53,6 +53,8 @@ async def list_signals(
             "league": ctx.league_name,
             "country": ctx.country,
             "fixture": ctx.fixture_label,
+            "home_logo": ctx.home_logo,
+            "away_logo": ctx.away_logo,
             "created_at": sig.created_at.isoformat(),
             "age_seconds": age,
             "locked": not paid,

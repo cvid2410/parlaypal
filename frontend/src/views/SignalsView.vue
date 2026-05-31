@@ -21,7 +21,11 @@
         </div>
 
         <div class="pick">{{ s.locked ? 'Locked pick' : pickLabel(s) }}</div>
-        <div class="fx">{{ s.fixture }}</div>
+        <div class="fx">
+          <img v-if="s.home_logo" :src="s.home_logo" class="crest" loading="lazy" alt="" />
+          <img v-if="s.away_logo" :src="s.away_logo" class="crest" loading="lazy" alt="" />
+          <span>{{ s.fixture }}</span>
+        </div>
 
         <template v-if="!s.locked">
           <div v-if="s.kind !== 'arb'" class="line">
@@ -57,6 +61,7 @@ interface Signal {
   age_seconds: number; locked: boolean; title?: string; body?: string
   pick?: string; book?: string; odds?: string; fair_odds?: string
   edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number
+  home_logo?: string | null; away_logo?: string | null
 }
 
 const auth = useAuthStore()
@@ -138,7 +143,9 @@ onMounted(async () => {
 .reups { font-size: 9.5px; font-weight: 700; color: var(--green); border: 1px solid var(--green-dim); padding: 2px 6px; border-radius: 100px; }
 .ago { margin-left: auto; font-family: 'Spline Sans Mono', monospace; font-size: 12px; color: var(--txt-3); }
 .pick { font-size: 22px; font-weight: 800; letter-spacing: -.025em; line-height: 1.12; }
-.fx { font-size: 12.5px; color: var(--txt-3); margin-top: 6px; }
+.fx { font-size: 12.5px; color: var(--txt-3); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+.fx .crest { width: 18px; height: 18px; object-fit: contain; }
+.fx .crest + .crest { margin-left: -4px; }
 .line { display: flex; align-items: baseline; gap: 9px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--hair); }
 .line .at { font-size: 12.5px; color: var(--txt-3); }
 .line .bk { font-size: 13.5px; font-weight: 700; }
