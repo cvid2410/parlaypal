@@ -3,32 +3,34 @@
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
-      <div class="cols">
-        <div class="panel">
-          <div class="ph"><span class="d" /> Live now</div>
-          <div v-if="!data.live.length" class="pe">No live matches in your leagues.</div>
-          <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : 'LIVE'" />
+      <p v-if="allEmpty" class="empty">No fixtures in your leagues today.</p>
+      <div v-else class="cols">
+        <!-- left: what's happening / happened -->
+        <div class="col">
+          <div class="panel">
+            <div class="ph"><span class="d" aria-hidden="true" /> Live now</div>
+            <div v-if="!data.live.length" class="pe">No live matches in your leagues.</div>
+            <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : 'LIVE'" />
+          </div>
+          <div v-if="data.finished.length" class="panel">
+            <div class="ph">Finished today</div>
+            <Match v-for="(m, i) in data.finished" :key="'f' + i" :m="m" label="FT" />
+          </div>
         </div>
-        <div class="panel">
-          <div class="ph">Today · upcoming</div>
-          <div v-if="!data.upcoming.length" class="pe">Nothing left to kick off today.</div>
-          <Match v-for="(m, i) in data.upcoming" :key="'u' + i" :m="m" :label="time(m.kickoff)" />
+
+        <!-- right: what's next / off -->
+        <div class="col">
+          <div class="panel">
+            <div class="ph">Today · upcoming</div>
+            <div v-if="!data.upcoming.length" class="pe">Nothing left to kick off today.</div>
+            <Match v-for="(m, i) in data.upcoming" :key="'u' + i" :m="m" :label="time(m.kickoff)" />
+          </div>
+          <div v-if="data.off && data.off.length" class="panel off">
+            <div class="ph">Cancelled · postponed</div>
+            <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || 'Off').toUpperCase()" />
+          </div>
         </div>
       </div>
-
-      <div v-if="data.finished.length" class="panel wide">
-        <div class="ph">Finished today</div>
-        <Match v-for="(m, i) in data.finished" :key="'f' + i" :m="m" label="FT" />
-      </div>
-
-      <div v-if="data.off && data.off.length" class="panel wide off">
-        <div class="ph">Cancelled · postponed</div>
-        <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || 'Off').toUpperCase()" />
-      </div>
-
-      <p v-if="!data.live.length && !data.upcoming.length && !data.finished.length && !(data.off && data.off.length)" class="empty">
-        No fixtures in your leagues today.
-      </p>
     </template>
     <div v-else class="cols" aria-hidden="true">
       <div v-for="c in 2" :key="c" class="panel">
@@ -44,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -55,6 +57,11 @@ const auth = useAuthStore()
 const router = useRouter()
 const data = ref<Scores | null>(null)
 const error = ref('')
+
+const allEmpty = computed(() => {
+  const d = data.value
+  return !!d && !d.live.length && !d.upcoming.length && !d.finished.length && !(d.off && d.off.length)
+})
 
 function time(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -97,8 +104,8 @@ onMounted(() => {
 <style scoped>
 .scr { color: var(--txt); }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .panel { border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: var(--panel); }
-.panel.wide { margin-top: 16px; max-width: 560px; }
 .panel.off { opacity: .62; }
 .panel.off :deep(.match .meta .m) { color: var(--txt-3); }
 .ph { padding: 14px 18px; border-bottom: 1px solid var(--hair); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--txt-3); display: flex; align-items: center; gap: 9px; }
