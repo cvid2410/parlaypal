@@ -43,6 +43,8 @@ jobs:
       app_sg_id:          ${{ steps.data.outputs.app_sg_id }}
       redis_endpoint:     ${{ steps.data.outputs.redis_endpoint }}
       redis_port:         ${{ steps.data.outputs.redis_port }}
+      db_endpoint:        ${{ steps.data.outputs.db_endpoint }}
+      db_port:            ${{ steps.data.outputs.db_port }}
       frontend_bucket:    ${{ steps.data.outputs.frontend_bucket }}
       frontend_bucket_arn: ${{ steps.data.outputs.frontend_bucket_arn }}
       job_queue_url:      ${{ steps.bus.outputs.job_queue_url }}
@@ -72,6 +74,8 @@ jobs:
           echo "app_sg_id=$(get AppSecurityGroupId)"       >> $GITHUB_OUTPUT
           echo "redis_endpoint=$(get RedisEndpoint)"       >> $GITHUB_OUTPUT
           echo "redis_port=$(get RedisPort)"               >> $GITHUB_OUTPUT
+          echo "db_endpoint=$(get DBEndpoint)"             >> $GITHUB_OUTPUT
+          echo "db_port=$(get DBPort)"                     >> $GITHUB_OUTPUT
           echo "frontend_bucket=$(get FrontendBucketName)" >> $GITHUB_OUTPUT
           echo "frontend_bucket_arn=$(get FrontendBucketArn)" >> $GITHUB_OUTPUT
 
@@ -219,6 +223,11 @@ jobs:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_CLAIM_EMAIL: ${{ secrets.VAPID_CLAIM_EMAIL }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PRICE_BETTOR: ${{ secrets.STRIPE_PRICE_BETTOR }}
+          STRIPE_PRICE_SHARP: ${{ secrets.STRIPE_PRICE_SHARP }}
         run: |
           echo "CertificateArn length: ${#CERTIFICATE_ARN}"
           echo "HostedZoneId length:   ${#HOSTED_ZONE_ID}"
@@ -238,12 +247,19 @@ jobs:
                 "AppSecurityGroupId=${{ needs.read-infra-outputs.outputs.app_sg_id }}" \
                 "RedisEndpoint=${{ needs.read-infra-outputs.outputs.redis_endpoint }}" \
                 "RedisPort=${{ needs.read-infra-outputs.outputs.redis_port }}" \
+                "DBEndpoint=${{ needs.read-infra-outputs.outputs.db_endpoint }}" \
+                "DBPort=${{ needs.read-infra-outputs.outputs.db_port }}" \
+                "DBPassword=$DB_PASSWORD" \
                 "FrontendBucketArn=${{ needs.read-infra-outputs.outputs.frontend_bucket_arn }}" \
                 "FrontendBucketName=${{ needs.read-infra-outputs.outputs.frontend_bucket }}" \
                 "JobQueueUrl=${{ needs.read-infra-outputs.outputs.job_queue_url }}" \
                 "OddsRefreshQueueUrl=${{ needs.read-infra-outputs.outputs.odds_queue_url }}" \
                 "ApiFootballKey=$API_FOOTBALL_KEY" \
                 "TheOddsApiKey=$THE_ODDS_API_KEY" \
+                "StripeSecretKey=$STRIPE_SECRET_KEY" \
+                "StripeWebhookSecret=$STRIPE_WEBHOOK_SECRET" \
+                "StripePriceBettor=$STRIPE_PRICE_BETTOR" \
+                "StripePriceSharp=$STRIPE_PRICE_SHARP" \
                 "VapidPublicKey=$VAPID_PUBLIC_KEY" \
                 "VapidPrivateKey=$VAPID_PRIVATE_KEY" \
                 "VapidClaimEmail=$VAPID_CLAIM_EMAIL" \
