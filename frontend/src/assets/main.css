@@ -26,6 +26,12 @@ input, select {
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }
+/* Kill the UA default (blue) outline on click/programmatic focus — e.g. the
+   scrollable main panel grabbing focus on navigation. Keyboard focus keeps the
+   green ring above. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
 
 /* Honor reduced-motion: kill decorative animations (shimmer, live pulse) and
    neutralize transitions for users who ask for less movement. */

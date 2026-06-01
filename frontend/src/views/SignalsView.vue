@@ -23,7 +23,7 @@
     </div>
 
     <div class="grid">
-      <div v-for="s in grouped" :key="s.id" class="sig" :class="{ locked: s.locked }">
+      <div v-for="s in grouped" :key="s.id" class="sig" :class="[s.kind, { locked: s.locked }]">
         <div class="top">
           <span class="kind" :class="s.kind">{{ kindLabel(s) }}</span>
           <span class="lg">{{ s.league }} · {{ s.country }}</span>
@@ -56,11 +56,13 @@
           </div>
           <div class="why">{{ s.body }}</div>
           <div class="stats">
-            <div class="stat"><div class="v green">+{{ s.edge_pct }}%</div><div class="k">{{ metricLabel(s) }}</div></div>
+            <div class="stat hero"><div class="v">+{{ s.edge_pct }}%</div><div class="k">{{ metricLabel(s) }}</div></div>
             <div v-if="priced(s)" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
             <div v-if="priced(s)" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
           </div>
-          <RouterLink v-if="s.fixture_id" :to="`/lines/${s.fixture_id}`" class="compare">Compare prices across books →</RouterLink>
+          <RouterLink v-if="s.fixture_id" :to="`/lines/${s.fixture_id}`" class="compare">
+            <span>Compare prices across books</span><span class="arr" aria-hidden="true">→</span>
+          </RouterLink>
         </template>
 
         <div v-else class="lockmask">
@@ -167,8 +169,14 @@ onMounted(async () => {
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 16px; }
 
-.sig { border: 1px solid var(--hair); border-radius: 16px; padding: 20px; background: var(--panel); position: relative; transition: .18s; overflow: hidden; }
-.sig:hover { border-color: var(--hair-2); transform: translateY(-1px); }
+.sig { border: 1px solid var(--hair); border-radius: 16px; padding: 20px 20px 20px 23px; background: var(--panel); position: relative; transition: transform .18s, border-color .18s, box-shadow .18s; overflow: hidden; }
+.sig:hover { border-color: var(--hair-2); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(0, 0, 0, .38); }
+/* kind accent — a thin colored spine on the left edge */
+.sig::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--hair-2)); opacity: .9; }
+.sig.ev { --accent: var(--green); }
+.sig.arb { --accent: var(--hair-2); }
+.sig.middle { --accent: #5cb3ff; }
+.sig.promo { --accent: #ffc94d; }
 .top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 15px; }
 .kind { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 9px; border-radius: 100px; }
 .kind.ev { background: var(--green-dim); color: var(--green); }
@@ -199,10 +207,13 @@ onMounted(async () => {
 .tk-leg-sub { font-size: 11.5px; color: var(--txt-3); margin-top: 2px; }
 .tk-note { font-size: 11.5px; color: var(--txt-2); line-height: 1.5; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--hair); }
 .why { font-size: 13px; line-height: 1.6; color: var(--txt-2); margin-top: 15px; }
-.stats { display: flex; gap: 26px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--hair); }
-.stat .v { font-family: 'Spline Sans Mono', monospace; font-size: 16px; font-weight: 600; }
-.stat .v.green { color: var(--green); }
-.stat .k { font-size: 10px; color: var(--txt-3); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; font-weight: 700; }
+.stats { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hair); }
+.stat { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--hair); border-radius: 11px; padding: 11px 12px; }
+.stat .v { font-family: 'Spline Sans Mono', monospace; font-size: 17px; font-weight: 600; line-height: 1; }
+.stat .k { font-size: 9.5px; color: var(--txt-3); text-transform: uppercase; letter-spacing: .06em; margin-top: 7px; font-weight: 700; white-space: nowrap; }
+.stat.hero { background: var(--green-dim); border-color: transparent; }
+.stat.hero .v { color: var(--green); }
+.stat.hero .k { color: var(--green); opacity: .85; }
 
 .sig.locked { min-height: 200px; }
 .sig.locked .pick, .sig.locked .fx { filter: blur(7px); opacity: .5; user-select: none; }
@@ -210,7 +221,9 @@ onMounted(async () => {
 .lockmask .t { font-size: 13px; color: var(--txt-2); font-weight: 500; text-align: center; padding: 0 28px; line-height: 1.5; }
 .lockmask .u { background: var(--green); color: #04210f; border: none; font-weight: 800; font-size: 12.5px; padding: 10px 22px; border-radius: 100px; cursor: pointer; text-transform: uppercase; letter-spacing: .3px; }
 
-.compare { display: inline-block; margin-top: 14px; font-size: 12.5px; font-weight: 600; color: var(--green); }
-.compare:hover { opacity: .85; }
+.compare { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding: 11px 14px; border: 1px solid var(--hair); border-radius: 11px; font-size: 12.5px; font-weight: 600; color: var(--txt-2); transition: color .15s, border-color .15s, background .15s; }
+.compare:hover { color: var(--green); border-color: var(--green-dim); background: var(--green-dim); }
+.compare .arr { transition: transform .15s; }
+.compare:hover .arr { transform: translateX(3px); }
 .foot { color: var(--txt-3); font-size: 11px; margin-top: 24px; }
 </style>
