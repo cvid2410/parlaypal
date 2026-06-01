@@ -37,6 +37,7 @@
         <div class="right">
           <div class="pulse" :style="{ opacity: auth.isPaid ? 1 : .5 }"><span class="d" aria-hidden="true" /> Live</div>
           <span class="badge" :class="auth.isPaid ? 'pro' : 'free'">{{ auth.tier }}</span>
+          <RouterLink class="iconbtn" to="/settings" title="Settings" aria-label="Settings"><span aria-hidden="true">⚙</span></RouterLink>
           <button class="iconbtn" @click="doLogout" title="Log out" aria-label="Log out"><span aria-hidden="true">⎋</span></button>
         </div>
       </header>
@@ -105,6 +106,7 @@ const TITLES: Record<string, [string, string]> = {
   league: ['Standings', 'League table, live from the season'],
   lines: ['Compare odds', 'Best available price across every book'],
   results: ['Results', 'Your record against the closing line'],
+  settings: ['Settings', 'Your books, leagues, and minimum edge'],
 }
 const title = computed(() => TITLES[route.name as string] || ['ParlayPal', ''])
 
@@ -166,7 +168,7 @@ a { text-decoration: none; }
 .badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 5px 10px; border-radius: 20px; }
 .badge.free { background: var(--surface-2); color: var(--txt-2); }
 .badge.pro { background: var(--green); color: #04210f; }
-.iconbtn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--hair); background: var(--panel); color: var(--txt-2); cursor: pointer; font-size: 16px; }
+.iconbtn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--hair); background: var(--panel); color: var(--txt-2); cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; }
 .iconbtn:hover { color: var(--txt); border-color: var(--hair-2); }
 .content { padding: 28px 34px 70px; }
 .appfoot { display: none; }

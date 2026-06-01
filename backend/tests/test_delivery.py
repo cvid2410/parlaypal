@@ -13,8 +13,30 @@ from app.models.users import AlertSent, Subscription, User
 from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
 from app.shared.routing import eligible_users, index_subscription, user_route_meta
+from app.shared.signal_feed import actionable_on, required_books
 from app.workers.deliver import deliver
 from app.workers.fanout import route_signal
+
+
+def test_required_books_single_and_multi():
+    # EV/promo → the one offering book.
+    assert required_books(Signal(book="fanduel", kind="ev", meta=None)) == ["fanduel"]
+    # Arb/middle → every leg's book, pulled from meta.legs (dict keyed by selection).
+    arb = Signal(
+        book="multi",
+        kind="arb",
+        meta={
+            "legs": {
+                "home": {"book": "draftkings", "odds": 2.1, "stake_frac": 0.5},
+                "away": {"book": "betmgm", "odds": 2.1, "stake_frac": 0.5},
+            }
+        },
+    )
+    assert sorted(required_books(arb)) == ["betmgm", "draftkings"]
+    # actionable_on: user must hold every leg book; empty user set = unfiltered.
+    assert actionable_on(arb, {"draftkings", "betmgm", "caesars"}) is True
+    assert actionable_on(arb, {"draftkings"}) is False  # missing betmgm leg
+    assert actionable_on(arb, set()) is True
 
 
 @pytest.fixture
@@ -97,23 +119,27 @@ async def world():
 
 async def test_routing_index_and_eligibility(world):
     r = get_redis()
-    # EV intersects league∩book → user eligible.
-    users = await eligible_users(r, world["league_id"], "fanduel", "ev")
+    # EV requires the one offering book; user follows fanduel → eligible.
+    users = await eligible_users(r, world["league_id"], ["fanduel"])
     assert world["uid"] in users
-    # A book the user doesn't follow → not eligible for EV.
-    assert world["uid"] not in await eligible_users(r, world["league_id"], "betmgm", "ev")
+    # A book the user doesn't follow → not eligible.
+    assert world["uid"] not in await eligible_users(r, world["league_id"], ["betmgm"])
     meta = await user_route_meta(r, world["uid"])
     assert meta["tier"] == "bettor" and meta["channels"] == ["log"]
 
 
-async def test_cross_book_signals_route_by_league(world):
+async def test_cross_book_requires_all_leg_books(world):
     r = get_redis()
-    # Arb AND middle carry book='multi' (they span several books) and must route by league
-    # only — middle previously fell through to sinter(league, sub:book:multi) (empty) and
-    # reached zero users. The user follows 'fanduel', never 'multi'.
-    for kind in ("arb", "middle"):
-        users = await eligible_users(r, world["league_id"], "multi", kind)
-        assert world["uid"] in users, f"{kind} signal routed to zero users"
+    lid, uid = world["league_id"], world["uid"]
+    # An arb whose legs are all on a book the user holds → eligible.
+    assert uid in await eligible_users(r, lid, ["fanduel"])
+    # An arb spanning fanduel + betmgm → the user lacks betmgm and can't lock the play, so they
+    # must NOT be routed it (the gap this feature closes).
+    assert uid not in await eligible_users(r, lid, ["fanduel", "betmgm"])
+    # Once they follow both books, the full-leg arb reaches them.
+    await index_subscription(r, uid, "bettor", [lid], ["fanduel", "betmgm"], 0.0, ["log"])
+    assert uid in await eligible_users(r, lid, ["fanduel", "betmgm"])
+    await r.srem("sub:book:betmgm", uid)  # not tag-scoped, so clean it up explicitly
 
 
 async def test_route_signal_counts_eligible(world):

@@ -18,14 +18,20 @@ from app.api.auth import get_current_user
 from app.config import settings
 from app.models.core import Fixture, League
 from app.models.signals import Signal
-from app.models.users import User
+from app.models.users import Subscription, User
 from app.shared.copy import action_ticket, explain
 from app.shared.db import get_db
 from app.shared.routing import PAID_TIERS
-from app.shared.signal_feed import user_facing_clause
+from app.shared.signal_feed import actionable_on, user_facing_clause
 from app.shared.signal_view import signal_context
 
 router = APIRouter(prefix="/signals", tags=["signals"])
+
+FEED_LIMIT = 50
+# Book-filtering happens in Python (it depends on arb leg books in JSON meta), so we pull a
+# wider candidate set first and trim to FEED_LIMIT after, or a heavy book filter could starve
+# the feed below its cap.
+CANDIDATE_CAP = 200
 
 
 @router.get("")
@@ -37,27 +43,39 @@ async def list_signals(
     now = datetime.now(UTC)
     cutoff = now - timedelta(seconds=settings.signal_ttl_seconds)
 
+    # The user's subscription filters the feed to what they actually care about / can place:
+    # leagues + min_edge in SQL, books in Python below. An unset (or empty) field = no filter,
+    # so a brand-new user still sees the full feed.
+    sub = await db.get(Subscription, user.id)
+    user_books = set(sub.books) if sub else set()
+
     # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
     # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated — they're
     # mechanical. The same clause gates the Leagues badge so the two screens agree.
-    sigs = (
+    conditions = [Signal.status == "live", Signal.created_at >= cutoff, user_facing_clause()]
+    if sub and sub.leagues:
+        conditions.append(Fixture.league_id.in_(sub.leagues))
+    if sub and sub.min_edge > 0:
+        conditions.append(Signal.edge_pct >= sub.min_edge)
+
+    candidates = (
         (
             await db.execute(
                 select(Signal)
                 .join(Fixture, Signal.fixture_id == Fixture.id)
                 .join(League, Fixture.league_id == League.id)
-                .where(
-                    Signal.status == "live",
-                    Signal.created_at >= cutoff,
-                    user_facing_clause(),
-                )
+                .where(*conditions)
                 .order_by(Signal.created_at.desc())
-                .limit(50)
+                .limit(CANDIDATE_CAP)
             )
         )
         .scalars()
         .all()
     )
+
+    # Book filter (NON-NEGOTIABLE #5 intent on the read side): only show plays the user can
+    # actually place — for an arb that means holding every leg's book.
+    sigs = [s for s in candidates if actionable_on(s, user_books)][:FEED_LIMIT]
 
     cards = []
     for sig in sigs:

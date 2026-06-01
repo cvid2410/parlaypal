@@ -8,6 +8,7 @@ from app.api import (
     health,
     leagues,
     lines,
+    preferences,
     push,
     results,
     scores,
@@ -35,3 +36,4 @@ app.include_router(lines.router, prefix="/api")
 app.include_router(config.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
 app.include_router(push.router, prefix="/api")
+app.include_router(preferences.router, prefix="/api")

@@ -12,7 +12,7 @@ from app.ingestors.odds import _get_market_id
 from app.main import app
 from app.models.core import Fixture, League, Team
 from app.models.signals import Signal
-from app.models.users import User
+from app.models.users import Subscription, User
 from app.shared.db import get_sessionmaker
 from app.shared.security import create_access_token
 
@@ -117,6 +117,34 @@ async def test_free_sees_locked_teaser(world):
     assert "unlock" in card["title"].lower()
     # No edge leaks: pick / book / odds / body absent.
     assert "book" not in card and "odds" not in card and "body" not in card
+
+
+async def test_feed_filters_by_user_books(world):
+    """The Testland signal is on FanDuel. A user who only holds DraftKings shouldn't see it
+    (can't place it); switching their books to FanDuel brings it back. No subscription = no
+    filter (covered by the other tests, whose users have none)."""
+    Session = get_sessionmaker()
+    paid_id, token = world["paid_id"], world["paid_token"]
+    async with Session() as s:
+        s.add(Subscription(user_id=paid_id, leagues=[], books=["draftkings"], channels=[]))
+        await s.commit()
+    try:
+        async with _client() as c:
+            r = await c.get("/api/signals", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+        assert not [s for s in r.json()["signals"] if s["country"] == "Testland"]
+
+        async with Session() as s:
+            sub = await s.get(Subscription, paid_id)
+            sub.books = ["fanduel"]
+            await s.commit()
+        async with _client() as c:
+            r = await c.get("/api/signals", headers={"Authorization": f"Bearer {token}"})
+        assert any(s["country"] == "Testland" for s in r.json()["signals"])
+    finally:
+        async with Session() as s:
+            await s.execute(delete(Subscription).where(Subscription.user_id == paid_id))
+            await s.commit()
 
 
 async def test_signals_requires_auth():

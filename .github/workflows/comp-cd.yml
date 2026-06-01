@@ -275,6 +275,35 @@ jobs:
             exit 1
           }
 
+      # Run schema migrations as a one-off task (MigrateTaskDefinition) and wait — fail the
+      # deploy if they fail. Uses the same subnets/SG as the service so it can reach RDS.
+      - name: Run DB migrations
+        env:
+          CLUSTER: parlaypal-${{ env.ENV }}
+          TASKDEF: parlaypal-migrate-${{ env.ENV }}
+          SUBNET_A: ${{ needs.read-infra-outputs.outputs.public_subnet_a }}
+          SUBNET_B: ${{ needs.read-infra-outputs.outputs.public_subnet_b }}
+          APP_SG: ${{ needs.read-infra-outputs.outputs.app_sg_id }}
+        run: |
+          NET="awsvpcConfiguration={subnets=[$SUBNET_A,$SUBNET_B],securityGroups=[$APP_SG],assignPublicIp=ENABLED}"
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$TASKDEF" \
+            --launch-type FARGATE \
+            --network-configuration "$NET" \
+            --query 'tasks[0].taskArn' --output text)
+          echo "migrate task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK_ARN"
+          EXIT=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "migrate container exit code: $EXIT"
+          if [ "$EXIT" != "0" ]; then
+            echo "=== migration failed — recent migrate logs ==="
+            aws logs tail "/ecs/parlaypal-${{ env.ENV }}" --since 10m 2>/dev/null \
+              | grep -i "migrate\|alembic\|bootstrap" || true
+            exit 1
+          fi
+
   # ── 5. Upload frontend to S3 + invalidate CloudFront ─────────────────────
   deploy-frontend:
     name: Deploy frontend

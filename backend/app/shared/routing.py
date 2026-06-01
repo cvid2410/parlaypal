@@ -49,16 +49,27 @@ async def index_subscription(
     await pipe.execute()
 
 
-async def eligible_users(r, league_id: int, book: str, kind: str) -> set[int]:
-    """User ids that should see this signal. Single-book signals (ev, promo) intersect
-    league∩book; cross-book signals carry book='multi' and route by league only since they
-    span several books. Keyed on the 'multi' marker, not the kind, so every cross-book kind
-    (arb AND middle) is covered — middle previously fell through to sinter against the empty
-    sub:book:multi set and reached zero users."""
-    if book == "multi":
-        members = await r.smembers(_league_key(league_id))
-    else:
-        members = await r.sinter(_league_key(league_id), _book_key(book))
+async def deindex_subscription(r, user_id: int, leagues: list[int], books: list[str]) -> None:
+    """Remove a user from the given league/book routing sets. Call with the user's OLD
+    leagues/books before re-indexing on a preferences change, so a book/league they dropped
+    stops routing to them (index_subscription only adds — it can't know what to remove)."""
+    pipe = r.pipeline()
+    for lid in leagues:
+        pipe.srem(_league_key(lid), user_id)
+    for book in books:
+        pipe.srem(_book_key(book), user_id)
+    await pipe.execute()
+
+
+async def eligible_users(r, league_id: int, books: list[str]) -> set[int]:
+    """User ids that should see this signal: subscribed to the league AND to EVERY book the
+    signal requires. Single-book signals (ev, promo) require the one offering book; cross-book
+    signals (arb, middle) require all leg books — a user missing any leg can't execute the play
+    (you can't lock an arb without every leg), so they don't get it. Intersecting league∩books
+    keeps this off the full user table (NON-NEGOTIABLE #5). Empty `books` (shouldn't happen)
+    falls back to league-only so a signal is never silently dropped to nobody."""
+    keys = [_league_key(league_id)] + [_book_key(b) for b in dict.fromkeys(books)]
+    members = await r.sinter(*keys)
     return {int(m) for m in members}
 
 
