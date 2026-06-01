@@ -40,7 +40,16 @@
           <button class="iconbtn" @click="doLogout" title="Log out" aria-label="Log out"><span aria-hidden="true">⎋</span></button>
         </div>
       </header>
-      <div class="content"><RouterView /></div>
+      <div class="content">
+        <RouterView />
+        <!-- mobile-only: the sidebar (with these links) is hidden under 900px -->
+        <footer class="appfoot">
+          <span>21+ · 1-800-GAMBLER</span>
+          <RouterLink to="/privacy">Privacy</RouterLink>
+          <span class="sep" aria-hidden="true">·</span>
+          <RouterLink to="/terms">Terms</RouterLink>
+        </footer>
+      </div>
     </main>
 
     <!-- bottom nav (mobile) -->
@@ -160,6 +169,7 @@ a { text-decoration: none; }
 .iconbtn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--hair); background: var(--panel); color: var(--txt-2); cursor: pointer; font-size: 16px; }
 .iconbtn:hover { color: var(--txt); border-color: var(--hair-2); }
 .content { padding: 28px 34px 70px; }
+.appfoot { display: none; }
 
 /* mobile bottom nav (hidden on desktop) */
 .mobnav { display: none; }
@@ -179,5 +189,8 @@ a { text-decoration: none; }
   .mobnav a .ic { width: 20px; height: 20px; }
   .mobnav a .ic svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
   .mobnav a.router-link-active { color: var(--green); }
+  .appfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--hair); font-size: 11px; color: var(--txt-3); }
+  .appfoot a { color: var(--txt-2); }
+  .appfoot a:hover { color: var(--txt); }
 }
 </style>
