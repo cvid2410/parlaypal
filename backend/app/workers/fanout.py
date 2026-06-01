@@ -18,6 +18,7 @@ from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
 from app.shared.metrics import emit
 from app.shared.routing import PAID_TIERS, eligible_users, user_route_meta
+from app.shared.signal_feed import required_books
 
 
 async def route_signal(ctx: dict, signal_id: int) -> dict:
@@ -46,7 +47,7 @@ async def route_signal(ctx: dict, signal_id: int) -> dict:
         emit("fanout.gated", signal_id=signal_id, kind=sig.kind, reason="ev_uncertified")
         return {"eligible": 0, "enqueued": 0, "gated": True}
 
-    users = await eligible_users(r, league_id, sig.book, sig.kind)
+    users = await eligible_users(r, league_id, required_books(sig))
     enqueued = 0
     for uid in users:
         meta = await user_route_meta(r, uid)

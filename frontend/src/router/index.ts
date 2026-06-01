@@ -15,6 +15,7 @@ const router = createRouter({
     { path: '/leagues', name: 'leagues', component: () => import('../views/LeaguesView.vue'), meta: { requiresAuth: true } },
     { path: '/leagues/:id', name: 'league', component: () => import('../views/LeagueDetailView.vue'), meta: { requiresAuth: true } },
     { path: '/lines/:id', name: 'lines', component: () => import('../views/LinesView.vue'), meta: { requiresAuth: true } },
+    { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue'), meta: { requiresAuth: true } },
     { path: '/login', name: 'login', component: () => import('../views/AuthView.vue') },
     { path: '/privacy', name: 'privacy', component: () => import('../views/PrivacyView.vue') },
     { path: '/terms', name: 'terms', component: () => import('../views/TermsView.vue') },
