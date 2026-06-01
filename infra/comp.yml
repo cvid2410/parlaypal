@@ -243,10 +243,8 @@ Resources:
       ContainerDefinitions:
         - Name: backend
           Image: !Ref BackendImageUri
-          # Apply migrations + seed leagues before serving (RDS starts empty). Both are
-          # idempotent — no-ops once at head / once leagues exist. Only the backend runs this;
-          # the worker must not race on the same upgrade.
-          Command: ["sh", "-c", "alembic upgrade head && python -m scripts.seed_leagues && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+          # Serves only (Dockerfile CMD = uvicorn). Schema migrations run as a separate one-off
+          # task (MigrateTaskDefinition) from the deploy pipeline; seeding is run on demand.
           PortMappings:
             - ContainerPort: 8000
           Environment:
@@ -315,6 +313,34 @@ Resources:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: worker
+
+  # One-off schema migration task — run by comp-cd via `aws ecs run-task` (and waited on)
+  # before the service is considered deployed. Kept off the long-running service so the app
+  # never races or re-runs migrations on every task start. Seeding is run on demand against
+  # this same definition with a command override (python -m scripts.seed_leagues).
+  MigrateTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub parlaypal-migrate-${Environment}
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: migrate
+          Image: !Ref BackendImageUri
+          Command: ["python", "-m", "scripts.bootstrap_db"]
+          Environment:
+            - Name: DATABASE_URL
+              Value: !Sub "postgresql+asyncpg://${DBUsername}:${DBPassword}@${DBEndpoint}:${DBPort}/${DBName}"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: migrate
 
   ECSService:
     Type: AWS::ECS::Service
