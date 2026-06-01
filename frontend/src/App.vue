@@ -20,6 +20,12 @@
           <p>Live signals across every soft league are unlocked. 1-800-GAMBLER.</p>
         </template>
       </div>
+
+      <footer class="sidefoot">
+        <RouterLink to="/privacy">Privacy</RouterLink>
+        <span class="sep" aria-hidden="true">·</span>
+        <RouterLink to="/terms">Terms</RouterLink>
+      </footer>
     </aside>
 
     <main class="main">
@@ -135,6 +141,9 @@ a { text-decoration: none; }
 .upsell h5 .g { color: var(--green); text-transform: capitalize; }
 .upsell p { font-size: 12px; color: var(--txt-3); margin: 6px 0 13px; line-height: 1.5; }
 .upsell .go { width: 100%; background: var(--green); color: #04210f; border: none; font-weight: 800; font-size: 13px; padding: 10px; border-radius: 10px; cursor: pointer; text-transform: uppercase; letter-spacing: .3px; }
+.sidefoot { display: flex; gap: 8px; padding: 14px 10px 2px; font-size: 11px; color: var(--txt-3); }
+.sidefoot a { color: var(--txt-3); }
+.sidefoot a:hover { color: var(--txt-2); }
 
 /* main */
 .main { overflow-y: auto; height: 100vh; }
