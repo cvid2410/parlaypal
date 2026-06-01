@@ -1,14 +1,14 @@
 <template>
   <div class="ln">
-    <a class="back" @click="$router.back()">← Back</a>
+    <button type="button" class="back" @click="$router.back()">← Back</button>
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
       <div class="head">
         <div class="teams">
-          <img v-if="data.home_logo" :src="data.home_logo" class="crest" />
+          <img v-if="data.home_logo" :src="data.home_logo" class="crest" alt="" />
           <span>{{ data.home }}</span><span class="vs">vs</span><span>{{ data.away }}</span>
-          <img v-if="data.away_logo" :src="data.away_logo" class="crest" />
+          <img v-if="data.away_logo" :src="data.away_logo" class="crest" alt="" />
         </div>
         <div class="meta">{{ data.league }} · {{ data.country }} · {{ kickoff(data.kickoff) }}</div>
       </div>
@@ -29,7 +29,17 @@
       </div>
       <p class="foot">Best available price across the books we track · for entertainment · 1-800-GAMBLER.</p>
     </template>
-    <p v-else class="empty">Loading prices…</p>
+    <div v-else aria-hidden="true">
+      <div class="sk" style="width: 280px; height: 26px; margin: 16px 0 8px" />
+      <div class="sk" style="width: 200px; height: 13px; margin-bottom: 22px" />
+      <div v-for="n in 2" :key="n" class="market">
+        <div class="mh"><span class="sk" style="width: 120px; height: 12px" /></div>
+        <div v-for="r in 2" :key="r" class="sel">
+          <div class="sk" style="width: 40%; height: 15px" />
+          <div class="sk" style="width: 54px; height: 18px" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

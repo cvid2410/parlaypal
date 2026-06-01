@@ -13,9 +13,9 @@
         <div class="sect">Upcoming · compare odds</div>
         <div class="fxlist">
           <RouterLink v-for="fx in fixtures" :key="fx.id" :to="`/lines/${fx.id}`" class="fxrow">
-            <span class="t"><img v-if="fx.home_logo" :src="fx.home_logo" class="crest" />{{ fx.home }}</span>
+            <span class="t"><img v-if="fx.home_logo" :src="fx.home_logo" class="crest" alt="" />{{ fx.home }}</span>
             <span class="vs">v</span>
-            <span class="t r"><img v-if="fx.away_logo" :src="fx.away_logo" class="crest" />{{ fx.away }}</span>
+            <span class="t r"><img v-if="fx.away_logo" :src="fx.away_logo" class="crest" alt="" />{{ fx.away }}</span>
             <span class="ko">{{ ko(fx.kickoff) }}</span>
             <span class="chev">›</span>
           </RouterLink>
@@ -34,7 +34,7 @@
         </div>
         <div v-for="row in g.rows" :key="row.rank" class="trow" :class="{ top: row.rank <= 4 }">
           <span class="r">{{ row.rank }}</span>
-          <span class="t"><img v-if="row.logo" :src="row.logo" class="crest" loading="lazy" />{{ row.team }}</span>
+          <span class="t"><img v-if="row.logo" :src="row.logo" class="crest" loading="lazy" alt="" />{{ row.team }}</span>
           <span class="n">{{ row.played }}</span>
           <span class="n hide-s">{{ row.win }}</span><span class="n hide-s">{{ row.draw }}</span><span class="n hide-s">{{ row.lose }}</span>
           <span class="n">{{ row.gd > 0 ? '+' + row.gd : row.gd }}</span>
@@ -42,7 +42,16 @@
         </div>
       </div>
     </template>
-    <p v-else class="empty">Loading table…</p>
+    <div v-else aria-hidden="true">
+      <div class="sk" style="width: 220px; height: 26px; margin: 16px 0 20px" />
+      <div class="table">
+        <div v-for="n in 8" :key="n" class="skrow">
+          <div class="sk" style="width: 16px; height: 13px" />
+          <div class="sk" style="width: 40%; height: 14px" />
+          <div class="sk" style="width: 28px; height: 13px; margin-left: auto" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -117,6 +126,8 @@ onMounted(() => {
 .n.pts { color: var(--txt); font-weight: 600; }
 .err { color: #ff5a52; padding: 8px 0; }
 .empty { color: var(--txt-2); font-size: 13.5px; padding: 16px 0; }
+.skrow { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.skrow + .skrow { border-top: 1px solid var(--hair); }
 
 @media (max-width: 620px) {
   .thead, .trow { grid-template-columns: 24px 1fr 30px 40px 44px; }

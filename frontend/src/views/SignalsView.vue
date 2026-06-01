@@ -3,13 +3,24 @@
     <div class="sect">
       <span v-if="auth.isPaid" class="livedot" />
       {{ auth.isPaid ? 'Live signals · soft leagues' : 'Locked on Free · upgrade to see picks' }}
-      <button class="refresh" @click="load" :disabled="loading" title="Refresh">↻</button>
+      <button class="refresh" @click="load" :disabled="loading" title="Refresh" aria-label="Refresh signals"><span aria-hidden="true">↻</span></button>
     </div>
 
     <p v-if="error" class="err">{{ error }}</p>
-    <p v-if="!loading && grouped.length === 0" class="empty">
+    <p v-if="!loading && !error && grouped.length === 0" class="empty">
       No live signals right now. Lines are efficient at the moment — check back soon.
     </p>
+
+    <!-- loading skeletons -->
+    <div v-if="loading && grouped.length === 0" class="grid" aria-hidden="true">
+      <div v-for="n in 4" :key="n" class="sig">
+        <div class="sk" style="width: 92px; height: 21px; border-radius: 100px" />
+        <div class="sk" style="width: 72%; height: 26px; margin-top: 16px" />
+        <div class="sk" style="width: 46%; height: 13px; margin-top: 10px" />
+        <div class="sk" style="width: 100%; height: 66px; margin-top: 16px; border-radius: 12px" />
+        <div class="sk" style="width: 100%; height: 38px; margin-top: 15px" />
+      </div>
+    </div>
 
     <div class="grid">
       <div v-for="s in grouped" :key="s.id" class="sig" :class="{ locked: s.locked }">

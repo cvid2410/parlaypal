@@ -30,7 +30,16 @@
         No fixtures in your leagues today.
       </p>
     </template>
-    <p v-else class="empty">Loading scores…</p>
+    <div v-else class="cols" aria-hidden="true">
+      <div v-for="c in 2" :key="c" class="panel">
+        <div class="ph"><span class="sk" style="width: 90px; height: 12px" /></div>
+        <div v-for="n in 3" :key="n" class="skrow">
+          <div class="sk" style="width: 55%; height: 12px; margin-bottom: 12px" />
+          <div class="sk" style="width: 80%; height: 15px; margin: 8px 0" />
+          <div class="sk" style="width: 70%; height: 15px" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -56,7 +65,9 @@ const Match = (props: { m: M; label: string }) => {
   const sc = (s: number | null) => (s == null ? '—' : String(s))
   const w = (a: number | null, b: number | null) => a != null && b != null && a > b
   const crest = (logo: string | null) =>
-    logo ? h('img', { class: 'crest', src: logo, loading: 'lazy' }) : h('span', { class: 'dt' })
+    logo
+      ? h('img', { class: 'crest', src: logo, loading: 'lazy', alt: '' })
+      : h('span', { class: 'dt', 'aria-hidden': 'true' })
   const team = (name: string, score: number | null, win: boolean, logo: string | null) =>
     h('div', { class: ['trow', win ? 'w' : ''] }, [
       crest(logo), h('span', { class: 'n' }, name), h('span', { class: 'sc' }, sc(score)),
@@ -106,6 +117,8 @@ onMounted(() => {
 :deep(.trow.w .sc) { color: var(--txt); }
 .err { color: #ff5a52; padding: 8px 0; }
 .empty { color: var(--txt-2); font-size: 13.5px; padding: 16px 0; }
+.skrow { padding: 15px 18px; }
+.skrow + .skrow { border-top: 1px solid var(--hair); }
 
 @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
 </style>

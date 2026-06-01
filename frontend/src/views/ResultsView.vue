@@ -52,7 +52,17 @@
       <p class="foot">Verified at a flat 1-unit stake · {{ unitNote }}. For entertainment — 1-800-GAMBLER.</p>
     </template>
 
-    <p v-else class="pending">Loading…</p>
+    <div v-else aria-hidden="true">
+      <div class="hero">
+        <div class="sk" style="width: 150px; height: 40px; margin: 0 auto" />
+        <div class="sk" style="width: 200px; height: 12px; margin: 14px auto 0" />
+      </div>
+      <div class="sk" style="width: 100%; height: 100px; margin: 6px 0; border-radius: 11px" />
+      <div class="row3">
+        <div v-for="n in 3" :key="n" class="sk" style="flex: 1; height: 62px; border-radius: 11px" />
+      </div>
+      <div class="sk" style="width: 100%; height: 88px; border-radius: 11px" />
+    </div>
   </div>
 </template>
 

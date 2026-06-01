@@ -2,10 +2,10 @@
   <div v-if="showChrome" class="app">
     <!-- sidebar (desktop) -->
     <aside class="side">
-      <div class="brand"><span class="mark" /><span class="wm">Parlay<span class="g">Pal</span></span></div>
-      <nav class="nav">
+      <div class="brand"><span class="mark" aria-hidden="true" /><span class="wm">Parlay<span class="g">Pal</span></span></div>
+      <nav class="nav" aria-label="Primary">
         <RouterLink v-for="t in tabs" :key="t.name" :to="t.path" class="navitem">
-          <span class="ic" v-html="t.icon" /> {{ t.label }}
+          <span class="ic" v-html="t.icon" aria-hidden="true" /> {{ t.label }}
         </RouterLink>
       </nav>
       <div class="spacer" />
@@ -25,22 +25,22 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <div class="ttl">{{ title[0] }}</div>
+          <h1 class="ttl">{{ title[0] }}</h1>
           <div class="sub">{{ title[1] }}</div>
         </div>
         <div class="right">
-          <div class="pulse" :style="{ opacity: auth.isPaid ? 1 : .5 }"><span class="d" /> Live</div>
+          <div class="pulse" :style="{ opacity: auth.isPaid ? 1 : .5 }"><span class="d" aria-hidden="true" /> Live</div>
           <span class="badge" :class="auth.isPaid ? 'pro' : 'free'">{{ auth.tier }}</span>
-          <button class="iconbtn" @click="doLogout" title="Log out">⎋</button>
+          <button class="iconbtn" @click="doLogout" title="Log out" aria-label="Log out"><span aria-hidden="true">⎋</span></button>
         </div>
       </header>
       <div class="content"><RouterView /></div>
     </main>
 
     <!-- bottom nav (mobile) -->
-    <nav class="mobnav">
+    <nav class="mobnav" aria-label="Primary">
       <RouterLink v-for="t in tabs" :key="t.name" :to="t.path">
-        <span class="ic" v-html="t.icon" />{{ t.label }}
+        <span class="ic" v-html="t.icon" aria-hidden="true" />{{ t.label }}
       </RouterLink>
     </nav>
 

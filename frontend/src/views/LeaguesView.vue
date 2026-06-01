@@ -3,6 +3,16 @@
     <div class="sect">{{ data ? `${data.count} covered · ${data.live_total} signals live now` : 'Leagues' }}</div>
     <p v-if="error" class="err">{{ error }}</p>
 
+    <div v-if="!data && !error" class="list" aria-hidden="true">
+      <div v-for="n in 6" :key="n" class="lgrow">
+        <div class="info">
+          <div class="sk" style="width: 160px; height: 15px" />
+          <div class="sk" style="width: 110px; height: 11px; margin-top: 7px" />
+        </div>
+        <div class="sk" style="width: 22px; height: 15px" />
+      </div>
+    </div>
+
     <div class="list">
       <RouterLink v-for="lg in data?.leagues || []" :key="lg.id" :to="`/leagues/${lg.id}`" class="lgrow">
         <div class="info">
