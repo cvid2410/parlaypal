@@ -11,37 +11,6 @@ Parameters:
     Type: String
     Default: cache.t4g.micro
 
-  # ── Postgres (RDS) ──────────────────────────────────────────────────────────
-  DBPassword:
-    Type: String
-    NoEcho: true
-    Description: Master password for the Postgres instance (from CI secrets)
-    MinLength: 8
-
-  DBUsername:
-    Type: String
-    Default: parlaypal
-
-  DBName:
-    Type: String
-    Default: parlaypal
-
-  DBInstanceClass:
-    Type: String
-    Default: db.t4g.micro
-
-  DBAllocatedStorage:
-    Type: Number
-    Default: 20
-
-  DBMultiAZ:
-    Type: String
-    AllowedValues: ["true", "false"]
-    Default: "false"
-
-Conditions:
-  IsProd: !Equals [!Ref Environment, prod]
-
 Resources:
 
   # ── VPC ──────────────────────────────────────────────────────────────────
@@ -178,60 +147,6 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref CacheSecurityGroup
 
-  # ── RDS Postgres ──────────────────────────────────────────────────────────
-
-  DBSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Postgres access from app SG only
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          SourceSecurityGroupId: !Ref AppSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Sub parlaypal-${Environment}-db
-
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Private subnets for Postgres
-      SubnetIds:
-        - !Ref PrivateSubnetA
-        - !Ref PrivateSubnetB
-
-  # Master password arrives as a NoEcho parameter and is never exported — comp.yml
-  # reconstructs DATABASE_URL from the endpoint + the same secret at deploy time, so the
-  # credential never lands in a CloudFormation export (which is readable cross-stack).
-  Database:
-    Type: AWS::RDS::DBInstance
-    # Keep prod data even if the stack is deleted/replaced; take a final snapshot.
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
-    Properties:
-      DBInstanceIdentifier: !Sub parlaypal-${Environment}
-      Engine: postgres
-      EngineVersion: "16.8"
-      DBInstanceClass: !Ref DBInstanceClass
-      AllocatedStorage: !Ref DBAllocatedStorage
-      StorageType: gp3
-      StorageEncrypted: true
-      DBName: !Ref DBName
-      MasterUsername: !Ref DBUsername
-      MasterUserPassword: !Ref DBPassword
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      VPCSecurityGroups:
-        - !Ref DBSecurityGroup
-      MultiAZ: !Ref DBMultiAZ
-      PubliclyAccessible: false
-      BackupRetentionPeriod: 7
-      DeletionProtection: !If [IsProd, true, false]
-      Tags:
-        - Key: Name
-          Value: !Sub parlaypal-${Environment}
-
   # ── S3 — Frontend ─────────────────────────────────────────────────────────
 
   FrontendBucket:
@@ -284,16 +199,6 @@ Outputs:
     Value: !GetAtt RedisCluster.RedisEndpoint.Port
     Export:
       Name: !Sub parlaypal-${Environment}-RedisPort
-
-  DBEndpoint:
-    Value: !GetAtt Database.Endpoint.Address
-    Export:
-      Name: !Sub parlaypal-${Environment}-DBEndpoint
-
-  DBPort:
-    Value: !GetAtt Database.Endpoint.Port
-    Export:
-      Name: !Sub parlaypal-${Environment}-DBPort
 
   FrontendBucketName:
     Value: !Ref FrontendBucket
