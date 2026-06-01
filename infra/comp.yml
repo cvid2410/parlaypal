@@ -331,7 +331,7 @@ Resources:
       ContainerDefinitions:
         - Name: migrate
           Image: !Ref BackendImageUri
-          Command: ["python", "-m", "scripts.bootstrap_db"]
+          Command: ["alembic", "upgrade", "head"]
           Environment:
             - Name: DATABASE_URL
               Value: !Sub "postgresql+asyncpg://${DBUsername}:${DBPassword}@${DBEndpoint}:${DBPort}/${DBName}"
