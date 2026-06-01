@@ -1,5 +1,14 @@
 /* Global resets and utilities — component styles are scoped */
 
+/* Crisper text now that the real fonts load, and align the numbers across the
+   odds/scores/standings columns (tabular figures). */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+
 button {
   cursor: pointer;
   border: none;
@@ -11,6 +20,28 @@ input, select {
   font: inherit;
 }
 
+/* Visible keyboard focus ring (dark theme — uses the brand green). Only shows for
+   keyboard/AT users via :focus-visible, so mouse clicks stay clean. */
+:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+/* Kill the UA default (blue) outline on click/programmatic focus — e.g. the
+   scrollable main panel grabbing focus on navigation. Keyboard focus keeps the
+   green ring above. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Honor reduced-motion: kill decorative animations (shimmer, live pulse) and
+   neutralize transitions for users who ask for less movement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: .001ms !important;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -18,4 +49,24 @@ input, select {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Skeleton loading — shimmer placeholder used while a view's data loads.
+   `.sk` is the block; size it with width/height (and border-radius) at the call site. */
+.sk {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: 8px;
+}
+.sk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .055), transparent);
+  animation: sk-shimmer 1.4s infinite;
+}
+@keyframes sk-shimmer {
+  100% { transform: translateX(100%); }
 }

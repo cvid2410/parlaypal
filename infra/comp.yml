@@ -28,6 +28,19 @@ Parameters:
     Type: String
   RedisPort:
     Type: String
+  DBEndpoint:
+    Type: String
+  DBPort:
+    Type: String
+  DBUsername:
+    Type: String
+    Default: parlaypal
+  DBName:
+    Type: String
+    Default: parlaypal
+  DBPassword:
+    Type: String
+    NoEcho: true
   FrontendBucketArn:
     Type: String
   FrontendBucketName:
@@ -55,6 +68,23 @@ Parameters:
     NoEcho: true
     Default: ""
   VapidClaimEmail:
+    Type: String
+    Default: ""
+
+  # Stripe — live keys/Price ids from CI secrets. When unset, billing falls back to the
+  # dev-upgrade path (see backend/app/config.py), so dev deploys work without them.
+  StripeSecretKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+  StripeWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+  StripePriceBettor:
+    Type: String
+    Default: ""
+  StripePriceSharp:
     Type: String
     Default: ""
 
@@ -213,11 +243,17 @@ Resources:
       ContainerDefinitions:
         - Name: backend
           Image: !Ref BackendImageUri
+          # Apply migrations + seed leagues before serving (RDS starts empty). Both are
+          # idempotent — no-ops once at head / once leagues exist. Only the backend runs this;
+          # the worker must not race on the same upgrade.
+          Command: ["sh", "-c", "alembic upgrade head && python -m scripts.seed_leagues && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
           PortMappings:
             - ContainerPort: 8000
           Environment:
             - Name: REDIS_URL
               Value: !Sub "redis://${RedisEndpoint}:${RedisPort}"
+            - Name: DATABASE_URL
+              Value: !Sub "postgresql+asyncpg://${DBUsername}:${DBPassword}@${DBEndpoint}:${DBPort}/${DBName}"
             - Name: ARQ_QUEUE_URL
               Value: !Ref JobQueueUrl
             - Name: ODDS_REFRESH_QUEUE_URL
@@ -226,6 +262,14 @@ Resources:
               Value: !Ref ApiFootballKey
             - Name: THE_ODDS_API_KEY
               Value: !Ref TheOddsApiKey
+            - Name: STRIPE_SECRET_KEY
+              Value: !Ref StripeSecretKey
+            - Name: STRIPE_WEBHOOK_SECRET
+              Value: !Ref StripeWebhookSecret
+            - Name: STRIPE_PRICE_BETTOR
+              Value: !Ref StripePriceBettor
+            - Name: STRIPE_PRICE_SHARP
+              Value: !Ref StripePriceSharp
             - Name: VAPID_PUBLIC_KEY
               Value: !Ref VapidPublicKey
             - Name: VAPID_PRIVATE_KEY
@@ -247,6 +291,8 @@ Resources:
           Environment:
             - Name: REDIS_URL
               Value: !Sub "redis://${RedisEndpoint}:${RedisPort}"
+            - Name: DATABASE_URL
+              Value: !Sub "postgresql+asyncpg://${DBUsername}:${DBPassword}@${DBEndpoint}:${DBPort}/${DBName}"
             - Name: ARQ_QUEUE_URL
               Value: !Ref JobQueueUrl
             - Name: ODDS_REFRESH_QUEUE_URL

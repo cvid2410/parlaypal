@@ -1,44 +1,31 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior: () => ({ top: 0 }),
   routes: [
-    {
-      path: '/',
-      name: 'schedule',
-      component: () => import('../views/ScheduleView.vue'),
-    },
-    {
-      path: '/parlay',
-      name: 'parlay',
-      component: () => import('../views/ParlayView.vue'),
-    },
-    {
-      path: '/match/:id',
-      name: 'match',
-      component: () => import('../views/MatchDetailView.vue'),
-    },
-    {
-      path: '/standings',
-      name: 'standings',
-      component: () => import('../views/StandingsView.vue'),
-    },
-    {
-      path: '/bracket',
-      name: 'bracket',
-      component: () => import('../views/BracketView.vue'),
-    },
-    {
-      path: '/privacy',
-      name: 'privacy',
-      component: () => import('../views/PrivacyView.vue'),
-    },
-    {
-      path: '/terms',
-      name: 'terms',
-      component: () => import('../views/TermsView.vue'),
-    },
+    { path: '/', redirect: '/signals' },
+    { path: '/scores', name: 'scores', component: () => import('../views/ScoresView.vue'), meta: { requiresAuth: true } },
+    { path: '/signals', name: 'signals', component: () => import('../views/SignalsView.vue'), meta: { requiresAuth: true } },
+    { path: '/ask', name: 'ask', component: () => import('../views/AskView.vue'), meta: { requiresAuth: true } },
+    // Results tab hidden for now (kept ResultsView.vue + /api/results + grading backend
+    // intact for an easy restore). Re-add this route + the App.vue nav link to bring back.
+    // { path: '/results', name: 'results', component: () => import('../views/ResultsView.vue'), meta: { requiresAuth: true } },
+    { path: '/leagues', name: 'leagues', component: () => import('../views/LeaguesView.vue'), meta: { requiresAuth: true } },
+    { path: '/leagues/:id', name: 'league', component: () => import('../views/LeagueDetailView.vue'), meta: { requiresAuth: true } },
+    { path: '/lines/:id', name: 'lines', component: () => import('../views/LinesView.vue'), meta: { requiresAuth: true } },
+    { path: '/login', name: 'login', component: () => import('../views/AuthView.vue') },
+    { path: '/privacy', name: 'privacy', component: () => import('../views/PrivacyView.vue') },
+    { path: '/terms', name: 'terms', component: () => import('../views/TermsView.vue') },
   ],
+})
+
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.isAuthed) return { name: 'login' }
+  }
 })
 
 export default router

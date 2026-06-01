@@ -1,0 +1,45 @@
+# Tooling config for the ParlayPal backend. This is not a packaged project (deps live in
+# requirements.txt); this file only configures ruff (lint + format) and pyright (types).
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# Generated migrations are Alembic's format, not ours — don't lint/reformat them.
+extend-exclude = ["alembic/versions", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort (import ordering)
+    "UP",   # pyupgrade (modern syntax)
+    "B",    # flake8-bugbear (likely bugs)
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    # FastAPI's `param = Depends(...)` / `Query(...)` in defaults is idiomatic, not a bug.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests intentionally re-import and shadow fixtures; don't fight that.
+"tests/**" = ["F811", "F401"]
+
+[tool.pyright]
+include = ["app", "scripts", "tests"]
+exclude = ["**/__pycache__", ".venv", "alembic/versions"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+# 'basic' catches real type errors (None derefs, bad calls) without the noise of 'strict'.
+typeCheckingMode = "basic"
+# SQLAlchemy 2.0 and redis-py's async client expose sync-style return signatures that pyright
+# can't resolve, so idiomatic ORM/redis code (await r.hgetall(...), .scalar_one_or_none().attr,
+# model.meta["legs"]) produces pervasive false positives. Downgrade just those rules to warnings
+# — still printed, but they don't fail the check — and keep everything else as hard errors.
+reportGeneralTypeIssues = "warning"     # redis async methods typed as non-awaitable
+reportOptionalMemberAccess = "warning"  # .scalar_one_or_none()/.get() → Optional row
+reportOptionalSubscript = "warning"     # JSON columns typed dict | None
+reportOperatorIssue = "warning"         # `"key" in model.meta` where meta is dict | None

@@ -1,62 +1,38 @@
-from fastapi import APIRouter, HTTPException
-import httpx
-from app.config import settings
-from app.services.cache import get_cached, set_cached
+"""Standings tab: a league's table(s) from API-Football, with team logos."""
 
-router = APIRouter()
+from __future__ import annotations
 
-BASE_URL = "https://v3.football.api-sports.io"
-CACHE_KEY = "standings:wc2026"
-CACHE_TTL = 1800  # 30 minutes
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth import get_current_user
+from app.models.core import League
+from app.models.users import User
+from app.services.af import current_season, standings
+from app.shared.db import get_db
+
+router = APIRouter(prefix="/standings", tags=["standings"])
 
 
-def _parse_entry(e: dict) -> dict:
-    team = e["team"]
-    stats = e["all"]
+@router.get("/{league_id}")
+async def league_standings(
+    league_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    lg = (await db.execute(select(League).where(League.id == league_id))).scalar_one_or_none()
+    if lg is None:
+        raise HTTPException(status_code=404, detail="League not found")
+    if lg.af_league_id is None:
+        return {"league": lg.name, "country": lg.country, "available": False, "groups": []}
+
+    season = await current_season(lg.af_league_id)
+    groups = await standings(lg.af_league_id, season) if season else []
     return {
-        "rank": e["rank"],
-        "team": team["name"],
-        "logo": team["logo"],
-        "played": stats["played"],
-        "won": stats["win"],
-        "drawn": stats["draw"],
-        "lost": stats["lose"],
-        "gf": stats["goals"]["for"],
-        "ga": stats["goals"]["against"],
-        "gd": e["goalsDiff"],
-        "points": e["points"],
+        "league": lg.name,
+        "country": lg.country,
+        "available": bool(groups),
+        "season": season,
+        "groups": groups,
     }
-
-
-@router.get("/standings")
-async def get_standings():
-    cached = await get_cached(CACHE_KEY)
-    if cached is not None:
-        return cached
-
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                f"{BASE_URL}/standings",
-                headers={"x-apisports-key": settings.api_football_key},
-                params={"league": "1", "season": "2026"},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Upstream error: {exc}")
-
-    groups = []
-    for league in data.get("response", []):
-        for group_entries in league["league"]["standings"]:
-            if not group_entries:
-                continue
-            name = group_entries[0].get("group", "Group")
-            groups.append({
-                "group": name,
-                "entries": [_parse_entry(e) for e in group_entries],
-            })
-
-    groups.sort(key=lambda g: g["group"])
-    await set_cached(CACHE_KEY, groups, CACHE_TTL)
-    return groups
