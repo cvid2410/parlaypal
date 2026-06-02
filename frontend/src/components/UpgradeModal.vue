@@ -2,7 +2,7 @@
   <div v-if="ui.showUpgrade" class="modal" @click.self="ui.closeUpgrade()">
     <div class="sheet">
       <h3>Unlock the edge</h3>
-      <p class="lead">Free shows you scores. <b>Pro</b> shows you where the money is — live, the moment a line goes soft.</p>
+      <p class="lead">Free shows you scores. <b>Pro</b> shows you where the money is - live, the moment a line goes soft.</p>
       <div class="vmath">Most Bettor members clear the $29 in their first week</div>
 
       <div class="plan" @click="choose('bettor')">

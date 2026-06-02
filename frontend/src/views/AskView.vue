@@ -2,8 +2,8 @@
   <div class="ask">
     <div class="inner">
       <div class="chat">
-        <div class="msg a">Hey 👋 I'm your soccer guy — soon you'll be able to ask me about any match, team, or table across every league we cover.</div>
-        <div class="msg a">I'll answer from our own scores, fixtures and standings. I'll never give you a pick — that's what <b>Signals</b> is for.</div>
+        <div class="msg a">Hey 👋 I'm your soccer guy - soon you'll be able to ask me about any match, team, or table across every league we cover.</div>
+        <div class="msg a">I'll answer from our own scores, fixtures and standings. I'll never give you a pick - that's what <b>Signals</b> is for.</div>
       </div>
 
       <div class="soon">

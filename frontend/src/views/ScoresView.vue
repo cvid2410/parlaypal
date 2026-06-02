@@ -69,7 +69,7 @@ function time(iso: string) {
 
 const Match = (props: { m: M; label: string }) => {
   const { m, label } = props
-  const sc = (s: number | null) => (s == null ? '—' : String(s))
+  const sc = (s: number | null) => (s == null ? '-' : String(s))
   const w = (a: number | null, b: number | null) => a != null && b != null && a > b
   const crest = (logo: string | null) =>
     logo

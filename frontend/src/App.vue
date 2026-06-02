@@ -12,7 +12,7 @@
       <div class="upsell">
         <template v-if="!auth.isPaid">
           <h5>You're on Free</h5>
-          <p>Signals are delayed and locked. Go Pro to see the pick, book and price — live.</p>
+          <p>Signals are delayed and locked. Go Pro to see the pick, book and price - live.</p>
           <button class="go" @click="ui.openUpgrade()">Upgrade</button>
         </template>
         <template v-else>
@@ -100,8 +100,8 @@ const tabs = [
 
 const TITLES: Record<string, [string, string]> = {
   signals: ['Signals', 'Live mispriced markets across soccer'],
-  scores: ['Scores', 'Live, today, and tables — every league'],
-  ask: ['Ask', 'Anything about soccer — scores, fixtures, standings'],
+  scores: ['Scores', 'Live, today, and tables - every league'],
+  ask: ['Ask', 'Anything about soccer - scores, fixtures, standings'],
   leagues: ['Leagues', 'We hunt where the lines are soft'],
   league: ['Standings', 'League table, live from the season'],
   lines: ['Compare odds', 'Best available price across every book'],

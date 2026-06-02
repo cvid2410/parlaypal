@@ -115,7 +115,7 @@ async def list_signals(
             label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(
                 sig.kind, "value bet"
             )
-            card["title"] = f"Live {label} — unlock to see the pick"
+            card["title"] = f"Live {label} - unlock to see the pick"
         cards.append(card)
 
     return {"tier": user.tier, "count": len(cards), "signals": cards}

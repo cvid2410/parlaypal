@@ -8,7 +8,7 @@
 
     <p v-if="error" class="err">{{ error }}</p>
     <p v-if="!loading && !error && grouped.length === 0" class="empty">
-      No live signals right now. Lines are efficient at the moment — check back soon.
+      No live signals right now. Lines are efficient at the moment - check back soon.
     </p>
 
     <!-- loading skeletons -->
@@ -66,13 +66,13 @@
         </template>
 
         <div v-else class="lockmask">
-          <div class="t">Live signal — unlock the pick &amp; odds</div>
+          <div class="t">Live signal - unlock the pick &amp; odds</div>
           <button class="u" @click="ui.openUpgrade()">Unlock with Pro</button>
         </div>
       </div>
     </div>
 
-    <p class="foot">For entertainment, not financial advice. Bet responsibly — 1-800-GAMBLER.</p>
+    <p class="foot">For entertainment, not financial advice. Bet responsibly - 1-800-GAMBLER.</p>
   </div>
 </template>
 
@@ -171,7 +171,7 @@ onMounted(async () => {
 
 .sig { border: 1px solid var(--hair); border-radius: 16px; padding: 20px 20px 20px 23px; background: var(--panel); position: relative; transition: transform .18s, border-color .18s, box-shadow .18s; overflow: hidden; }
 .sig:hover { border-color: var(--hair-2); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(0, 0, 0, .38); }
-/* kind accent — a thin colored spine on the left edge */
+/* kind accent - a thin colored spine on the left edge */
 .sig::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--hair-2)); opacity: .9; }
 .sig.ev { --accent: var(--green); }
 .sig.arb { --accent: var(--hair-2); }

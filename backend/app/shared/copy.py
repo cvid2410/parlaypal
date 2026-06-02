@@ -1,6 +1,6 @@
 """Template copy engine (NON-NEGOTIABLE #1).
 
-User-facing signal text comes ONLY from approved templates filled with computed values —
+User-facing signal text comes ONLY from approved templates filled with computed values -
 never a runtime LLM. For an individual +EV bet we never imply certainty of winning
 ("guaranteed", "lock", "can't lose", ...). Arbitrage may say "guaranteed profit" because
 it mathematically is.
@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from app.shared.math import decimal_to_american
 
 RG_FOOTER = (
-    "For entertainment, not financial advice. Bet responsibly — if it stops being fun, "
+    "For entertainment, not financial advice. Bet responsibly - if it stops being fun, "
     "step away. 1-800-GAMBLER."
 )
 
@@ -97,19 +97,19 @@ class SignalCopyContext:
 
 _EV_TEMPLATES = [
     "{pick} is priced high at {book}. Sharp books imply a fair line near {fair_am}, but "
-    "{book} still has {odds} — about {edge}% of value on your side. {stake}",
+    "{book} still has {odds} - about {edge}% of value on your side. {stake}",
     "Value on {pick}. {book}'s {odds} beats the sharp fair price ({fair_am}) by roughly "
     "{edge}%. Over many bets that gap is your edge. {stake}",
     "{book} is slow to move on {pick}: {odds} versus a fair {fair_am}. That ~{edge}% "
     "overlay is where the long-run profit comes from. {stake}",
-    "The math likes {pick} here — {book} offers {odds}, the sharp fair line is {fair_am}, "
+    "The math likes {pick} here - {book} offers {odds}, the sharp fair line is {fair_am}, "
     "an edge of about {edge}%. {stake}",
 ]
 
 _PROMO_TEMPLATES = [
     "{book} boosted {pick} to {odds}. The fair price is {fair_am}, so the boost hands you "
     "about {edge}% of value the book is subsidizing. {stake}",
-    "Odds boost: {book} is paying {odds} on {pick} (fair {fair_am}) — roughly {edge}% in your "
+    "Odds boost: {book} is paying {odds} on {pick} (fair {fair_am}) - roughly {edge}% in your "
     "favor while the promo lasts. {stake}",
 ]
 
@@ -141,7 +141,7 @@ def _stake_value(kelly_frac: float, bankroll: float | None) -> str:
     """Stake as % of bankroll (always; NON-NEGOTIABLE #7) plus a concrete amount when the
     user has set a bankroll, so the ticket gives a number to act on, not just a fraction."""
     if kelly_frac <= 0:
-        return "—"
+        return "-"
     pct = kelly_frac * 100
     if bankroll and bankroll > 0:
         return f"{pct:.1f}% of bankroll (≈ {kelly_frac * bankroll:.0f})"
@@ -149,7 +149,7 @@ def _stake_value(kelly_frac: float, bankroll: float | None) -> str:
 
 
 def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict:
-    """The discrete inputs a human copies into their sportsbook, as structured rows — the
+    """The discrete inputs a human copies into their sportsbook, as structured rows - the
     prose in `explain()` says *why*, this says *what to do*. Built from the same context so
     it stays template-only (NON-NEGOTIABLE #1); never implies certainty for a single +EV bet.
 
@@ -177,12 +177,12 @@ def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict
         else:
             win = ", ".join(str(n) for n in (ctx.window or []))
             note = (
-                f"Place both legs. You win one side always — and BOTH if the final total "
+                f"Place both legs. You win one side always - and BOTH if the final total "
                 f"lands on {win}."
             )
         return {"type": "multi", "legs": legs, "note": note}
 
-    # ev / promo — a single price at one book
+    # ev / promo - a single price at one book
     pick = selection_label(ctx.market_type, ctx.line, ctx.selection, ctx.home, ctx.away)
     verb = "Opt into the boost, then bet" if ctx.kind == "promo" else "Bet"
     return {
@@ -190,7 +190,7 @@ def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict
         "rows": [
             {"label": "Book", "value": book_label(ctx.book)},
             {"label": verb, "value": pick},
-            # "or better" — this is a floor; below it the edge is gone.
+            # "or better" - this is a floor; below it the edge is gone.
             {"label": "Min odds", "value": f"{decimal_to_american(ctx.offered_decimal)} or better"},
             {"label": "Stake", "value": _stake_value(ctx.kelly_frac, bankroll)},
         ],
@@ -208,10 +208,10 @@ def explain(ctx: SignalCopyContext) -> dict:
             f"{book_label(over.get('book', ''))} {decimal_to_american(over.get('decimal', 2))} and "
             f"Under {under.get('line')} @ {book_label(under.get('book', ''))} "
             f"{decimal_to_american(under.get('decimal', 2))}. If the final total lands on "
-            f"{win}, BOTH win (+{ctx.edge_pct:.1f}%) — otherwise it's a small, known cost."
+            f"{win}, BOTH win (+{ctx.edge_pct:.1f}%) - otherwise it's a small, known cost."
         )
         return {
-            "title": f"Middle — {ctx.fixture_label}",
+            "title": f"Middle - {ctx.fixture_label}",
             "body": body,
             "footer": RG_FOOTER,
             "fields": {
@@ -232,7 +232,7 @@ def explain(ctx: SignalCopyContext) -> dict:
         body = _variant(_ARB_TEMPLATES, ctx.dedup_hash).format(
             fixture=ctx.fixture_label, profit=f"{ctx.edge_pct:.1f}", legs=legs_txt
         )
-        title = f"Arbitrage — {ctx.fixture_label}"
+        title = f"Arbitrage - {ctx.fixture_label}"
         fields = {
             "league": ctx.league_name,
             "fixture": ctx.fixture_label,
@@ -241,7 +241,7 @@ def explain(ctx: SignalCopyContext) -> dict:
         }
         return {"title": title, "body": body, "footer": RG_FOOTER, "fields": fields}
 
-    # ---- EV / promo (boost) — both are a single-book price vs a fair line ----
+    # ---- EV / promo (boost) - both are a single-book price vs a fair line ----
     pick = selection_label(ctx.market_type, ctx.line, ctx.selection, ctx.home, ctx.away)
     odds_am = decimal_to_american(ctx.offered_decimal)
     fair_am = decimal_to_american(1 / ctx.fair_prob) if ctx.fair_prob > 0 else "n/a"
@@ -258,7 +258,7 @@ def explain(ctx: SignalCopyContext) -> dict:
         )
         .strip()
     )
-    title = f"Boost — {pick}" if ctx.kind == "promo" else f"Value Bet — {pick}"
+    title = f"Boost - {pick}" if ctx.kind == "promo" else f"Value Bet - {pick}"
     fields = {
         "league": ctx.league_name,
         "fixture": ctx.fixture_label,
