@@ -36,7 +36,8 @@
         </div>
         <div class="right">
           <div class="pulse" :style="{ opacity: auth.isPaid ? 1 : .5 }"><span class="d" aria-hidden="true" /> Live</div>
-          <span class="badge" :class="auth.isPaid ? 'pro' : 'free'">{{ auth.tier }}</span>
+          <button v-if="!auth.isPaid" class="badge free upbtn" @click="ui.openUpgrade()">free · upgrade</button>
+          <span v-else class="badge pro">{{ auth.tier }}</span>
           <RouterLink class="iconbtn" to="/settings" title="Settings" aria-label="Settings"><span aria-hidden="true">⚙</span></RouterLink>
           <button class="iconbtn" @click="doLogout" title="Log out" aria-label="Log out"><span aria-hidden="true">⎋</span></button>
         </div>
@@ -168,6 +169,9 @@ a { text-decoration: none; }
 .badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 5px 10px; border-radius: 20px; }
 .badge.free { background: var(--surface-2); color: var(--txt-2); }
 .badge.pro { background: var(--green); color: #04210f; }
+/* free badge as an upgrade button: keep the pill look, add affordance */
+.badge.upbtn { border: 1px solid var(--green-dim); color: var(--green); cursor: pointer; font-family: inherit; transition: .15s; }
+.badge.upbtn:hover { background: var(--green-dim); border-color: var(--green); }
 .iconbtn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--hair); background: var(--panel); color: var(--txt-2); cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; }
 .iconbtn:hover { color: var(--txt); border-color: var(--hair-2); }
 .content { padding: 28px 34px 70px; }
