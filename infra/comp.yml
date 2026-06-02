@@ -394,31 +394,6 @@ Resources:
 
   # ── CloudFront ────────────────────────────────────────────────────────────
 
-  # CloudFront strips the Authorization header on GET/HEAD requests unless it is part of the
-  # cache key — which is why authenticated GETs (e.g. /api/signals) 401'd with "Missing bearer
-  # token" behind CloudFront while working locally. This policy includes Authorization in the
-  # cache key with all TTLs at 0, so the header is forwarded but nothing is ever cached.
-  APICachePolicy:
-    Type: AWS::CloudFront::CachePolicy
-    Properties:
-      CachePolicyConfig:
-        Name: !Sub parlaypal-api-${Environment}
-        Comment: Forward Authorization to the API origin; never cache
-        DefaultTTL: 0
-        MinTTL: 0
-        MaxTTL: 0
-        ParametersInCacheKeyAndForwardedToOrigin:
-          EnableAcceptEncodingGzip: false
-          EnableAcceptEncodingBrotli: false
-          HeadersConfig:
-            HeaderBehavior: whitelist
-            Headers:
-              - Authorization
-          CookiesConfig:
-            CookieBehavior: none
-          QueryStringsConfig:
-            QueryStringBehavior: none
-
   CloudFrontOAC:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -478,11 +453,8 @@ Resources:
           - PathPattern: /api/*
             TargetOriginId: APIBackend
             ViewerProtocolPolicy: redirect-to-https
-            # Custom policy: forwards Authorization (see APICachePolicy), caches nothing.
-            CachePolicyId: !Ref APICachePolicy
-            # Managed AllViewerExceptHostHeader: forwards query strings, cookies, and all other
-            # viewer headers (e.g. stripe-signature for the billing webhook) to the ALB.
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # Managed CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewerExceptHostHeader
             AllowedMethods: [DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT]
         CustomErrorResponses:
           - ErrorCode: 404
