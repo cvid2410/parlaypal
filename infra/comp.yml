@@ -397,16 +397,18 @@ Resources:
   # CloudFront strips the Authorization header on GET/HEAD requests unless it is part of the
   # cache key — which is why authenticated GETs (e.g. /api/signals) 401'd with "Missing bearer
   # token" behind CloudFront while working locally. This policy includes Authorization in the
-  # cache key with all TTLs at 0, so the header is forwarded but nothing is ever cached.
+  # cache key. CloudFront refuses cache-key headers when caching is fully disabled (MaxTTL 0),
+  # so MaxTTL is 1 second: with DefaultTTL 0 and the API sending no Cache-Control, nothing is
+  # actually cached — and any entry would be keyed per-user by the Authorization header anyway.
   APICachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
         Name: !Sub parlaypal-api-${Environment}
-        Comment: Forward Authorization to the API origin; never cache
+        Comment: Forward Authorization to the API origin; effectively no caching
         DefaultTTL: 0
         MinTTL: 0
-        MaxTTL: 0
+        MaxTTL: 1
         ParametersInCacheKeyAndForwardedToOrigin:
           EnableAcceptEncodingGzip: false
           EnableAcceptEncodingBrotli: false
