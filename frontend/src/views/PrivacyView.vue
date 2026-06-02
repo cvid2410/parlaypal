@@ -1,7 +1,7 @@
 <template>
   <LegalPage title="Privacy Policy" updated="May 31, 2026">
     <p class="callout">ParlayPal Signals is a soccer betting-edge <strong>data &amp; analytics</strong> service. We
-      surface mispriced markets and arbitrage opportunities — we don't accept wagers or operate a sportsbook.</p>
+      surface mispriced markets and arbitrage opportunities - we don't accept wagers or operate a sportsbook.</p>
 
     <section>
       <h2>1. Who we are</h2>
@@ -14,7 +14,7 @@
       <h2>2. Information we collect</h2>
       <ul>
         <li><strong>Account:</strong> your email address and a securely hashed password. We never store your password in readable form.</li>
-        <li><strong>Subscription &amp; billing:</strong> your plan tier and a billing reference. Payments are processed by Stripe — we do not store your full card details.</li>
+        <li><strong>Subscription &amp; billing:</strong> your plan tier and a billing reference. Payments are processed by Stripe - we do not store your full card details.</li>
         <li><strong>Preferences:</strong> the leagues, books, and alert channels you choose, and your stated bankroll for stake sizing.</li>
         <li><strong>Usage:</strong> standard log and analytics data (IP, browser, pages viewed) to operate and improve the service.</li>
       </ul>
@@ -32,7 +32,7 @@
 
     <section>
       <h2>4. Payment processing</h2>
-      <p>Subscriptions are billed through <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe</a>. Stripe collects and processes your payment information under its own privacy policy. We receive only a customer reference and your subscription status — never your card number.</p>
+      <p>Subscriptions are billed through <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe</a>. Stripe collects and processes your payment information under its own privacy policy. We receive only a customer reference and your subscription status - never your card number.</p>
     </section>
 
     <section>
@@ -47,7 +47,7 @@
 
     <section>
       <h2>7. Sharing</h2>
-      <p>We do not sell your personal information. We share it only with the processors that run the service — payment (Stripe), hosting/infrastructure, email/notification delivery, and analytics — under agreements that limit their use to providing those services.</p>
+      <p>We do not sell your personal information. We share it only with the processors that run the service - payment (Stripe), hosting/infrastructure, email/notification delivery, and analytics - under agreements that limit their use to providing those services.</p>
     </section>
 
     <section>

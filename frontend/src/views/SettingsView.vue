@@ -5,7 +5,7 @@
     <!-- Books -->
     <section>
       <div class="sect">Your sportsbooks</div>
-      <p class="hint">Pick the books you bet at. We’ll only show plays you can actually place —
+      <p class="hint">Pick the books you bet at. We’ll only show plays you can actually place -
         and for an arbitrage you only see it if you hold <em>every</em> leg’s book.</p>
       <div class="chips">
         <button
@@ -56,7 +56,7 @@
     </div>
 
     <p class="foot">Filters apply to your live feed and your alerts. For entertainment,
-      not financial advice — 1-800-GAMBLER.</p>
+      not financial advice - 1-800-GAMBLER.</p>
   </div>
 </template>
 

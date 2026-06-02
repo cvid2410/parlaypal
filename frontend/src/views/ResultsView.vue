@@ -25,15 +25,15 @@
       <!-- stat boxes -->
       <div class="row3">
         <div class="box"><div class="v">{{ data.settled }}</div><div class="l">bets</div></div>
-        <div class="box"><div class="v" :class="pnlClass">{{ data.roi_pct == null ? '—' : data.roi_pct + '%' }}</div><div class="l">ROI</div></div>
-        <div class="box"><div class="v">{{ data.win_rate == null ? '—' : data.win_rate + '%' }}</div><div class="l">win rate</div></div>
+        <div class="box"><div class="v" :class="pnlClass">{{ data.roi_pct == null ? '-' : data.roi_pct + '%' }}</div><div class="l">ROI</div></div>
+        <div class="box"><div class="v">{{ data.win_rate == null ? '-' : data.win_rate + '%' }}</div><div class="l">win rate</div></div>
       </div>
 
       <!-- CLV -->
       <div class="clv" v-if="data.clv_beat_pct != null">
         <div class="h"><span>You beat the closing line</span><b>{{ data.clv_beat_pct }}%</b></div>
         <div class="bar"><i :style="{ width: data.clv_beat_pct + '%' }" /></div>
-        <div class="note">The number that matters. Beat the closing price and profit follows — even on weeks you lose bets. ({{ data.clv_sample }} graded)</div>
+        <div class="note">The number that matters. Beat the closing price and profit follows - even on weeks you lose bets. ({{ data.clv_sample }} graded)</div>
       </div>
 
       <!-- recent -->
@@ -45,11 +45,11 @@
       </div>
 
       <p v-if="data.settled === 0" class="pending">
-        <template v-if="data.clv_beat_pct != null">Win/loss & ROI fill in as games finish — CLV is graded the moment the line closes.</template>
+        <template v-if="data.clv_beat_pct != null">Win/loss & ROI fill in as games finish - CLV is graded the moment the line closes.</template>
         <template v-else>No graded signals yet. Results appear here as picks settle.</template>
       </p>
 
-      <p class="foot">Verified at a flat 1-unit stake · {{ unitNote }}. For entertainment — 1-800-GAMBLER.</p>
+      <p class="foot">Verified at a flat 1-unit stake · {{ unitNote }}. For entertainment - 1-800-GAMBLER.</p>
     </template>
 
     <div v-else aria-hidden="true">
