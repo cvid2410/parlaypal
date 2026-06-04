@@ -10,15 +10,22 @@
       </div>
 
       <template v-if="fixtures.length">
-        <div class="sect">Upcoming · compare odds</div>
+        <div class="sect">Upcoming</div>
         <div class="fxlist">
-          <RouterLink v-for="fx in fixtures" :key="fx.id" :to="`/lines/${fx.id}`" class="fxrow">
-            <span class="t"><img v-if="fx.home_logo" :src="fx.home_logo" class="crest" alt="" />{{ fx.home }}</span>
+          <div v-for="(fx, i) in fixtures" :key="i" class="fxrow">
+            <span class="t">
+              <RouterLink v-if="fx.home_af_id" :to="`/teams/${fx.home_af_id}`" class="tlink"><img v-if="fx.home_logo" :src="fx.home_logo" class="crest" alt="" />{{ fx.home }}</RouterLink>
+              <template v-else><img v-if="fx.home_logo" :src="fx.home_logo" class="crest" alt="" />{{ fx.home }}</template>
+            </span>
             <span class="vs">v</span>
-            <span class="t r"><img v-if="fx.away_logo" :src="fx.away_logo" class="crest" alt="" />{{ fx.away }}</span>
+            <span class="t r">
+              <RouterLink v-if="fx.away_af_id" :to="`/teams/${fx.away_af_id}`" class="tlink"><img v-if="fx.away_logo" :src="fx.away_logo" class="crest" alt="" />{{ fx.away }}</RouterLink>
+              <template v-else><img v-if="fx.away_logo" :src="fx.away_logo" class="crest" alt="" />{{ fx.away }}</template>
+            </span>
             <span class="ko">{{ ko(fx.kickoff) }}</span>
-            <span class="chev">›</span>
-          </RouterLink>
+            <RouterLink v-if="fx.fixture_id" :to="`/lines/${fx.fixture_id}`" class="odds">Odds ›</RouterLink>
+            <span v-else class="odds dis">—</span>
+          </div>
         </div>
       </template>
 
@@ -34,7 +41,12 @@
         </div>
         <div v-for="row in g.rows" :key="row.rank" class="trow" :class="{ top: row.rank <= 4 }">
           <span class="r">{{ row.rank }}</span>
-          <span class="t"><img v-if="row.logo" :src="row.logo" class="crest" loading="lazy" alt="" />{{ row.team }}</span>
+          <span class="t">
+            <RouterLink v-if="row.af_team_id" :to="`/teams/${row.af_team_id}`" class="tlink">
+              <img v-if="row.logo" :src="row.logo" class="crest" loading="lazy" alt="" />{{ row.team }}
+            </RouterLink>
+            <template v-else><img v-if="row.logo" :src="row.logo" class="crest" loading="lazy" alt="" />{{ row.team }}</template>
+          </span>
           <span class="n">{{ row.played }}</span>
           <span class="n hide-s">{{ row.win }}</span><span class="n hide-s">{{ row.draw }}</span><span class="n hide-s">{{ row.lose }}</span>
           <span class="n">{{ row.gd > 0 ? '+' + row.gd : row.gd }}</span>
@@ -60,10 +72,10 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-interface Row { rank: number; team: string; logo: string | null; points: number; played: number; win: number; draw: number; lose: number; gd: number; form: string | null }
+interface Row { rank: number; team: string; af_team_id: number | null; logo: string | null; points: number; played: number; win: number; draw: number; lose: number; gd: number; form: string | null }
 interface Standings { league: string; country: string; available: boolean; season?: number; groups: { group: string; rows: Row[] }[] }
 
-interface Fx { id: string; home: string; away: string; home_logo: string | null; away_logo: string | null; kickoff: string }
+interface Fx { home: string; home_logo: string | null; home_af_id: number | null; away: string; away_logo: string | null; away_af_id: number | null; kickoff: string; status: string; fixture_id: string | null }
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -80,7 +92,7 @@ async function load() {
   try {
     const [st, fx] = await Promise.all([
       auth.authFetch(`/standings/${route.params.id}`),
-      auth.authFetch(`/leagues/${route.params.id}/fixtures`),
+      auth.authFetch(`/leagues/${route.params.id}/schedule`),
     ])
     if (st.status === 401) { router.push('/login'); return }
     if (!st.ok) throw new Error('Failed to load standings')
@@ -104,14 +116,16 @@ onMounted(() => {
 .lhead .meta { font-size: 13px; color: var(--txt-3); }
 .sect { font-size: 11px; color: var(--txt-3); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin: 4px 0 12px; }
 .fxlist { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
-.fxrow { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border: 1px solid var(--hair); border-radius: 12px; background: var(--panel); color: var(--txt); transition: .15s; }
-.fxrow:hover { border-color: var(--hair-2); transform: translateY(-1px); }
+.fxrow { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border: 1px solid var(--hair); border-radius: 12px; background: var(--panel); color: var(--txt); }
 .fxrow .t { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; min-width: 0; }
 .fxrow .t.r { justify-content: flex-end; }
+.fxrow .t .tlink { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--txt); }
+.fxrow .t .tlink:hover { color: var(--green); }
 .fxrow .crest { width: 19px; height: 19px; object-fit: contain; flex-shrink: 0; }
 .fxrow .vs { color: var(--txt-3); font-size: 12px; }
 .fxrow .ko { font-size: 11.5px; color: var(--txt-3); white-space: nowrap; }
-.fxrow .chev { color: var(--txt-3); font-size: 18px; }
+.fxrow .odds { font-size: 11.5px; font-weight: 700; color: var(--green); white-space: nowrap; }
+.fxrow .odds.dis { color: var(--txt-3); font-weight: 400; opacity: .55; }
 .table { border: 1px solid var(--hair); border-radius: 14px; overflow: hidden; background: var(--panel); margin-bottom: 16px; }
 .gname { padding: 12px 16px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt-2); border-bottom: 1px solid var(--hair); }
 .thead, .trow { display: grid; grid-template-columns: 28px 1fr 30px 30px 30px 30px 40px 44px; align-items: center; gap: 4px; padding: 11px 16px; }
@@ -121,6 +135,8 @@ onMounted(() => {
 .trow.top .r { color: var(--green); font-weight: 700; }
 .r { font-family: 'Spline Sans Mono', monospace; color: var(--txt-3); font-size: 12.5px; }
 .t { display: flex; align-items: center; gap: 10px; font-weight: 500; min-width: 0; }
+.t .tlink { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--txt); }
+.t .tlink:hover { color: var(--green); }
 .t .crest { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
 .n { font-family: 'Spline Sans Mono', monospace; font-size: 13px; color: var(--txt-2); text-align: center; }
 .n.pts { color: var(--txt); font-weight: 600; }

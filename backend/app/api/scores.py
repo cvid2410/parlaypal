@@ -44,6 +44,7 @@ async def scores(
         st = status_of(short)
         goals = f.get("goals", {})
         item = {
+            "league_id": lg.id,  # lets the Scores card link to the league detail view
             "league": lg.name,
             "country": lg.country,
             "home": f["teams"]["home"]["name"],
