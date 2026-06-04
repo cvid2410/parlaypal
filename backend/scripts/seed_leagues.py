@@ -1,9 +1,21 @@
-"""Seed the `leagues` table with the v1 target set.
+"""Curation layer over the league set — the deliberate judgment calls the mechanical scripts
+can't make. Run it LAST in the league-setup chain:
 
-Adding a league later is just another row here (+ a re-run) — the ingestor is driven by
-`leagues.sport_key`, so no code change is needed.
+    python -m scripts.sync_odds_api_leagues   # breadth: create every Odds API league (uncertified)
+    python -m scripts.match_af_ids --apply    # scores: fill API-Football ids
+    python -m scripts.seed_leagues            # curation: this file
 
-Run from the backend/ dir:  python -m scripts.seed_leagues
+This file owns ONLY the exceptions, and is the single source of truth for each:
+  * EV_CERTIFIED — leagues whose +EV reaches users. A league is certified only after the
+    CLV backtest gate passes (NON-NEGOTIABLE #2). Authoritative: anything NOT in this set is
+    forced ev_certified=False, so certification is fully reproducible from here and removing
+    a key un-certifies it. (scripts.certify_league is for quick experiments; this is durable.)
+  * SHARP_OVERRIDE — leagues where sync's "domestic = soft" heuristic is wrong; force them
+    sharp (arb + best-price + scores only, no soft-book +EV edge).
+  * INGEST_DISABLED — leagues we deliberately don't poll for odds.
+  * NON_FEED — scores-only leagues The Odds API doesn't carry, so sync never creates them.
+
+It does NOT create feed leagues (sync_odds_api_leagues does) or set af ids (match_af_ids does).
 """
 
 import asyncio
@@ -13,43 +25,33 @@ from sqlalchemy import select
 from app.models.core import League
 from app.shared.db import get_sessionmaker
 
-# (name, country, sport_key, is_soft, ingest_enabled, af_league_id, ev_certified)
-# Soft long-tail leagues are where the edge lives (CLAUDE.md). Sharp leagues are kept
-# is_soft=False: ingested for the Scores tab but excluded from signal detection.
-# af_league_id = API-Football league id, powers the Scores tab.
-# ev_certified = +EV reaches users (NON-NEGOTIABLE #2). Only True after the backtest CLV
-# gate passes (Wilson lower bound >= threshold); see scripts.certify_league / clv_report.
-LEAGUES = [
-    # --- soft long tail (signal targets) ---
-    # ev_certified stays False until a league clears the CLV gate. Backtests so far:
-    # Liga MX HOLD (lo95% 47.7%), Eliteserien HOLD (50.5%), Superettan PASS (61.3%).
-    ("Liga MX", "Mexico", "soccer_mexico_ligamx", True, True, 262, False),
-    ("Brazil Série A", "Brazil", "soccer_brazil_campeonato", True, True, 71, False),
-    ("Brazil Série B", "Brazil", "soccer_brazil_serie_b", True, True, 72, False),
-    ("J-League", "Japan", "soccer_japan_j_league", True, True, 98, False),
-    ("Eredivisie", "Netherlands", "soccer_netherlands_eredivisie", True, True, 88, False),
-    ("MLS", "USA", "soccer_usa_mls", True, True, 253, False),
-    ("Eliteserien", "Norway", "soccer_norway_eliteserien", True, True, 103, False),
-    ("Primeira Liga", "Portugal", "soccer_portugal_primeira_liga", True, True, 94, False),
-    # Honduras is the domain wedge but coverage on The Odds API is unconfirmed — keep the
-    # row (so it shows in Leagues) but leave ingest off until the feed is verified
-    # (BUILD_PLAN 0.2). Flip ingest_enabled=True once confirmed.
-    # af_league_id left None: the correct API-Football id for Honduras is unverified
-    # (351 turned out to be a Czech league). Set it once confirmed.
-    ("Liga Nacional", "Honduras", "soccer_honduras_liga_nacional", True, False, None, False),
-    # Superettan (Sweden 2nd tier): first league to clear the CLV gate (n=57, beat-CLV
-    # 71.9%, Wilson lo95% 61.3%, mean CLV +1.0%). Certified for user-facing +EV.
-    ("Superettan", "Sweden", "soccer_sweden_superettan", True, True, None, True),
-    # --- sharp / big leagues: no soft-book +EV edge, but mechanical signals (arb, middles)
-    #     still run, plus Scores/Standings. World Cup has no fixtures until June 2026. ---
-    ("Premier League", "England", "soccer_epl", False, True, 39, False),
-    ("La Liga", "Spain", "soccer_spain_la_liga", False, True, 140, False),
-    ("World Cup", "International", "soccer_fifa_world_cup", False, True, 1, False),
-    # --- Scores-only: The Odds API carries no international-friendlies feed, so ingest is
-    #     off (no odds → no signals). af id 10 = men's international friendlies (verified
-    #     against today's API-Football fixtures), so they still show on the live Scores tab.
-    #     The sport_key is a placeholder (no active Odds API key); reconcile if one appears. ---
-    ("Friendlies", "World", "soccer_friendlies_international", True, False, 10, False),
+# Leagues that passed the CLV backtest gate → +EV is served to users (NON-NEGOTIABLE #2).
+# Add a sport_key ONLY after scripts.clv_report shows it PASS on a real sample; remove to
+# un-certify. This set is authoritative over the whole table.
+EV_CERTIFIED: set[str] = {
+    "soccer_sweden_superettan",
+}
+
+# sync marks every domestic league soft, but the big-5 are sharp *domestic* leagues — too
+# liquid for any soft-book +EV edge (arb + best-price + scores only). The heuristic can't
+# tell them from a soft league (their keys carry no cup/tournament token), so pin them here.
+SHARP_OVERRIDE: set[str] = {
+    "soccer_epl",
+    "soccer_spain_la_liga",
+    "soccer_germany_bundesliga",
+    "soccer_italy_serie_a",
+    "soccer_france_ligue_one",
+}
+
+# Leagues we deliberately don't poll for odds.
+INGEST_DISABLED: set[str] = {
+    "soccer_friendlies_international",  # no odds feed — scores-only
+}
+
+# Scores-only leagues The Odds API doesn't carry, so sync can't create them.
+# (name, country, sport_key, af_league_id) — is_soft is moot (no odds), ingest stays off.
+NON_FEED: list[tuple[str, str, str, int]] = [
+    ("Friendlies", "World", "soccer_friendlies_international", 10),
 ]
 
 
@@ -59,39 +61,57 @@ async def main() -> None:
         by_key = {
             lg.sport_key: lg for lg in (await session.execute(select(League))).scalars().all()
         }
-        added = updated = 0
-        for name, country, sport_key, is_soft, ingest_enabled, af_id, ev_certified in LEAGUES:
-            existing = by_key.get(sport_key)
-            if existing is not None:
-                # Reconcile the curated flags on re-run (af id, and the EV launch gate so
-                # certification is reproducible from this file, not just a one-off script run).
-                changed = False
-                if existing.af_league_id != af_id:
-                    existing.af_league_id = af_id
-                    changed = True
-                if existing.ev_certified != ev_certified:
-                    existing.ev_certified = ev_certified
-                    changed = True
-                updated += int(changed)
+
+        # 1. Create the deliberate non-feed (scores-only) leagues sync can't.
+        created = 0
+        for name, country, sport_key, af_id in NON_FEED:
+            if sport_key in by_key:
                 continue
-            session.add(
-                League(
-                    name=name,
-                    country=country,
-                    sport_key=sport_key,
-                    sharp_ref_book="pinnacle",
-                    is_soft=is_soft,
-                    model_enabled=False,
-                    ingest_enabled=ingest_enabled,
-                    af_league_id=af_id,
-                    ev_certified=ev_certified,
-                )
+            lg = League(
+                name=name,
+                country=country,
+                sport_key=sport_key,
+                sharp_ref_book="pinnacle",
+                is_soft=True,
+                model_enabled=False,
+                ingest_enabled=False,
+                af_league_id=af_id,
+                ev_certified=False,
             )
-            added += 1
+            session.add(lg)
+            by_key[sport_key] = lg
+            created += 1
+
+        # 2. Apply curation overrides authoritatively across the whole table.
+        certified = uncertified = sharp = ingest_off = 0
+        for sport_key, lg in by_key.items():
+            want_cert = sport_key in EV_CERTIFIED
+            if want_cert and not lg.is_soft:  # can't have a soft-book +EV edge on a sharp league
+                print(f"WARNING: {lg.name} is is_soft=False — refusing to certify +EV.")
+                want_cert = False
+            if lg.ev_certified != want_cert:
+                lg.ev_certified = want_cert
+                certified += int(want_cert)
+                uncertified += int(not want_cert)
+            if sport_key in SHARP_OVERRIDE and lg.is_soft:
+                lg.is_soft = False
+                sharp += 1
+            if sport_key in INGEST_DISABLED and lg.ingest_enabled:
+                lg.ingest_enabled = False
+                ingest_off += 1
+
+        # A certified key missing from the DB means the chain ran out of order (sync first).
+        missing = EV_CERTIFIED - set(by_key)
+        if missing:
+            print(
+                f"WARNING: certified leagues not in DB (run sync_odds_api_leagues first): {missing}"
+            )
+
         await session.commit()
         print(
-            f"Seeded {added} new league(s); backfilled af id on {updated}; "
-            f"{len(by_key)} already present."
+            f"Curation applied: created {created} non-feed league(s); "
+            f"certified {certified}, un-certified {uncertified}, forced sharp {sharp}, "
+            f"ingest-off {ingest_off}."
         )
 
 
