@@ -22,8 +22,14 @@ head-on. Our defensible wedge is the *intersection* of four things:
 
 1. **Soccer only** — go deep where generalists go wide.
 2. **The soft long tail** — Liga MX, Brazil Série A/B, J-League, Eredivisie, MLS,
-   **Liga Nacional de Honduras**, Eliteserien, etc. A book's line is only as sharp as the
-   money on it; obscure leagues are mispriced and slow. This is where the edge actually is.
+   Eliteserien, Allsvenskan/Superettan, La Liga 2, Chilean Primera, etc. A book's line is
+   only as sharp as the money on it; obscure leagues are mispriced and slow. This is where
+   the edge actually is.
+   **Coverage constraint:** only seed leagues The Odds API actually carries (67 soccer
+   leagues — pull the live list from `GET /v4/sports?all=true`). **Liga Nacional de Honduras,
+   the natural CONCACAF wedge, is NOT in The Odds API**, so it's deferred until a feed exists
+   (OpticOdds / a local book). Don't seed a league with no odds feed — it can't produce
+   signals, only a dead row.
 3. **Owner domain knowledge** — deep CONCACAF / Central & South American football knowledge
    that generalist tools' teams will never have.
 4. **Existing distribution** — parlaypal.gg already has a soccer audience and a
