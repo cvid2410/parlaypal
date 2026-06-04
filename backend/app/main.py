@@ -14,6 +14,7 @@ from app.api import (
     scores,
     signals,
     standings,
+    teams,
 )
 
 app = FastAPI(title="parlaypal.gg API", version="0.1.0")
@@ -32,6 +33,7 @@ app.include_router(results.router, prefix="/api")
 app.include_router(scores.router, prefix="/api")
 app.include_router(leagues.router, prefix="/api")
 app.include_router(standings.router, prefix="/api")
+app.include_router(teams.router, prefix="/api")
 app.include_router(lines.router, prefix="/api")
 app.include_router(config.router, prefix="/api")
 app.include_router(health.router, prefix="/api")

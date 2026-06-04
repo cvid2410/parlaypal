@@ -50,7 +50,7 @@ import { computed, h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-interface M { league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string }
+interface M { league_id: number; league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string }
 interface Scores { live: M[]; upcoming: M[]; finished: M[]; off: M[] }
 
 const auth = useAuthStore()
@@ -79,7 +79,7 @@ const Match = (props: { m: M; label: string }) => {
     h('div', { class: ['trow', win ? 'w' : ''] }, [
       crest(logo), h('span', { class: 'n' }, name), h('span', { class: 'sc' }, sc(score)),
     ])
-  return h('div', { class: 'match' }, [
+  return h('div', { class: 'match', onClick: () => router.push(`/leagues/${m.league_id}`), title: `Open ${m.league}` }, [
     h('div', { class: 'meta' }, [h('span', `${m.league} · ${m.country}`), h('span', { class: 'm' }, label)]),
     team(m.home, m.home_score, w(m.home_score, m.away_score), m.home_logo),
     team(m.away, m.away_score, w(m.away_score, m.home_score), m.away_logo),
@@ -111,7 +111,8 @@ onMounted(() => {
 .ph { padding: 14px 18px; border-bottom: 1px solid var(--hair); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--txt-3); display: flex; align-items: center; gap: 9px; }
 .ph .d { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 .pe { padding: 18px; color: var(--txt-3); font-size: 13px; }
-:deep(.match) { padding: 15px 18px; }
+:deep(.match) { padding: 15px 18px; cursor: pointer; transition: background .15s; }
+:deep(.match:hover) { background: var(--surface-2); }
 :deep(.match + .match) { border-top: 1px solid var(--hair); }
 :deep(.match .meta) { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--txt-3); margin-bottom: 11px; font-weight: 500; }
 :deep(.match .meta .m) { font-family: 'Spline Sans Mono', monospace; color: var(--green); }

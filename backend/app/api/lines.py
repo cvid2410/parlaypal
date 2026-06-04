@@ -13,14 +13,18 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.api.auth import get_current_user
 from app.models.core import Fixture, League, Market, Team
 from app.models.users import User
+from app.services.af import league_fixtures as af_league_fixtures
+from app.services.af import status_of
 from app.services.cache import get_redis
 from app.shared.copy import book_label, selection_label
 from app.shared.db import get_db
 from app.shared.math import decimal_to_american
+from app.shared.normalize import norm_team
 
 router = APIRouter(tags=["lines"])
 
@@ -121,3 +125,55 @@ async def league_fixtures(
             }
         )
     return {"count": len(fixtures), "fixtures": fixtures}
+
+
+@router.get("/leagues/{league_id}/schedule")
+async def league_schedule(
+    league_id: int, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> dict:
+    """The league's full upcoming schedule from API-Football (every team, whether or not we
+    price it). Each row carries AF team ids (→ team pages) and, where we can match it to one
+    of our priceable fixtures by normalized team names + day, our fixture id (→ odds board)."""
+    lg = (await db.execute(select(League).where(League.id == league_id))).scalar_one_or_none()
+    if lg is None:
+        raise HTTPException(status_code=404, detail="League not found")
+    if lg.af_league_id is None:
+        return {"available": False, "fixtures": []}
+
+    af_fx = await af_league_fixtures(lg.af_league_id)
+
+    # Index our upcoming, priceable fixtures by (norm home, norm away, UTC day) for the badge.
+    home_t, away_t = aliased(Team), aliased(Team)
+    rows = (
+        await db.execute(
+            select(Fixture.id, home_t.name, away_t.name, Fixture.kickoff_utc)
+            .join(home_t, home_t.id == Fixture.home_id)
+            .join(away_t, away_t.id == Fixture.away_id)
+            .where(Fixture.league_id == league_id, Fixture.kickoff_utc >= datetime.now(UTC))
+        )
+    ).all()
+    priceable = {
+        (norm_team(h), norm_team(a), ko.astimezone(UTC).date().isoformat()): fid
+        for fid, h, a, ko in rows
+    }
+
+    out = []
+    for f in af_fx:
+        home, away = f["teams"]["home"], f["teams"]["away"]
+        ko = f["fixture"]["date"]
+        match_key = (norm_team(home["name"]), norm_team(away["name"]), ko[:10])
+        out.append(
+            {
+                "home": home["name"],
+                "home_logo": home.get("logo"),
+                "home_af_id": home.get("id"),
+                "away": away["name"],
+                "away_logo": away.get("logo"),
+                "away_af_id": away.get("id"),
+                "kickoff": ko,
+                "status": status_of(f["fixture"]["status"]["short"]),
+                # our fixture id when we can price this game, else None (informational only)
+                "fixture_id": priceable.get(match_key),
+            }
+        )
+    return {"available": bool(out), "fixtures": out}

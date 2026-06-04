@@ -82,6 +82,55 @@ async def current_season(af_league_id: int) -> int | None:
     return year
 
 
+async def team_fixtures(af_team_id: int, last_n: int = 10, next_n: int = 10) -> dict:
+    """A team's recent + upcoming fixtures across all competitions. Two cached calls:
+    past (`last` N — stable, longer TTL) and upcoming (`next` M — shorter TTL). Returns the
+    raw API-Football fixture lists under {"past": [...], "upcoming": [...]}."""
+    out: dict[str, list[dict]] = {"past": [], "upcoming": []}
+    if not settings.api_football_key:
+        return out
+    slots = (("past", "last", last_n, 3600), ("upcoming", "next", next_n, 300))
+    async with httpx.AsyncClient(timeout=20) as client:
+        for slot, param, n, ttl in slots:
+            key = f"afteam:{slot}:{af_team_id}:{n}"
+            cached = await get_cached(key)
+            if cached is not None:
+                out[slot] = cached
+                continue
+            resp = await client.get(
+                f"{AF_BASE}/fixtures",
+                headers={"x-apisports-key": settings.api_football_key},
+                params={"team": af_team_id, param: n, "timezone": "UTC"},
+            )
+            resp.raise_for_status()
+            raw = resp.json().get("response", [])
+            # As elsewhere, don't pin an empty payload (likely a transient blip) for long.
+            await set_cached(key, raw, ttl=ttl if raw else 60)
+            out[slot] = raw
+    return out
+
+
+async def league_fixtures(af_league_id: int, next_n: int = 20) -> list[dict]:
+    """A league's next N fixtures (full schedule, every team) from API-Football — independent
+    of whether we price them. Cached short (the schedule shifts as games kick off)."""
+    if not settings.api_football_key:
+        return []
+    key = f"afleaguefx:{af_league_id}:{next_n}"
+    cached = await get_cached(key)
+    if cached is not None:
+        return cached
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(
+            f"{AF_BASE}/fixtures",
+            headers={"x-apisports-key": settings.api_football_key},
+            params={"league": af_league_id, "next": next_n, "timezone": "UTC"},
+        )
+        resp.raise_for_status()
+        raw = resp.json().get("response", [])
+    await set_cached(key, raw, ttl=600 if raw else 60)
+    return raw
+
+
 async def standings(af_league_id: int, season: int) -> list[dict]:
     """League table groups. Returns [{group, rows:[...]}] — one entry per table
     (most leagues have one; MLS-style leagues have a group per conference)."""
@@ -106,6 +155,7 @@ async def standings(af_league_id: int, season: int) -> list[dict]:
                 {
                     "rank": r.get("rank"),
                     "team": r["team"]["name"],
+                    "af_team_id": r["team"].get("id"),  # lets the table link to a team page
                     "logo": r["team"].get("logo"),
                     "points": r.get("points"),
                     "played": r.get("all", {}).get("played"),
