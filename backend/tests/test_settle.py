@@ -55,9 +55,10 @@ async def settled_world():
             status="live",
         )
         s.add(sig)
-        # Closing Pinnacle market: home/away both 1.90 (raw, ~5% vig) → no-vig fair = 0.5
-        # each → fair closing decimal 2.0. We alerted 2.35 (> 2.0) so we beat CLV on the
-        # devigged line, which is what settle now grades against.
+        # Closing Pinnacle market: a FULL 3-way h2h (home/draw/away) — settle requires the
+        # complete selection set to devig (a 2-of-3 close would silently mis-grade). Shin on
+        # 1.90 / 3.80 / 3.80 → home fair ≈ 0.5065 → fair closing decimal ≈ 1.974. We alerted
+        # 2.35 (> 1.974) so we beat CLV on the devigged line.
         close_ts = kickoff - dt.timedelta(minutes=5)
         s.add_all(
             [
@@ -73,8 +74,16 @@ async def settled_world():
                     fixture_id=fid,
                     book="pinnacle",
                     market_id=mid,
+                    selection="draw",
+                    decimal_odds=3.80,
+                    ts=close_ts,
+                ),
+                OddsSnapshot(
+                    fixture_id=fid,
+                    book="pinnacle",
+                    market_id=mid,
                     selection="away",
-                    decimal_odds=1.90,
+                    decimal_odds=3.80,
                     ts=close_ts,
                 ),
             ]
@@ -109,8 +118,8 @@ async def test_clv_graded_at_kickoff_before_score(settled_world):
     assert stats["graded"] >= 1
     g = await _grade(settled_world["sig_id"])
     assert g is not None
-    assert g.closing_odds == pytest.approx(2.0)  # no-vig fair from 1.90/1.90
-    assert g.beat_clv is True  # 2.35 > 2.0 fair
+    assert g.closing_odds == pytest.approx(1.974, abs=2e-3)  # shin no-vig fair, 3-way h2h
+    assert g.beat_clv is True  # 2.35 > 1.974 fair
     assert g.result is None  # no score yet
     assert (await _signal(settled_world["sig_id"])).status == "expired"
 
@@ -301,4 +310,82 @@ async def test_promo_graded_and_arb_reaches_terminal_state():
             await s.execute(delete(Fixture).where(Fixture.id == fid))
             await s.execute(delete(Team).where(Team.league_id == league_id))
             await s.execute(delete(League).where(League.id == league_id))
+            await s.commit()
+
+
+async def test_incomplete_h2h_close_not_clv_graded():
+    """A 3-way h2h with only 2 of 3 sharp selections at close must NOT be CLV-graded — a
+    2-of-3 devig mangles the fair probs. Detection requires all three; grading now matches,
+    so an incomplete close yields no grade row rather than a silently-wrong beat_clv."""
+    Session = get_sessionmaker()
+    tag = uuid.uuid4().hex[:8]
+    fid = f"test_fx_{tag}"
+    kickoff = dt.datetime.now(dt.UTC) - dt.timedelta(minutes=10)
+    await ensure_daily_partition(kickoff)
+    async with Session() as s:
+        lg = League(
+            name=f"I {tag}",
+            country="X",
+            sport_key=f"in_{tag}",
+            sharp_ref_book="pinnacle",
+            is_soft=True,
+            ingest_enabled=False,
+        )
+        s.add(lg)
+        await s.flush()
+        h = Team(league_id=lg.id, name=f"H {tag}")
+        a = Team(league_id=lg.id, name=f"A {tag}")
+        s.add_all([h, a])
+        await s.flush()
+        s.add(Fixture(id=fid, league_id=lg.id, home_id=h.id, away_id=a.id, kickoff_utc=kickoff))
+        mid = await _get_market_id(s, "h2h", None)
+        sig = Signal(
+            fixture_id=fid,
+            market_id=mid,
+            selection="home",
+            book="fanduel",
+            kind="ev",
+            offered_odds=2.35,
+            fair_prob=0.5,
+            edge_pct=9.0,
+            kelly_frac=0.03,
+            ttl_sec=1800,
+            dedup_hash=f"inc_{tag}",
+            status="live",
+        )
+        s.add(sig)
+        close_ts = kickoff - dt.timedelta(minutes=5)
+        s.add_all(  # only home + away (draw missing) → incomplete 3-way
+            [
+                OddsSnapshot(
+                    fixture_id=fid,
+                    book="pinnacle",
+                    market_id=mid,
+                    selection="home",
+                    decimal_odds=1.90,
+                    ts=close_ts,
+                ),
+                OddsSnapshot(
+                    fixture_id=fid,
+                    book="pinnacle",
+                    market_id=mid,
+                    selection="away",
+                    decimal_odds=1.90,
+                    ts=close_ts,
+                ),
+            ]
+        )
+        await s.commit()
+        sid, lid = sig.id, lg.id
+    try:
+        await settle_once()
+        assert await _grade(sid) is None  # incomplete close → ungradable, no CLV row
+    finally:
+        async with Session() as s:
+            await s.execute(delete(SignalGrade).where(SignalGrade.signal_id == sid))
+            await s.execute(delete(Signal).where(Signal.fixture_id == fid))
+            await s.execute(delete(OddsSnapshot).where(OddsSnapshot.fixture_id == fid))
+            await s.execute(delete(Fixture).where(Fixture.id == fid))
+            await s.execute(delete(Team).where(Team.league_id == lid))
+            await s.execute(delete(League).where(League.id == lid))
             await s.commit()
