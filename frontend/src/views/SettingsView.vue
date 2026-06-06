@@ -14,6 +14,10 @@
           type="button" @click="toggle(selectedBooks, b.key)"
         >
           <span class="tick" aria-hidden="true">{{ selectedBooks.has(b.key) ? '✓' : '+' }}</span>
+          <img
+            class="blogo" :src="`/books/${b.key}.svg`" alt="" aria-hidden="true"
+            @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')"
+          />
           {{ b.name }}
         </button>
       </div>
@@ -65,7 +69,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-interface Book { key: string; name: string }
+interface Book { key: string; name: string; promo?: string; url?: string; category?: string }
 interface League { id: number; name: string; is_soft: boolean }
 
 const auth = useAuthStore()
@@ -142,6 +146,7 @@ section { margin-bottom: 30px; }
 .chip:hover { border-color: var(--hair-2); color: var(--txt); }
 .chip.on { background: var(--green-dim); border-color: var(--green); color: var(--txt); }
 .chip .tick { font-size: 12px; color: var(--green); width: 12px; display: inline-flex; justify-content: center; }
+.chip .blogo { height: 16px; width: auto; max-width: 22px; object-fit: contain; border-radius: 3px; }
 .chip .soft { font-size: 9px; font-weight: 700; letter-spacing: .05em; color: var(--green); border: 1px solid var(--green-dim); padding: 1px 6px; border-radius: 100px; text-transform: uppercase; margin-left: 7px; }
 .note { font-size: 11.5px; color: var(--txt-3); margin-top: 10px; }
 .edge { display: flex; align-items: center; gap: 8px; }

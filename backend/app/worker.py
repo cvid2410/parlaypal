@@ -11,6 +11,7 @@ from arq.connections import RedisSettings
 
 from app.config import settings
 from app.ingestors.odds import ingest_once
+from app.scheduler.books import sync_books
 from app.scheduler.discovery import discover_sports
 from app.scheduler.logos import resolve_team_logos
 from app.scheduler.results import resolve_results
@@ -44,6 +45,11 @@ async def discovery_cron(ctx: dict) -> dict:
     return await discover_sports()
 
 
+async def books_cron(ctx: dict) -> dict:
+    # Fill book regions + curated policy from The Odds API (cheap, ~1 credit/region/sport).
+    return await sync_books()
+
+
 def _tick_seconds() -> set[int]:
     """Cron `second` set for the base tick. Tick should divide 60 (15/20/30); otherwise
     fall back to every 30s."""
@@ -61,4 +67,6 @@ class WorkerSettings:
         cron(settle_cron, minute={0, 10, 20, 30, 40, 50}),
         # Discover active competitions (friendlies/cups/seasons) every 6h + on boot.
         cron(discovery_cron, hour={0, 6, 12, 18}, minute={3}, run_at_startup=True),
+        # Refresh the books catalog (region attribution + curated policy) weekly + on boot.
+        cron(books_cron, weekday="sun", hour={6}, minute={0}, run_at_startup=True),
     ]

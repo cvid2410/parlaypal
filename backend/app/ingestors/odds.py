@@ -16,6 +16,7 @@ Per poll it:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -26,10 +27,11 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
-from app.models.core import Fixture, League, Market, Team
+from app.models.core import Book, Fixture, League, Market, Team
 from app.models.odds import OddsSnapshot
 from app.models.users import ReviewQueue
 from app.services.cache import get_redis
+from app.shared.books import override_for
 from app.shared.db import ensure_daily_partition, get_sessionmaker
 
 log = logging.getLogger("ingestor")
@@ -45,6 +47,9 @@ EnqueueFn = Callable[[str, int], Awaitable[None]]
 # Process-lived caches (the worker is long-running) to avoid a DB round-trip per tick.
 _team_cache: dict[tuple[int, str], int] = {}
 _market_cache: dict[tuple[str, float | None, str], int] = {}
+# Books we've already registered this process — so the catalog upsert fires once per new book
+# (on first sight / after a restart), never per tick. Region + curation come from sync_books.
+_seen_books: set[str] = set()
 
 
 def _combined_books() -> str:
@@ -125,18 +130,36 @@ def canonical(market_key: str, outcome: dict, home: str, away: str):
     return None
 
 
-async def _fetch_league(client: httpx.AsyncClient, sport_key: str, books: str) -> list[dict]:
+def _parse_usage(headers) -> dict[str, float]:
+    """Pull The Odds API quota headers off a response. `last` = this call's credit cost;
+    `used`/`remaining` are account-level running totals. Missing/garbage headers are skipped."""
+    out: dict[str, float] = {}
+    for header, key in (
+        ("x-requests-last", "last"),
+        ("x-requests-used", "used"),
+        ("x-requests-remaining", "remaining"),
+    ):
+        v = headers.get(header)
+        if v is not None:
+            with contextlib.suppress(ValueError):
+                out[key] = float(v)
+    return out
+
+
+async def _fetch_league(
+    client: httpx.AsyncClient, sport_key: str, regions: str
+) -> tuple[list[dict], dict[str, float]]:
     resp = await client.get(
         f"{THE_ODDS_BASE}/sports/{sport_key}/odds",
         params={
             "apiKey": settings.the_odds_api_key,
             "markets": MARKETS,
-            "bookmakers": books,  # overrides regions; gets exactly soft books + Pinnacle
+            "regions": regions,  # every book in these regions (Pinnacle ⊂ eu = sharp ref)
             "oddsFormat": "decimal",
         },
     )
     resp.raise_for_status()
-    return resp.json()
+    return resp.json(), _parse_usage(resp.headers)
 
 
 async def _get_team_id(session, league_id: int, name: str) -> int:
@@ -215,10 +238,33 @@ async def _queue_review(r, book: str, market_key: str, outcome: dict, fixture_id
     )
 
 
+async def _register_book(session, key: str, title: str) -> None:
+    """Register a newly-seen book in the catalog. Applies the curated override on insert (so a
+    denylisted/affiliate book is correct from first sight, not just after sync_books); `region`
+    is left for sync_books. Idempotent: on conflict we only refresh title + last_seen, so we
+    don't clobber the region/policy sync_books owns."""
+    ov = override_for(key)
+    display = ov.get("name", title)
+    await session.execute(
+        pg_insert(Book)
+        .values(
+            key=key,
+            title=display,
+            pickable=ov.get("pickable", True),
+            category=ov.get("category"),
+            affiliate_promo=ov.get("promo"),
+            affiliate_url=ov.get("url"),
+        )
+        .on_conflict_do_update(
+            index_elements=["key"], set_={"title": display, "last_seen": func.now()}
+        )
+    )
+
+
 async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
     """One ingestion tick. Fetches only the enabled leagues whose tier is due
     (kickoff-aware), so fast polling is spent on live/imminent games. Returns counters."""
-    books = _combined_books()
+    regions = settings.odds_regions
     r = get_redis()
     Session = get_sessionmaker()
     await ensure_daily_partition()
@@ -231,6 +277,13 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
         "enabled": 0,
         "errors": 0,
         "review": 0,
+        "books_new": 0,  # books registered in the catalog for the first time this pass
+        # The Odds API quota telemetry (NON-NEGOTIABLE budget watch): `api_cost` is the
+        # credits spent this pass; `api_remaining`/`api_used` are the latest account totals.
+        "api_calls": 0,
+        "api_cost": 0.0,
+        "api_remaining": None,
+        "api_used": None,
     }
     dirty: set[tuple[str, int]] = set()
     snapshots: list[OddsSnapshot] = []
@@ -252,11 +305,17 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                 # Stamp now so a fetch (even a failing one) respects the cadence.
                 await r.set(f"lastpoll:{lg.id}", time.time())
                 try:
-                    events = await _fetch_league(client, lg.sport_key, books)
+                    events, usage = await _fetch_league(client, lg.sport_key, regions)
                 except Exception as exc:  # one bad league must not sink the whole poll
                     log.warning("ingest league %s failed: %s", lg.sport_key, exc)
                     stats["errors"] += 1
                     continue
+                stats["api_calls"] += 1
+                stats["api_cost"] += usage.get("last", 0.0)
+                if "remaining" in usage:  # account totals — keep the latest seen this pass
+                    stats["api_remaining"] = usage["remaining"]
+                if "used" in usage:
+                    stats["api_used"] = usage["used"]
                 stats["leagues"] += 1
 
                 for event in events:
@@ -269,6 +328,10 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
 
                     for bm in event.get("bookmakers", []):
                         book = bm["key"]
+                        if book not in _seen_books:  # first sight → register in the catalog
+                            await _register_book(session, book, bm.get("title", book))
+                            _seen_books.add(book)
+                            stats["books_new"] += 1
                         for market in bm.get("markets", []):
                             mkey = market["key"]
                             for outcome in market.get("outcomes", []):
@@ -311,10 +374,10 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                                 )
                                 dirty.add((fid, mid))
 
-        if snapshots or reviews:
+        if snapshots or reviews or stats["books_new"]:
             session.add_all(snapshots)
             session.add_all(reviews)
-            await session.commit()
+            await session.commit()  # also persists the first-sight _register_book upserts
 
     stats["markets_dirty"] = len(dirty)
     if enqueue is not None:

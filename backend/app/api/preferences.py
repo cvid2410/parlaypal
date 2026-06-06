@@ -14,16 +14,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
-from app.api.config import BOOKS
-from app.models.core import League
+from app.models.core import Book, League
 from app.models.users import Subscription, User
 from app.services.cache import get_redis
 from app.shared.db import get_db
 from app.shared.routing import deindex_subscription, index_subscription
 
 router = APIRouter(prefix="/me", tags=["preferences"])
-
-_BOOK_KEYS = {b["key"] for b in BOOKS}
 
 
 class PreferencesIn(BaseModel):
@@ -53,10 +50,14 @@ async def put_preferences(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    # Validate against known books + real league ids so the routing index never holds junk.
-    bad_books = [b for b in body.books if b not in _BOOK_KEYS]
-    if bad_books:
-        raise HTTPException(status_code=422, detail=f"Unknown book(s): {', '.join(bad_books)}")
+    # Validate against pickable books + real league ids so the routing index never holds junk.
+    if body.books:
+        known = set(
+            (await db.execute(select(Book.key).where(Book.pickable.is_(True)))).scalars().all()
+        )
+        bad_books = [b for b in body.books if b not in known]
+        if bad_books:
+            raise HTTPException(status_code=422, detail=f"Unknown book(s): {', '.join(bad_books)}")
     if body.min_edge < 0:
         raise HTTPException(status_code=422, detail="min_edge must be >= 0")
     if body.leagues:

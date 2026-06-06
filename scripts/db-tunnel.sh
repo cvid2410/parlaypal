@@ -10,7 +10,8 @@
 # to psql / your GUI yourself (host=localhost, the rest is printed by `start`).
 #
 # Usage:
-#   scripts/db-tunnel.sh start    # start bastion (if stopped), wait for SSM, open the tunnel (blocks)
+#   scripts/db-tunnel.sh start    # start bastion (if stopped), wait for SSM, open the DB tunnel (blocks)
+#   scripts/db-tunnel.sh shell    # start bastion (if stopped), open an interactive shell ON the bastion
 #   scripts/db-tunnel.sh stop     # stop the bastion
 #   scripts/db-tunnel.sh status   # show instance + SSM state
 #
@@ -47,33 +48,41 @@ resolve_rds_host() {
     || die "could not resolve RDS endpoint for ${DB_INSTANCE_ID}"
 }
 
-cmd_start() {
+# Resolve the bastion, start it if stopped, and block until SSM reports it Online.
+# Echoes the instance id on stdout (everything else goes to stderr) so callers can capture it.
+ensure_online() {
   command -v session-manager-plugin >/dev/null 2>&1 \
     || die "session-manager-plugin not installed. Run: brew install --cask session-manager-plugin"
 
-  local id state rds_host
+  local id state
   id=$(resolve_instance)
 
   state=$(aws ec2 describe-instances --instance-ids "$id" \
             --query 'Reservations[0].Instances[0].State.Name' --output text)
   if [ "$state" != "running" ]; then
-    echo "starting bastion $id (was: $state) ..."
+    echo "starting bastion $id (was: $state) ..." >&2
     aws ec2 start-instances --instance-ids "$id" >/dev/null
   else
-    echo "bastion $id already running"
+    echo "bastion $id already running" >&2
   fi
 
-  echo -n "waiting for SSM to come Online"
+  echo -n "waiting for SSM to come Online" >&2
   for _ in $(seq 1 30); do
     if [ "$(aws ssm describe-instance-information \
               --filters "Key=InstanceIds,Values=$id" \
               --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null)" = "Online" ]; then
-      echo " — online."
-      break
+      echo " — online." >&2
+      echo "$id"
+      return 0
     fi
-    echo -n "."; sleep 5
+    echo -n "." >&2; sleep 5
   done
+  die "SSM did not come Online for $id"
+}
 
+cmd_start() {
+  local id rds_host
+  id=$(ensure_online)
   rds_host=$(resolve_rds_host)
   cat <<EOF
 
@@ -89,6 +98,13 @@ EOF
   exec aws ssm start-session --target "$id" \
     --document-name AWS-StartPortForwardingSessionToRemoteHost \
     --parameters "{\"host\":[\"${rds_host}\"],\"portNumber\":[\"${REMOTE_PORT}\"],\"localPortNumber\":[\"${LOCAL_PORT}\"]}"
+}
+
+cmd_shell() {
+  local id
+  id=$(ensure_online)
+  echo "opening interactive shell on $id (Ctrl-D / 'exit' to leave; then: $0 stop)" >&2
+  exec aws ssm start-session --target "$id"
 }
 
 cmd_stop() {
@@ -112,7 +128,8 @@ cmd_status() {
 
 case "${1:-}" in
   start)  cmd_start ;;
+  shell)  cmd_shell ;;
   stop)   cmd_stop ;;
   status) cmd_status ;;
-  *) echo "usage: $0 {start|stop|status}" >&2; exit 2 ;;
+  *) echo "usage: $0 {start|shell|stop|status}" >&2; exit 2 ;;
 esac

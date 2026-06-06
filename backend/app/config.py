@@ -24,8 +24,16 @@ class Settings(BaseSettings):
     soft_books: str = "draftkings,fanduel,betmgm,williamhill_us,betrivers"
     # Sharp reference book used to devig a "fair" probability.
     sharp_book: str = "pinnacle"
-    # The Odds API regions. Pinnacle is served under eu/uk, soft US books under us.
-    odds_regions: str = "us,eu,uk"
+    # The Odds API regions for LIVE ingestion. We request by region (not an enumerated
+    # bookmaker list) because the API bills per region spanned either way — so requesting the
+    # region gets EVERY book in it for the same cost, and more books = more arb/best-price
+    # surface (detection is book-agnostic). Cost per call = markets x regions.
+    #   us  — mainstream US books (DK/FD/MGM/ESPN BET/Fanatics/...)
+    #   us2 — offshore (BetOnline/Bovada/LowVig/MyBookie/BetUS): independent movers → arbs
+    #   uk  — Bet365 + Betfair/Matchbook exchanges (independent liquidity)
+    #   eu  — Pinnacle (our sharp devig reference) + euro softs (1xBet/Coolbet/Nordic/...)
+    #   au  — Australian books (Sportsbet/TAB/Neds): the right reference for the A-League
+    odds_regions: str = "us,us2,uk,eu,au"
 
     # --- adaptive (kickoff-aware) polling ---
     # The worker wakes every tick; each league is fetched only when its tier is due. This
