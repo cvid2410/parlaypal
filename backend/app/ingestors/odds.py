@@ -125,13 +125,13 @@ def canonical(market_key: str, outcome: dict, home: str, away: str):
     return None
 
 
-async def _fetch_league(client: httpx.AsyncClient, sport_key: str, books: str) -> list[dict]:
+async def _fetch_league(client: httpx.AsyncClient, sport_key: str, regions: str) -> list[dict]:
     resp = await client.get(
         f"{THE_ODDS_BASE}/sports/{sport_key}/odds",
         params={
             "apiKey": settings.the_odds_api_key,
             "markets": MARKETS,
-            "bookmakers": books,  # overrides regions; gets exactly soft books + Pinnacle
+            "regions": regions,  # every book in these regions (Pinnacle ⊂ eu = sharp ref)
             "oddsFormat": "decimal",
         },
     )
@@ -218,7 +218,7 @@ async def _queue_review(r, book: str, market_key: str, outcome: dict, fixture_id
 async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
     """One ingestion tick. Fetches only the enabled leagues whose tier is due
     (kickoff-aware), so fast polling is spent on live/imminent games. Returns counters."""
-    books = _combined_books()
+    regions = settings.odds_regions
     r = get_redis()
     Session = get_sessionmaker()
     await ensure_daily_partition()
@@ -252,7 +252,7 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                 # Stamp now so a fetch (even a failing one) respects the cadence.
                 await r.set(f"lastpoll:{lg.id}", time.time())
                 try:
-                    events = await _fetch_league(client, lg.sport_key, books)
+                    events = await _fetch_league(client, lg.sport_key, regions)
                 except Exception as exc:  # one bad league must not sink the whole poll
                     log.warning("ingest league %s failed: %s", lg.sport_key, exc)
                     stats["errors"] += 1
