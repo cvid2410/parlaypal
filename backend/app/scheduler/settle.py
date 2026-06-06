@@ -21,6 +21,7 @@ from app.models.core import Fixture, League, Market
 from app.models.odds import OddsSnapshot
 from app.models.signals import Signal, SignalGrade
 from app.shared.db import get_sessionmaker
+from app.shared.detect_core import _complete
 from app.shared.grading import clv_beat, compute_result, pnl_units
 from app.shared.math import devig
 from app.shared.metrics import emit
@@ -29,7 +30,7 @@ log = logging.getLogger("settle")
 
 
 async def _closing_sharp_fair_decimal(
-    session, fixture_id, market_id, selection, sharp_book, kickoff
+    session, fixture_id, market_id, selection, sharp_book, kickoff, market_type
 ):
     """The NO-VIG closing fair decimal for `selection`.
 
@@ -37,6 +38,10 @@ async def _closing_sharp_fair_decimal(
     odds — the vig makes raw odds shorter than fair, so 'offered > raw closing' is a
     structurally easy bar that inflates beat-CLV. We pull every sharp selection's last price
     at/before kickoff, devig the whole market, and return 1/fair_prob for our selection.
+
+    Requires the FULL selection set for the market type (same `_complete` rule detection
+    uses) — devigging an incomplete market (e.g. a 3-way h2h missing the draw) mangles the
+    fair probs and silently mis-grades CLV.
     """
     rows = (
         await session.execute(
@@ -54,7 +59,7 @@ async def _closing_sharp_fair_decimal(
     for sel, dec in rows:  # first per selection = latest (ts desc within selection)
         if sel not in raw:
             raw[sel] = dec
-    if len(raw) < 2:  # need a full market to devig
+    if not _complete(market_type, raw):  # full market only — same rule as detection
         return None
     p = devig(raw, settings.devig_method).get(selection)
     return (1.0 / p) if p and p > 0 else None
@@ -105,6 +110,7 @@ async def settle_once() -> dict:
                     sig.selection,
                     league.sharp_ref_book,
                     fx.kickoff_utc,
+                    market.type,
                 )
                 beat = clv_beat(sig.offered_odds, closing)
                 # Same condition as `final`, but inlined so the type checker narrows the scores.

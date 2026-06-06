@@ -12,6 +12,7 @@ from app.shared.math import (
     find_middle,
     kelly,
     no_vig_prob,
+    shin_devig,
 )
 
 
@@ -77,6 +78,41 @@ def test_devig_multi_3way_sums_to_one():
     assert sum(probs.values()) == pytest.approx(1.0)
     # Home is the shortest price → highest fair prob.
     assert probs["home"] > probs["draw"] > probs["away"]
+
+
+def test_shin_devig_3way_oracle():
+    # Independent iterative Shin solve for an asymmetric 1X2 [1.30, 5.50, 11.00]. Shin pulls
+    # the longshots down vs multiplicative — matching this (and NOT the multiplicative column)
+    # proves the joint n-way z-solve + input convention, not pairwise-plus-renorm.
+    p = shin_devig({"home": 1.30, "draw": 5.50, "away": 11.00})
+    assert p["home"] == pytest.approx(0.750905, abs=1e-5)
+    assert p["draw"] == pytest.approx(0.169398, abs=1e-5)
+    assert p["away"] == pytest.approx(0.079697, abs=1e-5)
+    assert sum(p.values()) == pytest.approx(1.0, abs=1e-9)
+    # Distinct from multiplicative (the failure mode): Shin favorite > multiplicative favorite.
+    assert p["home"] > devig_multi({"home": 1.30, "draw": 5.50, "away": 11.00})["home"]
+
+
+def test_shin_devig_2way_matches_closed_form():
+    # At n=2 Shin's normalisation drops to the closed-form regime; agrees with no_vig_prob.
+    p = shin_devig({"a": 1.91, "b": 1.91})
+    assert p["a"] == pytest.approx(0.5, abs=1e-9)
+
+
+def test_shin_devig_no_overround_normalises():
+    # No overround (implied probs already sum to 1) → no vig to model, just normalise.
+    p = shin_devig({"home": 3.0, "draw": 3.0, "away": 3.0})
+    assert p["home"] == pytest.approx(1 / 3, abs=1e-9)
+    assert sum(p.values()) == pytest.approx(1.0, abs=1e-9)
+
+
+def test_shin_devig_never_returns_garbage_on_extreme_book():
+    # Extreme favourite + large overround: the guard must return either valid probs that sum
+    # to 1, or {} (ungradable) — never a bisection-collapsed plausible-but-wrong vector.
+    p = shin_devig({"home": 1.02, "draw": 40.0, "away": 40.0})
+    assert p == {} or (
+        sum(p.values()) == pytest.approx(1.0, abs=1e-9) and all(0 < v < 1 for v in p.values())
+    )
 
 
 def test_devig_multi_matches_2way():

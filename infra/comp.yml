@@ -112,6 +112,14 @@ Parameters:
     Type: String
     Default: ""
 
+  # Bastion — SSM-managed jump host for local RDS port-forwarding (stop-when-idle).
+  BastionInstanceType:
+    Type: String
+    Default: t4g.nano
+  BastionAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref CertificateArn, ""]]
 
@@ -490,6 +498,56 @@ Resources:
             EvaluateTargetHealth: false
             HostedZoneId: Z2FDTNDATAQYW2
 
+  # ── Bastion (SSM jump host for local RDS access) ──────────────────────────
+  # CloudFormation owns the *definition*; the instance's power state is managed
+  # out-of-band (`aws ec2 stop/start-instances`) — that's the stop-when-idle model,
+  # so a stopped bastion stays stopped across deploys unless a property changes.
+  # It sits in the app SG, which RDS already trusts on 5432, so no DB
+  # security-group change is needed. Reach it via SSM port-forwarding — no inbound
+  # ports, no SSH keys, every session audited:
+  #   aws ssm start-session --target <id> \
+  #     --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  #     --parameters '{"host":["<rds-endpoint>"],"portNumber":["5432"],"localPortNumber":["5432"]}'
+
+  BastionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub parlaypal-${Environment}-bastion
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  BastionInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub parlaypal-${Environment}-bastion
+      Roles:
+        - !Ref BastionRole
+
+  BastionInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref BastionAmiId
+      InstanceType: !Ref BastionInstanceType
+      SubnetId: !Ref PublicSubnetA   # public subnet auto-assigns a public IP for SSM reachability
+      SecurityGroupIds:
+        - !Ref AppSecurityGroupId    # RDS already trusts this SG on 5432
+      IamInstanceProfile: !Ref BastionInstanceProfile
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub parlaypal-${Environment}-bastion
+        - Key: purpose
+          Value: ssm-rds-portforward
+
 Outputs:
   ECRRepositoryUri:
     Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/parlaypal-backend-${Environment}"
@@ -520,3 +578,8 @@ Outputs:
     Value: !Ref CloudFrontDistribution
     Export:
       Name: !Sub parlaypal-${Environment}-CloudFrontDistributionId
+
+  BastionInstanceId:
+    Value: !Ref BastionInstance
+    Export:
+      Name: !Sub parlaypal-${Environment}-BastionInstanceId

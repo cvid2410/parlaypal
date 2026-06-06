@@ -81,7 +81,9 @@ def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
 
     Recovers p_i = [sqrt(z^2 + 4(1-z)*pi_i^2/PI) - z] / (2(1-z)), with z solving the
     normalisation Sum(p_i)=1, i.e. Sum sqrt(z^2 + 4(1-z)*pi_i^2/PI) = 2 + (n-2)z. Solved by
-    bisection (the function is +ve at z=0 and crosses once before z=1).
+    bisection (the function is +ve at z=0 and crosses once before z=1). Returns {} (ungradable)
+    if the root doesn't bracket — a degenerate book would otherwise drive the bisection to a
+    bound and return a plausible-but-wrong z (correct in the tails is the whole point of Shin).
     """
     pis = {sel: 1 / dec for sel, dec in odds_by_sel.items() if dec and dec > 1}
     n = len(pis)
@@ -97,7 +99,10 @@ def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
         return sum((z * z + 4 * (1 - z) * qi) ** 0.5 for qi in q.values()) - (2 + (n - 2) * z)
 
     lo, hi = 0.0, 0.9999
-    lo_pos = constraint(lo) > 0
+    c_lo, c_hi = constraint(lo), constraint(hi)
+    if (c_lo > 0) == (c_hi > 0):  # no sign change ⇒ no root in (0,1): degenerate book, bail
+        return {}
+    lo_pos = c_lo > 0
     for _ in range(60):  # ~1e-18 resolution; cheap and robust
         mid = (lo + hi) / 2
         if (constraint(mid) > 0) == lo_pos:
@@ -105,6 +110,8 @@ def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
         else:
             hi = mid
     z = (lo + hi) / 2
+    if abs(constraint(z)) > 1e-6:  # didn't actually land on the root — don't trust z
+        return {}
 
     p = {sel: ((z * z + 4 * (1 - z) * qi) ** 0.5 - z) / (2 * (1 - z)) for sel, qi in q.items()}
     tot = sum(p.values())  # renormalise away tiny bisection drift
