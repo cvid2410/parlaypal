@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -82,6 +83,36 @@ class Fixture(Base):
     away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     league: Mapped[League] = relationship()
+
+
+class Book(Base):
+    """Sportsbook catalog — the source of truth for the settings picker, labels, and
+    preference validation. Auto-populated: `ingestors/odds.py` registers `key`/`title` on
+    first sight; `scheduler/books.py` (sync_books) fills `region` (queried one region at a
+    time, since no per-book payload carries it) and refreshes from The Odds API.
+
+    `pickable`, `category`, and the `affiliate_*` columns are the CURATED policy layer —
+    sourced from `app.shared.books.BOOK_OVERRIDES` (code-owned) and applied by sync_books, so
+    the live hot path never clobbers them. Logos are NOT stored: the frontend renders
+    `/books/{key}.svg` with a name fallback (The Odds API has no logo feed)."""
+
+    __tablename__ = "books"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)  # The Odds API bookmaker key
+    title: Mapped[str] = mapped_column(String, nullable=False)  # display name (API `title`)
+    region: Mapped[str | None] = mapped_column(String, nullable=True)  # us|us2|uk|eu|au
+    # Whether the book is offered in the picker. Default True; sweeps/sharp-ref/thin books are
+    # flipped False via BOOK_OVERRIDES (e.g. fliff=sweeps, pinnacle=no US retail).
+    pickable: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    category: Mapped[str | None] = mapped_column(String, nullable=True)  # us|offshore|exchange|...
+    affiliate_promo: Mapped[str | None] = mapped_column(String, nullable=True)
+    affiliate_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class Market(Base):

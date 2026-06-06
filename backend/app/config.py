@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     #   us2 — offshore (BetOnline/Bovada/LowVig/MyBookie/BetUS): independent movers → arbs
     #   uk  — Bet365 + Betfair/Matchbook exchanges (independent liquidity)
     #   eu  — Pinnacle (our sharp devig reference) + euro softs (1xBet/Coolbet/Nordic/...)
-    # `au` is omitted (low relevance for a US/CONCACAF audience, adds a region of cost).
-    odds_regions: str = "us,us2,uk,eu"
+    #   au  — Australian books (Sportsbet/TAB/Neds): the right reference for the A-League
+    odds_regions: str = "us,us2,uk,eu,au"
 
     # --- adaptive (kickoff-aware) polling ---
     # The worker wakes every tick; each league is fetched only when its tier is due. This

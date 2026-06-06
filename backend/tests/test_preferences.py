@@ -6,8 +6,10 @@ import httpx
 import pytest
 from httpx import ASGITransport
 from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.main import app
+from app.models.core import Book
 from app.models.users import Subscription, User
 from app.services.cache import get_redis
 from app.shared.db import get_sessionmaker
@@ -16,6 +18,22 @@ from app.shared.security import create_access_token
 
 def _client():
     return httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+@pytest.fixture(autouse=True)
+async def _seed_books():
+    """Preference validation now checks the `books` catalog, so the books under test must
+    exist + be pickable (the table is empty in a fresh test DB)."""
+    Session = get_sessionmaker()
+    catalog = (("draftkings", "DraftKings"), ("fanduel", "FanDuel"), ("betmgm", "BetMGM"))
+    async with Session() as s:
+        for key, title in catalog:
+            await s.execute(
+                pg_insert(Book)
+                .values(key=key, title=title, pickable=True)
+                .on_conflict_do_update(index_elements=["key"], set_={"pickable": True})
+            )
+        await s.commit()
 
 
 @pytest.fixture
@@ -89,7 +107,7 @@ async def test_put_rejects_unknown_book(user):
     async with _client() as c:
         r = await c.put(
             "/api/me/preferences",
-            json={"books": ["bovada"], "min_edge": 0},
+            json={"books": ["not_a_real_book_xyz"], "min_edge": 0},
             headers={"Authorization": f"Bearer {user['token']}"},
         )
     assert r.status_code == 422
