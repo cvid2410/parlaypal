@@ -95,6 +95,9 @@ async def list_signals(
             "away_logo": ctx.away_logo,
             "created_at": sig.created_at.isoformat(),
             "age_seconds": age,
+            # The game's kickoff (not the signal age) - shown on the card so a bettor knows when
+            # the match is. Safe on locked teasers too; game time isn't an edge.
+            "kickoff": ctx.kickoff,
             "locked": not paid,
         }
         if paid:

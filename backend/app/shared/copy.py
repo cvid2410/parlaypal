@@ -80,6 +80,7 @@ class SignalCopyContext:
     country: str = ""
     home_logo: str | None = None
     away_logo: str | None = None
+    kickoff: str = ""  # fixture kickoff, ISO (shown on the card so the bettor knows game time)
     # EV fields
     book: str = ""
     offered_decimal: float = 0.0

@@ -37,6 +37,7 @@
           <img v-if="s.away_logo" :src="s.away_logo" class="crest" loading="lazy" alt="" />
           <span>{{ s.fixture }}</span>
         </div>
+        <div v-if="s.kickoff" class="ko">📅 {{ kickoffLong(s.kickoff) }}</div>
 
         <template v-if="!s.locked">
           <div v-if="s.ticket" class="ticket">
@@ -82,13 +83,14 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
+import { kickoffLong } from '../lib/datetime'
 
 interface Signal {
   id: number; kind: string; league: string; country: string; fixture: string
   age_seconds: number; locked: boolean; title?: string; body?: string
   pick?: string; book?: string; odds?: string; fair_odds?: string
   edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number; consensus_books?: number
-  home_logo?: string | null; away_logo?: string | null; fixture_id?: string
+  home_logo?: string | null; away_logo?: string | null; fixture_id?: string; kickoff?: string
   ticket?: Ticket
 }
 interface TicketRow { label: string; value: string }
@@ -195,6 +197,7 @@ onMounted(async () => {
 .fx { font-size: 12.5px; color: var(--txt-3); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
 .fx .crest { width: 18px; height: 18px; object-fit: contain; }
 .fx .crest + .crest { margin-left: -4px; }
+.ko { font-size: 11.5px; color: var(--txt-3); margin-top: 7px; }
 .line { display: flex; align-items: baseline; gap: 9px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--hair); }
 .line .at { font-size: 12.5px; color: var(--txt-3); }
 .line .bk { font-size: 13.5px; font-weight: 700; }
@@ -221,7 +224,7 @@ onMounted(async () => {
 .stat.hero .k { color: var(--green); opacity: .85; }
 
 .sig.locked { min-height: 200px; }
-.sig.locked .pick, .sig.locked .fx { filter: blur(7px); opacity: .5; user-select: none; }
+.sig.locked .pick, .sig.locked .fx, .sig.locked .ko { filter: blur(7px); opacity: .5; user-select: none; }
 .lockmask { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; }
 .lockmask .t { font-size: 13px; color: var(--txt-2); font-weight: 500; text-align: center; padding: 0 28px; line-height: 1.5; }
 .lockmask .u { background: var(--green); color: #04210f; border: none; font-weight: 800; font-size: 12.5px; padding: 10px 22px; border-radius: 100px; cursor: pointer; text-transform: uppercase; letter-spacing: .3px; }
