@@ -1,13 +1,13 @@
 """Dynamic sport-key discovery.
 
-Competitions come and go — friendlies (international breaks / pre-season), cups, qualifiers,
+Competitions come and go - friendlies (international breaks / pre-season), cups, qualifiers,
 seasonal leagues. Instead of a static seed, this pulls The Odds API's active sports list and:
   - registers any new active soccer competition as a league (is_soft by default; known sharp
     keys flagged is_soft=false),
-  - enables active leagues, disables dormant (off-season) ones — so polling tracks what's
+  - enables active leagues, disables dormant (off-season) ones - so polling tracks what's
     actually live.
 
-Existing leagues' manual config (is_soft, af_league_id, name) is preserved — only
+Existing leagues' manual config (is_soft, af_league_id, name) is preserved - only
 `ingest_enabled` is toggled. New leagues still route +EV through the CLV gate before users.
 """
 
@@ -42,7 +42,7 @@ SHARP_KEYS = {
     "soccer_uefa_nations_league",
 }
 
-# Curated (name, country) for The Odds API soccer keys — tidies the Leagues tab. Unknown
+# Curated (name, country) for The Odds API soccer keys - tidies the Leagues tab. Unknown
 # keys (e.g. future friendlies) fall back to parsing the API title.
 KEY_META: dict[str, tuple[str, str]] = {
     # domestic leagues

@@ -1,7 +1,7 @@
 """Line-shopping / odds board.
 
 For any fixture we're tracking, show the best available price per market+selection across
-books (and the full per-book breakdown). No edge claim — just "where's the best number" —
+books (and the full per-book breakdown). No edge claim - just "where's the best number" -
 so it works on every league, including big-5 + the World Cup where there's no signal.
 """
 

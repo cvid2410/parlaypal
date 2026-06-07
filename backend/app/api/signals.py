@@ -1,7 +1,7 @@
 """Tier-gated signals feed for the Signals tab.
 
 Paid tiers (bettor/sharp) see live signals in full, rendered through the compliant copy
-engine. Free tier sees the same activity as *locked teasers* — league/fixture/kind only,
+engine. Free tier sees the same activity as *locked teasers* - league/fixture/kind only,
 with the pick, book, and odds redacted so no edge leaks (CLAUDE.md: scores aren't an edge,
 but picks are). Upgrading flips the same cards to full detail.
 """
@@ -50,7 +50,7 @@ async def list_signals(
     user_books = set(sub.books) if sub else set()
 
     # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
-    # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated — they're
+    # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated - they're
     # mechanical. The same clause gates the Leagues badge so the two screens agree.
     conditions = [Signal.status == "live", Signal.created_at >= cutoff, user_facing_clause()]
     if sub and sub.leagues:
@@ -74,7 +74,7 @@ async def list_signals(
     )
 
     # Book filter (NON-NEGOTIABLE #5 intent on the read side): only show plays the user can
-    # actually place — for an arb that means holding every leg's book.
+    # actually place - for an arb that means holding every leg's book.
     sigs = [s for s in candidates if actionable_on(s, user_books)][:FEED_LIMIT]
 
     cards = []
@@ -114,7 +114,7 @@ async def list_signals(
             if sig.kind == "value":
                 card["consensus_books"] = (sig.meta or {}).get("n_books")
         else:
-            # Redacted teaser — show that an edge exists, not what it is.
+            # Redacted teaser - show that an edge exists, not what it is.
             label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(
                 sig.kind, "value bet"
             )

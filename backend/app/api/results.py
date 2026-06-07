@@ -1,6 +1,6 @@
 """Results / tracker API (3.4).
 
-Returns ParlayPal's *verified track record* — graded signals at a flat 1-unit stake. CLV-beat
+Returns ParlayPal's *verified track record* - graded signals at a flat 1-unit stake. CLV-beat
 % is the headline (always available from our own data); win-rate / ROI / P&L fill in as the
 results resolver scores fixtures. This is proof, shown to any signed-in user (settled picks
 leak no live edge), which is what sells the upgrade.

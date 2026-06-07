@@ -132,7 +132,7 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
                 if arq is not None:
                     await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
 
-        # A totals move can create a cross-market middle — hand off to the middle detector.
+        # A totals move can create a cross-market middle - hand off to the middle detector.
         if market.type == "total" and arq is not None:
             await arq.enqueue_job("detect_middles", fixture_id, _job_id=f"middles:{fixture_id}")
 

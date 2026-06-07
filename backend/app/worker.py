@@ -1,6 +1,6 @@
 """ARQ worker: the odds poll loop + the detection/delivery/settlement jobs.
 
-The poll runs as a cron at the base tick (`poll_tick_seconds`) — cron is restart-safe and
+The poll runs as a cron at the base tick (`poll_tick_seconds`) - cron is restart-safe and
 won't collide on a job id the way a self-rescheduling loop does. Each tick fetches only the
 leagues whose tier is due (kickoff-aware, see ingestors/odds.py) and enqueues one
 `detect_market` job per market that moved meaningfully.

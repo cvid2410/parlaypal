@@ -27,7 +27,7 @@ class League(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     country: Mapped[str] = mapped_column(String, nullable=False)
-    # The Odds API sport key, e.g. "soccer_mexico_ligamx" — this is what makes the
+    # The Odds API sport key, e.g. "soccer_mexico_ligamx" - this is what makes the
     # ingestor league-agnostic: adding a league is a row, not code.
     sport_key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     sharp_ref_book: Mapped[str] = mapped_column(String, default="pinnacle")
@@ -40,7 +40,7 @@ class League(Base):
     # API-Football league id (for the Scores tab). Null = no scores feed mapped.
     af_league_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Whether the ingestor polls this league at all (sharp leagues can be ingested for
-    # the Scores tab but won't generate signals — see is_soft).
+    # the Scores tab but won't generate signals - see is_soft).
     ingest_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -71,7 +71,7 @@ class TeamAlias(Base):
 class Fixture(Base):
     __tablename__ = "fixtures"
 
-    # The Odds API event id — the canonical fixture key for v1.
+    # The Odds API event id - the canonical fixture key for v1.
     id: Mapped[str] = mapped_column(String, primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"), nullable=False)
     home_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
@@ -86,12 +86,12 @@ class Fixture(Base):
 
 
 class Book(Base):
-    """Sportsbook catalog — the source of truth for the settings picker, labels, and
+    """Sportsbook catalog - the source of truth for the settings picker, labels, and
     preference validation. Auto-populated: `ingestors/odds.py` registers `key`/`title` on
     first sight; `scheduler/books.py` (sync_books) fills `region` (queried one region at a
     time, since no per-book payload carries it) and refreshes from The Odds API.
 
-    `pickable`, `category`, and the `affiliate_*` columns are the CURATED policy layer —
+    `pickable`, `category`, and the `affiliate_*` columns are the CURATED policy layer -
     sourced from `app.shared.books.BOOK_OVERRIDES` (code-owned) and applied by sync_books, so
     the live hot path never clobbers them. Logos are NOT stored: the frontend renders
     `/books/{key}.svg` with a name fallback (The Odds API has no logo feed)."""
@@ -121,7 +121,7 @@ class Market(Base):
     __tablename__ = "markets"
     # line is NULL for line-less markets (h2h, btts). A plain unique constraint can't
     # dedupe those (NULLs are never equal in Postgres), so use a COALESCE functional
-    # index — otherwise every process restart would mint duplicate h2h market rows.
+    # index - otherwise every process restart would mint duplicate h2h market rows.
     __table_args__ = (
         Index("uq_market_def", "type", text("coalesce(line, -1)"), "period", unique=True),
     )

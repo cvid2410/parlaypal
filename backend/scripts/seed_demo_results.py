@@ -18,7 +18,7 @@ from app.shared.db import get_sessionmaker
 
 SPORT_KEY = "demo_results"
 
-# (selection, offered, beat_clv, result, pnl_units) — an upward, honest mix (8W/4L).
+# (selection, offered, beat_clv, result, pnl_units) - an upward, honest mix (8W/4L).
 SPECS = [
     ("home", 2.10, True, "win", 1.10),
     ("over", 1.95, True, "win", 0.95),

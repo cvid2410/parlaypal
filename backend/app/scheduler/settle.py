@@ -35,12 +35,12 @@ async def _closing_sharp_fair_decimal(
     """The NO-VIG closing fair decimal for `selection`.
 
     CLV must be measured against the sharp's true closing probability, not its raw posted
-    odds — the vig makes raw odds shorter than fair, so 'offered > raw closing' is a
+    odds - the vig makes raw odds shorter than fair, so 'offered > raw closing' is a
     structurally easy bar that inflates beat-CLV. We pull every sharp selection's last price
     at/before kickoff, devig the whole market, and return 1/fair_prob for our selection.
 
     Requires the FULL selection set for the market type (same `_complete` rule detection
-    uses) — devigging an incomplete market (e.g. a 3-way h2h missing the draw) mangles the
+    uses) - devigging an incomplete market (e.g. a 3-way h2h missing the draw) mangles the
     fair probs and silently mis-grades CLV.
     """
     rows = (
@@ -59,7 +59,7 @@ async def _closing_sharp_fair_decimal(
     for sel, dec in rows:  # first per selection = latest (ts desc within selection)
         if sel not in raw:
             raw[sel] = dec
-    if not _complete(market_type, raw):  # full market only — same rule as detection
+    if not _complete(market_type, raw):  # full market only - same rule as detection
         return None
     p = devig(raw, settings.devig_method).get(selection)
     return (1.0 / p) if p and p > 0 else None
@@ -96,7 +96,7 @@ async def settle_once() -> dict:
             closing = beat = result = pnl = None
             final = fx.home_score is not None and fx.away_score is not None
 
-            # CLV + result grading applies to single-selection bets (ev and promo) — both
+            # CLV + result grading applies to single-selection bets (ev and promo) - both
             # alert one selection at a posted price gradable against the sharp closing line.
             # Arb/middle are mechanical multi-leg signals with no single-selection outcome, so
             # they carry no grade row; they still reach a terminal state below.
@@ -120,7 +120,7 @@ async def settle_once() -> dict:
                     )
                     pnl = pnl_units(result, sig.offered_odds)
 
-                # Only persist a grade row once we have something to record — never an
+                # Only persist a grade row once we have something to record - never an
                 # all-NULL row (which previously kept every signal re-graded forever).
                 if closing is not None or result is not None:
                     await session.execute(
@@ -143,7 +143,7 @@ async def settle_once() -> dict:
                         )
                     )
 
-            # Terminal state once the fixture is final — for EVERY kind, so arb/middle/promo
+            # Terminal state once the fixture is final - for EVERY kind, so arb/middle/promo
             # stop being re-selected on each pass; pre-final they sit at 'expired'.
             sig.status = "settled" if final else "expired"
             stats["graded"] += 1

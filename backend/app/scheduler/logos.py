@@ -2,7 +2,7 @@
 
 Only resolves teams that appear in a fixture with one of our signals (so we don't spend
 API calls on teams we never display). Matches by normalized name within the fixture's
-kickoff date — AF's fixtures for that date list every team playing, with its logo. Reuses
+kickoff date - AF's fixtures for that date list every team playing, with its logo. Reuses
 the same cached day fetch as the results resolver and Scores.
 """
 

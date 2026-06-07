@@ -7,7 +7,7 @@ replicated in-memory; signals are written with their historical `created_at` so 
 existing settle.py grades CLV against the closing sharp line already in the snapshots.
 
 CLV (did we beat the close) is computable from odds alone and is the gate. Win/loss P&L
-needs final scores (not set by the odds backfill) — so result/pnl stay null here; pull
+needs final scores (not set by the odds backfill) - so result/pnl stay null here; pull
 scores from API-Football later for the P&L sanity check. The gate doesn't need them.
 
 Idempotent with --reset (clears prior signals+grades for the in-window fixtures first).
@@ -69,12 +69,12 @@ class _Dedup:
 async def _replay_fixture(
     session, fx: Fixture, lg: League, dedup: _Dedup, min_edge: float, max_lead_min: float | None
 ) -> list[Signal]:
-    """Sweep one fixture's snapshots in time order, detecting on each market as it moves —
+    """Sweep one fixture's snapshots in time order, detecting on each market as it moves -
     mirroring the live 'detect the market that just changed' path.
 
     With `max_lead_min`, only emit signals detected within that many minutes of kickoff: the
     realizability window. State is still reconstructed from ALL snapshots (so prices are
-    correct when we do detect), but detection/dedup only run inside the window — simulating
+    correct when we do detect), but detection/dedup only run inside the window - simulating
     'only alert near kickoff', where the soft price is actually bettable and the CLV test
     isn't confounded by hours of unrelated line drift before the close."""
     snaps = (
@@ -89,11 +89,11 @@ async def _replay_fixture(
         .all()
     )
 
-    # state[market_id][book][selection] = decimal — the reconstructed hot state at 'now'.
+    # state[market_id][book][selection] = decimal - the reconstructed hot state at 'now'.
     state: dict[int, dict[str, dict[str, float]]] = defaultdict(lambda: defaultdict(dict))
     out: list[Signal] = []
 
-    # Market type per id — find_opportunities needs it to reject incomplete markets, exactly
+    # Market type per id - find_opportunities needs it to reject incomplete markets, exactly
     # as the live worker does (parity is what keeps the CLV gate honest).
     mids_all = {s.market_id for s in snaps}
     market_type: dict[int, str] = (
@@ -211,7 +211,7 @@ async def main() -> None:
             fq = fq.where(League.sport_key == args.sport_key)
         rows = (await session.execute(fq)).all()
         if not rows:
-            print("No fixtures in window — backfill snapshots first.")
+            print("No fixtures in window - backfill snapshots first.")
             return
         lead_desc = f", lead<={args.max_lead_min}min" if args.max_lead_min else ""
         print(

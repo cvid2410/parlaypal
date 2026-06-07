@@ -92,7 +92,7 @@ async def test_put_deindexes_dropped_books(user):
             json={"books": ["draftkings", "fanduel"], "min_edge": 0},
             headers={"Authorization": f"Bearer {token}"},
         )
-        # Drop fanduel — it must leave the routing set, not linger.
+        # Drop fanduel - it must leave the routing set, not linger.
         await c.put(
             "/api/me/preferences",
             json={"books": ["draftkings"], "min_edge": 0},

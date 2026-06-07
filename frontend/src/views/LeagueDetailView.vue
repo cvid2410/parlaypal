@@ -24,7 +24,7 @@
             </span>
             <span class="ko">{{ ko(fx.kickoff) }}</span>
             <RouterLink v-if="fx.fixture_id" :to="`/lines/${fx.fixture_id}`" class="odds">Odds ›</RouterLink>
-            <span v-else class="odds dis">—</span>
+            <span v-else class="odds dis">-</span>
           </div>
         </div>
       </template>

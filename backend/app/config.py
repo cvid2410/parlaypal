@@ -25,19 +25,19 @@ class Settings(BaseSettings):
     # Sharp reference book used to devig a "fair" probability.
     sharp_book: str = "pinnacle"
     # The Odds API regions for LIVE ingestion. We request by region (not an enumerated
-    # bookmaker list) because the API bills per region spanned either way — so requesting the
+    # bookmaker list) because the API bills per region spanned either way - so requesting the
     # region gets EVERY book in it for the same cost, and more books = more arb/best-price
     # surface (detection is book-agnostic). Cost per call = markets x regions.
-    #   us  — mainstream US books (DK/FD/MGM/ESPN BET/Fanatics/...)
-    #   us2 — offshore (BetOnline/Bovada/LowVig/MyBookie/BetUS): independent movers → arbs
-    #   uk  — Bet365 + Betfair/Matchbook exchanges (independent liquidity)
-    #   eu  — Pinnacle (our sharp devig reference) + euro softs (1xBet/Coolbet/Nordic/...)
-    #   au  — Australian books (Sportsbet/TAB/Neds): the right reference for the A-League
+    #   us - mainstream US books (DK/FD/MGM/ESPN BET/Fanatics/...)
+    #   us2 - offshore (BetOnline/Bovada/LowVig/MyBookie/BetUS): independent movers → arbs
+    #   uk - Bet365 + Betfair/Matchbook exchanges (independent liquidity)
+    #   eu - Pinnacle (our sharp devig reference) + euro softs (1xBet/Coolbet/Nordic/...)
+    #   au - Australian books (Sportsbet/TAB/Neds): the right reference for the A-League
     odds_regions: str = "us,us2,uk,eu,au"
 
     # --- adaptive (kickoff-aware) polling ---
     # The worker wakes every tick; each league is fetched only when its tier is due. This
-    # keeps fast polling for live/imminent games and barely touches idle leagues — the
+    # keeps fast polling for live/imminent games and barely touches idle leagues - the
     # refresh rate is the real Odds API cost driver (CLAUDE.md / BUILD_PLAN 0.2).
     poll_tick_seconds: int = 20  # base loop cadence (= the fast cadence)
     poll_live_duration_min: int = 150  # treat a fixture as in-play this long after kickoff
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # Minimum +EV edge (percent) before a signal is emitted.
     min_edge_pct: float = 2.0
     # Off-market "value" detection (kind="value"): the de-vigged consensus of >= this many
-    # complete books is the fair reference. The gate is the HONESTY scope — "+EV vs market"
+    # complete books is the fair reference. The gate is the HONESTY scope - "+EV vs market"
     # only fires where the market is deep enough that the book crowd is actually sharp (big/
     # liquid games), never on the thin tail where the consensus is noise (proven unreliable).
     min_consensus_books: int = 6
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     # Devig method for the sharp fair line: 'multiplicative' (proportional) or 'shin'
     # (insider-trading model; corrects the favourite-longshot bias in the tails). Used in
     # BOTH detection and CLV grading so the gate measures what we ship. Default 'shin': the
-    # backtest showed multiplicative inflates away/draw +EV (the favourite-longshot bias —
+    # backtest showed multiplicative inflates away/draw +EV (the favourite-longshot bias -
     # e.g. La Liga 2 cards showing 40%+ edges on the long side). Shin is identical on
     # symmetric markets and bias-corrected in the tails, so it's the safe default everywhere
     # (don't rely on a per-deploy env var to get it right).

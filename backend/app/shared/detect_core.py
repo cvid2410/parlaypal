@@ -1,10 +1,10 @@
-"""Pure detection core — the devig→EV→arb logic with NO I/O.
+"""Pure detection core - the devig→EV→arb logic with NO I/O.
 
 Factored out of `workers/detect.py` so the exact same opportunity-finding runs in two
 places: the live consumer (reads Redis hot state, writes signals, routes) and the offline
 backtest replay (feeds reconstructed historical state, grades against the closing line).
 If these ever diverged, the CLV gate (NON-NEGOTIABLE #2) would validate something we don't
-actually ship — so detection lives here, and both callers depend on it.
+actually ship - so detection lives here, and both callers depend on it.
 
 Input is the per-market book→selection→decimal map; output is a list of `Opportunity`
 candidates including their dedup scope/bucket/hash. The caller owns the side effects:
@@ -40,7 +40,7 @@ class Opportunity:
 # soccer h2h missing its draw price is NOT a 2-way market, and an "arb" priced across only
 # home+away is a coin-flip dressed up as guaranteed profit (it loses both legs on a draw).
 # Likewise the sharp devig is only valid over the whole market. Unknown types fall back to
-# ">= 2 selections" — we can't assert completeness we don't know.
+# ">= 2 selections" - we can't assert completeness we don't know.
 MARKET_SELECTIONS: dict[str, frozenset[str]] = {
     "h2h": frozenset({"home", "draw", "away"}),
     "total": frozenset({"over", "under"}),
@@ -85,7 +85,7 @@ def find_opportunities(
     opps: list[Opportunity] = []
     sharp = by_book.get(sharp_ref_book)
 
-    # ---- +EV vs the sharp fair line (soft leagues only — sharp/big leagues have no
+    # ---- +EV vs the sharp fair line (soft leagues only - sharp/big leagues have no
     # soft-book edge; mechanical signals like arb still run for them below) ----
     if is_soft and sharp and _complete(market_type, sharp):
         fair = devig(sharp, devig_method)
@@ -96,7 +96,7 @@ def find_opportunities(
                 p = fair.get(sel)
                 if p is None:
                     continue
-                # Junk/suspended quote (e.g. decimal ~101) — not a bettable price, drop it
+                # Junk/suspended quote (e.g. decimal ~101) - not a bettable price, drop it
                 # before it manufactures a fake edge.
                 if dec > max_offered_odds:
                     continue
@@ -159,13 +159,13 @@ def find_opportunities(
 
     # ---- off-market value (kind="value"): a book materially better than the BOOK CONSENSUS,
     # on a SHARP, LIQUID market only. Honesty scope (the whole lesson of the EV investigation):
-    #   * `not is_soft` — on the soft long tail the multi-book consensus is NOT sharp (we PROVED
+    #   * `not is_soft` - on the soft long tail the multi-book consensus is NOT sharp (we PROVED
     #     it: detect-at-open vs consensus-close showed the consensus moving AWAY from the picks,
     #     even with the exchanges in it). Many books ≠ a trustworthy fair there. So we refuse to
-    #     claim "+EV vs market" on soft leagues — that's the exact fake edge we disproved.
-    #   * `>= min_consensus_books` — and even on a sharp league, require a deep book set so the
+    #     claim "+EV vs market" on soft leagues - that's the exact fake edge we disproved.
+    #   * `>= min_consensus_books` - and even on a sharp league, require a deep book set so the
     #     consensus is real, not two books.
-    # Where both hold (big/liquid games — Champions League, WC, big-5), an outlier vs the sharp
+    # Where both hold (big/liquid games - Champions League, WC, big-5), an outlier vs the sharp
     # crowd IS genuine +EV. Unlike kind="ev" this is ungated downstream and graded like a bet.
     nv_by_book: dict[str, dict[str, float]] = {}
     for book, sels in by_book.items():

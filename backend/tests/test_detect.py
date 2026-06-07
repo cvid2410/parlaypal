@@ -82,7 +82,7 @@ async def test_ev_signal_dedup_and_improvement(scenario):
     r = get_redis()
 
     # Shin devig of (1.8, 3.6, 4.5) → home fair ~0.534. FanDuel home at 2.2 is +EV (~17.5%).
-    # (The multiplicative method gives ~0.526 / 15.8%; Shin pulls the favourite up — see
+    # (The multiplicative method gives ~0.526 / 15.8%; Shin pulls the favourite up - see
     # the devig_method default in config, set to 'shin'.)
     await _hot(
         r,
@@ -115,7 +115,7 @@ async def test_ev_signal_dedup_and_improvement(scenario):
 
 
 async def test_sharp_league_gets_arb_not_ev():
-    """On a non-soft (big/sharp) league: arb still fires, but EV never does — even when a
+    """On a non-soft (big/sharp) league: arb still fires, but EV never does - even when a
     soft book looks mispriced vs Pinnacle."""
     Session = get_sessionmaker()
     r = get_redis()

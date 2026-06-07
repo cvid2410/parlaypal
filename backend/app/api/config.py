@@ -1,4 +1,4 @@
-"""Public client config — the sportsbook list the settings picker renders.
+"""Public client config - the sportsbook list the settings picker renders.
 
 Served from the auto-synced `books` catalog (see models.core.Book + scheduler/books.py), not a
 hardcoded list, so it reflects every book we actually ingest. Only `pickable` books are

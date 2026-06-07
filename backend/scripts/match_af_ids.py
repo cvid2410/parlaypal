@@ -2,9 +2,9 @@
 
 af_league_id powers the Scores/Standings tab. This pulls the live API-Football catalog and
 fuzzy-matches each league with af_league_id IS NULL by (country, name), grounding every
-proposed id in real catalog data — never a hardcoded guess (the seed's "351 turned out to
+proposed id in real catalog data - never a hardcoded guess (the seed's "351 turned out to
 be a Czech league" scar). High-confidence exact matches auto-apply with --apply; everything
-softer is printed as REVIEW and left NULL (NON-NEGOTIABLE #6 — unmatched go to review, not
+softer is printed as REVIEW and left NULL (NON-NEGOTIABLE #6 - unmatched go to review, not
 /dev/null).
 
 Run from backend/:
@@ -29,7 +29,7 @@ AUTO = 0.86  # >= this similarity (same country) auto-applies
 MAYBE = 0.60  # >= this is shown as a REVIEW suggestion; below is "no match"
 
 # Grounded overrides for leagues whose name differs too much from API-Football's to match by
-# string similarity (verified by hand against the live /leagues catalog — never guessed).
+# string similarity (verified by hand against the live /leagues catalog - never guessed).
 # Keyed by Odds API sport_key. The fuzzy matcher handles everything else.
 AF_OVERRIDE = {
     "soccer_germany_bundesliga2": 79,  # 2. Bundesliga
@@ -53,7 +53,7 @@ AF_OVERRIDE = {
     "soccer_fifa_world_cup_womens": 8,  # World Cup - Women
     "soccer_uefa_european_championship": 4,  # Euro Championship
     "soccer_uefa_euro_qualification": 960,  # Euro Championship - Qualification
-    # soccer_uefa_champs_league_qualification: no distinct AF competition — stays NULL.
+    # soccer_uefa_champs_league_qualification: no distinct AF competition - stays NULL.
     # Names that diverge from API-Football's, so fuzzy match would send them to REVIEW.
     "soccer_brazil_campeonato": 71,  # Serie A (Brazil)
     "soccer_brazil_serie_b": 72,  # Serie B (Brazil)
@@ -78,7 +78,7 @@ COUNTRY_ALIAS = {
 NOISE = {"football", "the", "of", "fc"}
 
 # Tokens that *distinguish* a league from a same-named sibling. If two names differ by any
-# of these (or by a digit), they are NOT the same competition — e.g. "Bundesliga" vs
+# of these (or by a digit), they are NOT the same competition - e.g. "Bundesliga" vs
 # "Bundesliga 2", "World Cup" vs "Women's World Cup", "Champions League" vs its
 # "Qualification". Such a pair can never auto-apply (it goes to REVIEW), no matter how high
 # the raw string similarity is. This is what stops the dangerous substring matches.
@@ -153,7 +153,7 @@ async def main() -> None:
         auto, review, none = [], [], []
         by_id = {lg["league"]["id"]: lg["league"]["name"] for lg in catalog}
         for lg in sorted(nulls, key=lambda x: x.name):
-            if lg.sport_key in AF_OVERRIDE:  # hand-verified — bypass fuzzy matching
+            if lg.sport_key in AF_OVERRIDE:  # hand-verified - bypass fuzzy matching
                 af_id = AF_OVERRIDE[lg.sport_key]
                 auto.append((lg, (af_id, by_id.get(af_id, "?"), "override"), 1.0))
                 continue
@@ -162,7 +162,7 @@ async def main() -> None:
             best = max(cands, key=lambda c: score(lg.name, c[1]), default=None)
             s = score(lg.name, best[1]) if best else 0.0
             # A discriminator conflict (tier number, women, qualifiers…) forces REVIEW even
-            # at sim=1.0 on the base name — that's the exact "Bundesliga vs Bundesliga 2" trap.
+            # at sim=1.0 on the base name - that's the exact "Bundesliga vs Bundesliga 2" trap.
             conflict = bool(best) and discriminator_conflict(lg.name, best[1])
             if best and s >= AUTO and not conflict:
                 auto.append((lg, best, s))
@@ -176,11 +176,11 @@ async def main() -> None:
                 tgt = f"{best[0]} {best[1]} [{best[2]}]" if best else "(no candidate in country)"
                 print(f"  {tag}  {lg.name} ({lg.country})  ->  {tgt}   sim={s:.2f}")
 
-        print(f"\n== AUTO ({len(auto)}) — applied with --apply ==")
+        print(f"\n== AUTO ({len(auto)}) - applied with --apply ==")
         show(auto, "OK  ")
-        print(f"\n== REVIEW ({len(review)}) — eyeball, set manually ==")
+        print(f"\n== REVIEW ({len(review)}) - eyeball, set manually ==")
         show(review, "?? ")
-        print(f"\n== NO MATCH ({len(none)}) — no good candidate in that country ==")
+        print(f"\n== NO MATCH ({len(none)}) - no good candidate in that country ==")
         show(none, "XX ")
 
         if args.apply:

@@ -1,5 +1,5 @@
 """Per-user preferences (3.4 / NON-NEGOTIABLE #5): which leagues + books a user follows and
-their minimum edge. This is the input side of the routing index — the Signals feed filters
+their minimum edge. This is the input side of the routing index - the Signals feed filters
 by `books` (you only see plays you can place), and fan-out routes pushes by all three.
 
 `PUT` writes the `subscriptions` row AND re-syncs the Redis routing index (deindex the old

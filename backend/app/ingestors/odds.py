@@ -47,7 +47,7 @@ EnqueueFn = Callable[[str, int], Awaitable[None]]
 # Process-lived caches (the worker is long-running) to avoid a DB round-trip per tick.
 _team_cache: dict[tuple[int, str], int] = {}
 _market_cache: dict[tuple[str, float | None, str], int] = {}
-# Books we've already registered this process — so the catalog upsert fires once per new book
+# Books we've already registered this process - so the catalog upsert fires once per new book
 # (on first sight / after a restart), never per tick. Region + curation come from sync_books.
 _seen_books: set[str] = set()
 
@@ -312,7 +312,7 @@ async def ingest_once(enqueue: EnqueueFn | None = None) -> dict:
                     continue
                 stats["api_calls"] += 1
                 stats["api_cost"] += usage.get("last", 0.0)
-                if "remaining" in usage:  # account totals — keep the latest seen this pass
+                if "remaining" in usage:  # account totals - keep the latest seen this pass
                     stats["api_remaining"] = usage["remaining"]
                 if "used" in usage:
                     stats["api_used"] = usage["used"]

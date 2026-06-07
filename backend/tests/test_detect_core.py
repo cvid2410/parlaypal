@@ -1,4 +1,4 @@
-"""Pure-logic tests for the detection core (no I/O — no Postgres/Redis needed).
+"""Pure-logic tests for the detection core (no I/O - no Postgres/Redis needed).
 
 Guards the arb path against the two ways a non-arb can masquerade as one: a junk/suspended
 quote used as a 'best' leg, and an incomplete market (a 3-way h2h missing a selection).
@@ -73,7 +73,7 @@ def test_junk_quote_does_not_manufacture_arb():
 
 def test_incomplete_three_way_market_no_arb():
     # h2h is 3-way. With only home+away present (draw missing/suspended), a 2-way 'arb'
-    # (1/2.2 + 1/2.1 = 0.93 < 1) is a coin-flip dressed as guaranteed profit — both lose on a
+    # (1/2.2 + 1/2.1 = 0.93 < 1) is a coin-flip dressed as guaranteed profit - both lose on a
     # draw. Must not fire even though the two present legs would "arb".
     by_book = {
         "fanduel": {"home": 2.2, "away": 2.1},

@@ -3,7 +3,7 @@
 The live resolver (scheduler.results) matches AF results by *exact* normalized team name,
 which misses cross-feed name gaps ("Guadalajara" vs AF "Guadalajara Chivas"). For the
 offline P&L study we can afford a more lenient match: scope candidates to the fixture's own
-league (af_league_id) and day — only a handful of games — then match each side by token
+league (af_league_id) and day - only a handful of games - then match each side by token
 SUBSET (our shorter name ⊆ AF's fuller name, or vice versa), requiring BOTH sides to align
 on the same AF fixture. That pair constraint makes the looser match safe.
 

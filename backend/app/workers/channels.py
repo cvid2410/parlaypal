@@ -18,7 +18,7 @@ class LogChannel:
     name = "log"
 
     async def send(self, to: int, copy: dict) -> bool:
-        log.info("[deliver:log] user=%s | %s — %s", to, copy["title"], copy["body"])
+        log.info("[deliver:log] user=%s | %s - %s", to, copy["title"], copy["body"])
         emit("deliver.sent", channel="log", to=to, title=copy["title"])
         return True
 

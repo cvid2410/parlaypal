@@ -1,7 +1,7 @@
-"""Road A — clean CLV against a MULTI-BOOK CONSENSUS reference (the OddsJam method).
+"""Road A - clean CLV against a MULTI-BOOK CONSENSUS reference (the OddsJam method).
 
 clean_clv.py used Pinnacle alone as the fair reference and found it disconfirmed. Pinnacle
-isn't sharp on the soft tail — but maybe the *consensus of many books* is a better truth
+isn't sharp on the soft tail - but maybe the *consensus of many books* is a better truth
 estimate (OddsJam builds "fair %" from a sharp/low-vig consensus, not one book). This tests
 that: does betting a book that's an outlier vs the de-vigged book consensus actually pay?
 
@@ -16,7 +16,7 @@ Per settled soft-league h2h fixture, at OPEN and CLOSE:
 
 Liquidity gate: only fixtures with >= --min-books books at open (a real consensus). Per league
 we print n, avg books, beatCLV%, mean cons_move (pp), realized ROI. Decisive cross-check is
-beat% vs ROI — same as clean_clv.py.
+beat% vs ROI - same as clean_clv.py.
 
 Run from backend/:  python -m scripts.clv_consensus [--min-edge 2.0] [--min-books 5]
 """
@@ -35,7 +35,7 @@ from app.shared.math import devig, ev_pct
 H2H = frozenset({"home", "draw", "away"})
 MAX_DEC = 12.0
 # The genuinely-sharp, ~zero-vig venues (Pinnacle + the betting exchanges). With --sharp-only
-# the consensus reference is built from JUST these, and we never bet them — the OddsJam-style
+# the consensus reference is built from JUST these, and we never bet them - the OddsJam-style
 # "fair from a sharp reference" test, now possible because we backfilled exchange history.
 SHARP_SET = frozenset(
     {"pinnacle", "betfair_ex_uk", "betfair_ex_eu", "smarkets", "betfair_sb_uk", "matchbook"}
@@ -63,7 +63,7 @@ async def main() -> None:
         "--sharp-only",
         action="store_true",
         help="build the consensus reference from the sharp/exchange subset only (and never bet "
-        "those books) — the OddsJam-style sharp-reference test.",
+        "those books) - the OddsJam-style sharp-reference test.",
     )
     args = ap.parse_args()
 

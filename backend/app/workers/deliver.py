@@ -34,7 +34,7 @@ async def deliver(ctx: dict, signal_id: int, user_id: int, channel: str) -> bool
     Session = get_sessionmaker()
     async with Session() as session:
         # Claim first: insert the alerts_sent row; a conflict means already delivered. This is
-        # what prevents a double-send (NON-NEGOTIABLE #4) — a retry only re-sends after a
+        # what prevents a double-send (NON-NEGOTIABLE #4) - a retry only re-sends after a
         # definitively failed attempt has released the claim below.
         claim = (
             pg_insert(AlertSent)

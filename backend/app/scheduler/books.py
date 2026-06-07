@@ -1,14 +1,14 @@
-"""Books catalog sync — fill `region` (and refresh title/last_seen + apply curated policy)
+"""Books catalog sync - fill `region` (and refresh title/last_seen + apply curated policy)
 from The Odds API.
 
-Region is the one book attribute no per-book payload carries — The Odds API only tells you a
+Region is the one book attribute no per-book payload carries - The Odds API only tells you a
 book's region by *which region you queried under*. So we query ONE region at a time (the same
 `settings.odds_regions` live ingestion uses) and tag each book with the region it appears in.
 Cheap: 1 market x 1 region per sport. A couple of active sports surface ~all books; region is
 learned once and converges across runs.
 
 Then we upsert each book with its curated overrides (pickable / category / affiliate links)
-from app.shared.books — the manual policy layer the API can't provide.
+from app.shared.books - the manual policy layer the API can't provide.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ THE_ODDS_BASE = "https://api.the-odds-api.com/v4"
 
 
 async def _sample_sports(session, limit: int = 3) -> list[str]:
-    """A few enabled leagues — enough to surface essentially every book."""
+    """A few enabled leagues - enough to surface essentially every book."""
     return list(
         (
             await session.execute(
@@ -92,7 +92,7 @@ async def sync_books() -> dict:
             )
 
         # Curated policy applies to ALL override keys, even ones the sample didn't surface
-        # this run (e.g. DK/FD/MGM may not appear in a small league's region call) — so
+        # this run (e.g. DK/FD/MGM may not appear in a small league's region call) - so
         # affiliate links and the not-pickable denylist are deterministic, not sample-dependent.
         for key, ov in BOOK_OVERRIDES.items():
             vals: dict = {

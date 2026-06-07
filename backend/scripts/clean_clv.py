@@ -1,9 +1,9 @@
-"""Layer 3 — clean CLV: detect +EV at the OPEN, grade against the TRUE close.
+"""Layer 3 - clean CLV: detect +EV at the OPEN, grade against the TRUE close.
 
 The old gate detected ~2h before kickoff and graded vs a sharp line ~2h later that barely
 moved, so beat-CLV ≈ the selection condition re-measured (tautological). Now that the live
 pipeline has captured true opening lines (~9-day avg lead), we can detect at the open and grade
-against the actual close — so "beat the close" is a real, temporally-independent prediction.
+against the actual close - so "beat the close" is a real, temporally-independent prediction.
 
 Per settled soft-league h2h fixture:
   open_fair  = shin-devig of the EARLIEST complete 3-way Pinnacle snapshot

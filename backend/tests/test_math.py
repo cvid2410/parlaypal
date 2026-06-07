@@ -82,7 +82,7 @@ def test_devig_multi_3way_sums_to_one():
 
 def test_shin_devig_3way_oracle():
     # Independent iterative Shin solve for an asymmetric 1X2 [1.30, 5.50, 11.00]. Shin pulls
-    # the longshots down vs multiplicative — matching this (and NOT the multiplicative column)
+    # the longshots down vs multiplicative - matching this (and NOT the multiplicative column)
     # proves the joint n-way z-solve + input convention, not pairwise-plus-renorm.
     p = shin_devig({"home": 1.30, "draw": 5.50, "away": 11.00})
     assert p["home"] == pytest.approx(0.750905, abs=1e-5)
@@ -108,7 +108,7 @@ def test_shin_devig_no_overround_normalises():
 
 def test_shin_devig_never_returns_garbage_on_extreme_book():
     # Extreme favourite + large overround: the guard must return either valid probs that sum
-    # to 1, or {} (ungradable) — never a bisection-collapsed plausible-but-wrong vector.
+    # to 1, or {} (ungradable) - never a bisection-collapsed plausible-but-wrong vector.
     p = shin_devig({"home": 1.02, "draw": 40.0, "away": 40.0})
     assert p == {} or (
         sum(p.values()) == pytest.approx(1.0, abs=1e-9) and all(0 < v < 1 for v in p.values())

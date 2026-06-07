@@ -1,4 +1,4 @@
-"""odds_snapshots — the firehose. Partitioned by day on `ts` (see CLAUDE.md / shared.db).
+"""odds_snapshots - the firehose. Partitioned by day on `ts` (see CLAUDE.md / shared.db).
 
 The parent table is created with `PARTITION BY RANGE (ts)` in the Alembic migration; this
 ORM model maps the parent for inserts/queries (Postgres routes rows to the right child).

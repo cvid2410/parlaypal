@@ -55,7 +55,7 @@ async def settled_world():
             status="live",
         )
         s.add(sig)
-        # Closing Pinnacle market: a FULL 3-way h2h (home/draw/away) — settle requires the
+        # Closing Pinnacle market: a FULL 3-way h2h (home/draw/away) - settle requires the
         # complete selection set to devig (a 2-of-3 close would silently mis-grade). Shin on
         # 1.90 / 3.80 / 3.80 → home fair ≈ 0.5065 → fair closing decimal ≈ 1.974. We alerted
         # 2.35 (> 1.974) so we beat CLV on the devigged line.
@@ -150,7 +150,7 @@ async def test_clv_report_includes_league(settled_world):
 
 async def test_stale_live_signal_expires_fresh_stays():
     """A live signal older than the alert TTL becomes 'expired'; a fresh one stays 'live'.
-    Fixture kicks off in the future so neither is graded — isolates the TTL expiry."""
+    Fixture kicks off in the future so neither is graded - isolates the TTL expiry."""
     Session = get_sessionmaker()
     tag = uuid.uuid4().hex[:8]
     fid = f"test_fx_{tag}"
@@ -314,7 +314,7 @@ async def test_promo_graded_and_arb_reaches_terminal_state():
 
 
 async def test_incomplete_h2h_close_not_clv_graded():
-    """A 3-way h2h with only 2 of 3 sharp selections at close must NOT be CLV-graded — a
+    """A 3-way h2h with only 2 of 3 sharp selections at close must NOT be CLV-graded - a
     2-of-3 devig mangles the fair probs. Detection requires all three; grading now matches,
     so an incomplete close yields no grade row rather than a silently-wrong beat_clv."""
     Session = get_sessionmaker()

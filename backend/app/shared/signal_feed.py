@@ -2,7 +2,7 @@
 
 The Signals feed and the Leagues "N live" badge must show the SAME set, or they disagree
 (a count with no cards). They drifted once when the +EV gate (NON-NEGOTIABLE #2) was added
-to the feed but not the badge — so the gate predicate lives here, imported by both.
+to the feed but not the badge - so the gate predicate lives here, imported by both.
 
 Requires the query to already join Signal -> Fixture -> League.
 """
@@ -22,7 +22,7 @@ def user_facing_clause():
 
 def required_books(sig: Signal) -> list[str]:
     """Books a user must hold to act on this signal. EV/promo: the single offering book.
-    Arb/middle (book='multi'): every leg's book — you can't place the play without all legs.
+    Arb/middle (book='multi'): every leg's book - you can't place the play without all legs.
     Shared by fan-out (push routing) and the in-app feed so both apply the same per-user book
     filter. Empty result means "no book requirement"."""
     if sig.book and sig.book != "multi":
@@ -34,7 +34,7 @@ def required_books(sig: Signal) -> list[str]:
 
 def actionable_on(sig: Signal, user_books: set[str]) -> bool:
     """True if the user holds every book this signal requires (so they can actually place it).
-    A user with no books set (empty) is unfiltered — they see everything."""
+    A user with no books set (empty) is unfiltered - they see everything."""
     if not user_books:
         return True
     return set(required_books(sig)).issubset(user_books)

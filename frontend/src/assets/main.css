@@ -1,4 +1,4 @@
-/* Global resets and utilities — component styles are scoped */
+/* Global resets and utilities - component styles are scoped */
 
 /* Crisper text now that the real fonts load, and align the numbers across the
    odds/scores/standings columns (tabular figures). */
@@ -20,13 +20,13 @@ input, select {
   font: inherit;
 }
 
-/* Visible keyboard focus ring (dark theme — uses the brand green). Only shows for
+/* Visible keyboard focus ring (dark theme - uses the brand green). Only shows for
    keyboard/AT users via :focus-visible, so mouse clicks stay clean. */
 :focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }
-/* Kill the UA default (blue) outline on click/programmatic focus — e.g. the
+/* Kill the UA default (blue) outline on click/programmatic focus - e.g. the
    scrollable main panel grabbing focus on navigation. Keyboard focus keeps the
    green ring above. */
 :focus:not(:focus-visible) {
@@ -51,7 +51,7 @@ input, select {
   white-space: nowrap;
 }
 
-/* Skeleton loading — shimmer placeholder used while a view's data loads.
+/* Skeleton loading - shimmer placeholder used while a view's data loads.
    `.sk` is the block; size it with width/height (and border-radius) at the call site. */
 .sk {
   position: relative;

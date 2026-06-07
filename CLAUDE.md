@@ -1,4 +1,4 @@
-# CLAUDE.md — ParlayPal Signals
+# CLAUDE.md - ParlayPal Signals
 
 > Read this file at the start of every session. It is the source of truth for what we're
 > building, the stack, and the rules that must not drift. The phased work lives in
@@ -20,35 +20,35 @@ web/app layer bolted on. Architect around the stream, not the page.
 The +EV/arb category is crowded (OddsJam, Outlier, Bet Hero, Pikkit). We do **not** compete
 head-on. Our defensible wedge is the *intersection* of four things:
 
-1. **Soccer only** — go deep where generalists go wide.
-2. **The soft long tail** — Liga MX, Brazil Série A/B, J-League, Eredivisie, MLS,
+1. **Soccer only** - go deep where generalists go wide.
+2. **The soft long tail** - Liga MX, Brazil Série A/B, J-League, Eredivisie, MLS,
    Eliteserien, Allsvenskan/Superettan, La Liga 2, Chilean Primera, etc. A book's line is
    only as sharp as the money on it; obscure leagues are mispriced and slow. This is where
    the edge actually is.
    **Coverage constraint:** only seed leagues The Odds API actually carries (67 soccer
-   leagues — pull the live list from `GET /v4/sports?all=true`). **Liga Nacional de Honduras,
+   leagues - pull the live list from `GET /v4/sports?all=true`). **Liga Nacional de Honduras,
    the natural CONCACAF wedge, is NOT in The Odds API**, so it's deferred until a feed exists
-   (OpticOdds / a local book). Don't seed a league with no odds feed — it can't produce
+   (OpticOdds / a local book). Don't seed a league with no odds feed - it can't produce
    signals, only a dead row.
-3. **Owner domain knowledge** — deep CONCACAF / Central & South American football knowledge
+3. **Owner domain knowledge** - deep CONCACAF / Central & South American football knowledge
    that generalist tools' teams will never have.
-4. **Existing distribution** — parlaypal.gg already has a soccer audience and a
+4. **Existing distribution** - parlaypal.gg already has a soccer audience and a
    DK/FanDuel/BetMGM odds pipeline. Near-zero CAC.
 
-Positioning line: *"The only betting-edge tool built only for soccer — every league on
+Positioning line: *"The only betting-edge tool built only for soccer - every league on
 earth, all year, including the ones the big tools don't even cover."*
 
-**Hunt the soft long tail for classic +EV** — a soft book lagging the sharp price only
+**Hunt the soft long tail for classic +EV** - a soft book lagging the sharp price only
 happens where the money is thin. Do NOT try to out-cover OddsJam by claiming "+EV value
 bets" on big-5 / WC markets (EPL/La Liga/World Cup lines are sharp → no soft-book edge;
 faking one breaks NON-NEGOTIABLE #1/#2).
 
-**But big leagues + the World Cup still get signals — just the right *kind*.** Match the
+**But big leagues + the World Cup still get signals - just the right *kind*.** Match the
 signal type to the market sharpness:
 - **+EV (devig vs sharp):** soft leagues only.
 - **Arbitrage & middles (mechanical, guaranteed by math):** ALL leagues, incl. big-5 + WC.
   Big games have the most books → the most fleeting arbs. (Don't need the CLV gate.)
-- **Best price / line-shopping (informational, no edge claim):** every market, incl. WC —
+- **Best price / line-shopping (informational, no edge claim):** every market, incl. WC -
   and it's what the existing big-league/WC audience wants.
 - **Odds boosts / promos (book-subsidized, genuinely +EV):** best honest edge on big games;
   needs a promo data source.
@@ -59,9 +59,9 @@ signal type to the market sharpness:
 - **API:** FastAPI
 - **Workers / async jobs:** ARQ (Redis-backed)
 - **Cache / hot state / message bus:** Redis (hashes for latest odds, Redis Streams for the bus)
-- **Database:** PostgreSQL (RDS). `odds_snapshots` is high-volume time-series — partition by
+- **Database:** PostgreSQL (RDS). `odds_snapshots` is high-volume time-series - partition by
   day; TimescaleDB is a candidate later.
-- **Frontend:** Vue (the existing parlaypal frontend — evolve, don't rebuild)
+- **Frontend:** Vue (the existing parlaypal frontend - evolve, don't rebuild)
 - **Infra:** AWS ECS on EC2/Fargate, ElastiCache (Redis), RDS (Postgres), S3, all via
   CloudFormation.
 - **Payments:** Stripe
@@ -75,7 +75,7 @@ Run as separate ECS services so they scale independently:
 ## Reuse vs. build new
 
 **Reuse from existing parlaypal:** DK/FanDuel/BetMGM odds ingestion + normalization (the
-hardest part — already partly solved), the Vue frontend shell, auth, AWS/CFN setup.
+hardest part - already partly solved), the Vue frontend shell, auth, AWS/CFN setup.
 
 **Build new:** sharp-reference ingestion (Pinnacle via aggregator) + devig, the event-driven
 detection core, signal persistence + dedup, fan-out/routing + delivery, Stripe tiering,
@@ -97,13 +97,13 @@ Pinnacle*      workers         keys +           engine          by tier +       
                              history append]
 ```
 
-* Pinnacle does not operate in the regulated US market — obtain it via an odds aggregator
+* Pinnacle does not operate in the regulated US market - obtain it via an odds aggregator
   (The Odds API to start, OpticOdds/OddsJam-data later), or substitute Circa / sharp
   consensus as the reference.
 
 Everything is **event-driven**: an odds change is a message, not a row to poll for.
 
-## Data model (canonical entities — get this right early)
+## Data model (canonical entities - get this right early)
 
 ```sql
 leagues(id, name, country, sharp_ref_book, is_soft, model_enabled)
@@ -152,22 +152,22 @@ def kelly(true_prob, dec_odds, fraction=0.25):   # fractional Kelly for stake si
 
 ## NON-NEGOTIABLES (do not drift from these)
 
-1. **Compliance — template copy only, never an LLM in the live signal path.** All
+1. **Compliance - template copy only, never an LLM in the live signal path.** All
    user-facing signal explanations come from approved templates filled with computed values.
    No runtime LLM generation of betting advice. Never produce language implying certainty of
    winning ("guaranteed win", "lock", "can't lose") for an *individual* +EV bet. (Arbitrage
    may say "guaranteed profit" because it mathematically is.) The LLM belongs only in the
    offline variant-pool generator and the free-tier conversational "Ask" feature (scores /
-   standings / fixtures over our own data — never picks).
+   standings / fixtures over our own data - never picks).
 
 2. **CLV-gate before shipping a market.** Never ship a new league or market type to users
    until backtested signals in it demonstrably beat the closing line. If our "+EV" isn't
-   beating closing lines, our fair-prob is wrong — fix it before users lose money trusting us.
+   beating closing lines, our fair-prob is wrong - fix it before users lose money trusting us.
 
 3. **Emit only on meaningful change.** Diff each odds update against last-seen and threshold
    it. A 1-cent move must not recompute/re-alert. Use `SET nx ex` on a dedup hash
    (canon_event + market + selection + book + edge_bucket) keyed to the signal TTL so a
-   flapping line can't spam users — but re-alert if the edge materially improves.
+   flapping line can't spam users - but re-alert if the edge materially improves.
 
 4. **Idempotent delivery.** Record `alerts_sent` per (signal, user, channel). Never double-send.
 
@@ -184,7 +184,7 @@ def kelly(true_prob, dec_odds, fraction=0.25):   # fractional Kelly for stake si
 
 ## Tiers (product)
 
-- **Free:** soccer companion — live scores, fixtures, standings across all leagues +
+- **Free:** soccer companion - live scores, fixtures, standings across all leagues +
   conversational "Ask" + **delayed (≈12 min) signal *teasers*** (blurred/locked live cards,
   "won earlier" results visible). Signup required. Leaks no edge (scores aren't an edge).
 - **Bettor ($29/mo):** all value bets live, all leagues, stake calculator, filter by your books.
@@ -193,7 +193,7 @@ def kelly(true_prob, dec_odds, fraction=0.25):   # fractional Kelly for stake si
 Pricing rule: never price a tier above the edge its target bankroll can realistically clear,
 or users net-lose and churn angry. Free → $29 → $79 maps to growing bankroll.
 
-## v1 scope (ship this first — see BUILD_PLAN.md)
+## v1 scope (ship this first - see BUILD_PLAN.md)
 
 **IN:** pre-game value bets + arbs; devig against sharp reference (NO homegrown models yet);
 ~6–10 soft leagues the owner knows; Discord + email delivery; Stripe with paid gate;
