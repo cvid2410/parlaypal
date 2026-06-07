@@ -110,6 +110,9 @@ async def list_signals(
             )
             # Unified headline metric (ev edge / arb profit / middle upside all live in edge_pct).
             card["edge_pct"] = round(sig.edge_pct, 2)
+            # Off-market value: surface the consensus depth as a trust signal ("vs N books").
+            if sig.kind == "value":
+                card["consensus_books"] = (sig.meta or {}).get("n_books")
         else:
             # Redacted teaser — show that an edge exists, not what it is.
             label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(

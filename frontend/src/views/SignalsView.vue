@@ -86,7 +86,7 @@ interface Signal {
   id: number; kind: string; league: string; country: string; fixture: string
   age_seconds: number; locked: boolean; title?: string; body?: string
   pick?: string; book?: string; odds?: string; fair_odds?: string
-  edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number
+  edge_pct?: number; stake_pct?: number; profit_pct?: number; count?: number; consensus_books?: number
   home_logo?: string | null; away_logo?: string | null; fixture_id?: string
   ticket?: Ticket
 }
@@ -130,7 +130,8 @@ function pickLabel(s: Signal) {
   return s.pick || s.title || ''
 }
 function metricLabel(s: Signal) {
-  return ({ arb: 'locked profit', middle: 'middle upside', promo: 'boost edge', value: 'off-market edge' } as Record<string, string>)[s.kind] || 'your edge'
+  if (s.kind === 'value') return s.consensus_books ? `vs ${s.consensus_books} books` : 'off-market edge'
+  return ({ arb: 'locked profit', middle: 'middle upside', promo: 'boost edge' } as Record<string, string>)[s.kind] || 'your edge'
 }
 
 async function load() {
