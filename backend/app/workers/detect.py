@@ -55,7 +55,7 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
     started = time.perf_counter()
     r = get_redis()
     Session = get_sessionmaker()
-    stats = {"ev": 0, "arb": 0}
+    stats = {"ev": 0, "arb": 0, "value": 0}
 
     async with Session() as session:
         market = (
@@ -92,6 +92,7 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
             max_offered_odds=settings.max_offered_odds,
             max_edge_pct=settings.max_edge_pct,
             devig_method=settings.devig_method,
+            min_consensus_books=settings.min_consensus_books,
         )
 
         new_signals: list[Signal] = []
@@ -142,6 +143,7 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
         market_id=market_id,
         ev=stats["ev"],
         arb=stats["arb"],
+        value=stats["value"],
         lag_ms=round(lag_ms, 1),
     )
     return stats

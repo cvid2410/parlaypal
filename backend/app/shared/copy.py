@@ -106,6 +106,15 @@ _EV_TEMPLATES = [
     "an edge of about {edge}%. {stake}",
 ]
 
+_VALUE_TEMPLATES = [
+    "{pick} is off-market at {book}: {odds} versus a market-consensus fair of {fair_am} - "
+    "about {edge}% of value. The wider book market disagrees with {book} here. {stake}",
+    "{book} is out of line on {pick} - {odds} when the consensus of books implies {fair_am} "
+    "(~{edge}% edge). Confirm it's still up before you bet. {stake}",
+    "Value on {pick}: {book}'s {odds} beats the market-consensus fair ({fair_am}) by about "
+    "{edge}%. Over many such bets that gap is the edge. {stake}",
+]
+
 _PROMO_TEMPLATES = [
     "{book} boosted {pick} to {odds}. The fair price is {fair_am}, so the boost hands you "
     "about {edge}% of value the book is subsidizing. {stake}",
@@ -245,7 +254,7 @@ def explain(ctx: SignalCopyContext) -> dict:
     pick = selection_label(ctx.market_type, ctx.line, ctx.selection, ctx.home, ctx.away)
     odds_am = decimal_to_american(ctx.offered_decimal)
     fair_am = decimal_to_american(1 / ctx.fair_prob) if ctx.fair_prob > 0 else "n/a"
-    pool = _PROMO_TEMPLATES if ctx.kind == "promo" else _EV_TEMPLATES
+    pool = {"promo": _PROMO_TEMPLATES, "value": _VALUE_TEMPLATES}.get(ctx.kind, _EV_TEMPLATES)
     body = (
         _variant(pool, ctx.dedup_hash)
         .format(

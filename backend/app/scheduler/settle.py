@@ -100,7 +100,7 @@ async def settle_once() -> dict:
             # alert one selection at a posted price gradable against the sharp closing line.
             # Arb/middle are mechanical multi-leg signals with no single-selection outcome, so
             # they carry no grade row; they still reach a terminal state below.
-            if sig.kind in ("ev", "promo"):
+            if sig.kind in ("ev", "promo", "value"):
                 # `closing` is the no-vig fair closing decimal, so beat = our odds longer
                 # than fair (genuine positive CLV).
                 closing = await _closing_sharp_fair_decimal(

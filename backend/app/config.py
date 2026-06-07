@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # --- signals: detection ---
     # Minimum +EV edge (percent) before a signal is emitted.
     min_edge_pct: float = 2.0
+    # Off-market "value" detection (kind="value"): the de-vigged consensus of >= this many
+    # complete books is the fair reference. The gate is the HONESTY scope — "+EV vs market"
+    # only fires where the market is deep enough that the book crowd is actually sharp (big/
+    # liquid games), never on the thin tail where the consensus is noise (proven unreliable).
+    min_consensus_books: int = 6
     # Sanity bounds for +EV (a soft book vs the sharp fair). A soft-league value price lives
     # in roughly the 1.2–12 decimal range; anything longer is a suspended/placeholder quote
     # (e.g. The Odds API returns decimal ~101 for untradeable outcomes), not a real edge.
