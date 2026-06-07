@@ -114,6 +114,37 @@ async def test_ev_signal_dedup_and_improvement(scenario):
     assert len([x for x in await _signals(fid) if x.kind == "ev" and x.selection == "home"]) == 2
 
 
+async def test_signal_invalidated_when_edge_disappears(scenario):
+    """Event-driven invalidation: once the line moves and the edge is gone, the stale signal is
+    expired on the next detection (not left sitting out the 30-min TTL)."""
+    fid, mid = scenario
+    r = get_redis()
+    await _hot(
+        r,
+        fid,
+        mid,
+        {
+            "pinnacle:home": 1.8,
+            "pinnacle:draw": 3.6,
+            "pinnacle:away": 4.5,
+            "fanduel:home": 2.2,
+            "fanduel:draw": 3.5,
+            "fanduel:away": 3.4,
+        },
+    )
+    await detect_market({}, fid, mid)
+    live = [x for x in await _signals(fid) if x.selection == "home" and x.book == "fanduel"]
+    assert len(live) == 1 and live[0].status == "live"
+
+    # FanDuel corrects home down to ~fair → the +EV is gone. The move re-triggers detection,
+    # which must expire the now-untrue signal.
+    await r.hset(f"odds:{fid}:{mid}", "fanduel:home", "1.75")
+    await detect_market({}, fid, mid)
+    ev = [x for x in await _signals(fid) if x.selection == "home" and x.book == "fanduel"]
+    assert len(ev) == 1  # not deleted...
+    assert ev[0].status == "expired"  # ...just pulled from the live feed
+
+
 async def test_sharp_league_gets_arb_not_ev():
     """On a non-soft (big/sharp) league: arb still fires, but EV never does - even when a
     soft book looks mispriced vs Pinnacle."""

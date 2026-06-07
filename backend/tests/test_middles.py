@@ -51,7 +51,7 @@ async def totals_world():
     await r.hset(f"odds:{fid}:{m25}", mapping={"betmgm:under": 2.0, "betmgm:over": 1.8})
     await r.sadd(f"fxtotals:{fid}", m15, m25)
 
-    yield {"fid": fid}
+    yield {"fid": fid, "m15": m15, "m25": m25}
 
     async with Session() as s:
         await s.execute(delete(Signal).where(Signal.fixture_id == fid))
@@ -75,3 +75,24 @@ async def test_middle_detected(totals_world):
     assert middle.edge_pct == pytest.approx(100.0)  # free middle (s=1.0)
     assert middle.meta["window"] == [2]
     assert set(middle.meta["legs"]) == {"over", "under"}
+
+
+async def test_middle_invalidated_when_gap_closes(totals_world):
+    """Once a totals leg moves and the middle no longer exists, the stale middle is expired on
+    the next detection (not left sitting out the TTL)."""
+    fid, m25 = totals_world["fid"], totals_world["m25"]
+    r = get_redis()
+    await detect_middles({}, fid)
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(select(Signal).where(Signal.fixture_id == fid))).scalars().all()
+    live = [x for x in rows if x.kind == "middle"]
+    assert len(live) == 1 and live[0].status == "live"
+
+    # The Under 2.5 leg vanishes (book pulls it) → no middle exists. Re-detection expires it.
+    await r.hdel(f"odds:{fid}:{m25}", "betmgm:under")
+    await detect_middles({}, fid)
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(select(Signal).where(Signal.fixture_id == fid))).scalars().all()
+    mids = [x for x in rows if x.kind == "middle"]
+    assert len(mids) == 1
+    assert mids[0].status == "expired"
