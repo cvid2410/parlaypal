@@ -8,6 +8,10 @@
   "settings": {
     "language": "Language",
     "language_hint": "Choose the language for the app interface.",
+    "odds_title": "Odds format",
+    "odds_hint": "How odds are displayed across the app.",
+    "odds_american": "American (+150)",
+    "odds_decimal": "Decimal (2.50)",
     "books_title": "Your sportsbooks",
     "books_hint": "Pick the books you bet at. We'll only show plays you can actually place, and for an arbitrage you only see it if you hold every leg's book.",
     "books_note": "Leave all unticked to see every book.",

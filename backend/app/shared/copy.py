@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
-from app.shared.math import decimal_to_american
+from app.shared.math import format_odds
 
 RG_FOOTER = (
     "For entertainment, not financial advice. Bet responsibly - if it stops being fun, "
@@ -157,7 +157,9 @@ def _stake_value(kelly_frac: float, bankroll: float | None) -> str:
     return f"{pct:.1f}% of bankroll"
 
 
-def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict:
+def action_ticket(
+    ctx: SignalCopyContext, bankroll: float | None = None, odds_format: str = "american"
+) -> dict:
     """The discrete inputs a human copies into their sportsbook, as structured rows - the
     prose in `explain()` says *why*, this says *what to do*. Built from the same context so
     it stays template-only (NON-NEGOTIABLE #1); never implies certainty for a single +EV bet.
@@ -176,7 +178,7 @@ def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict
                 {
                     "book": book_label(leg["book"]),
                     "pick": pick,
-                    "odds": decimal_to_american(leg["decimal"]),
+                    "odds": format_odds(leg["decimal"], odds_format),
                     # The split is the input you can't execute an arb/middle without.
                     "stake": f"{leg['stake_frac'] * 100:.0f}% of total stake",
                 }
@@ -200,23 +202,28 @@ def action_ticket(ctx: SignalCopyContext, bankroll: float | None = None) -> dict
             {"label": "Book", "value": book_label(ctx.book)},
             {"label": verb, "value": pick},
             # "or better" - this is a floor; below it the edge is gone.
-            {"label": "Min odds", "value": f"{decimal_to_american(ctx.offered_decimal)} or better"},
+            {
+                "label": "Min odds",
+                "value": f"{format_odds(ctx.offered_decimal, odds_format)} or better",
+            },
             {"label": "Stake", "value": _stake_value(ctx.kelly_frac, bankroll)},
         ],
     }
 
 
-def explain(ctx: SignalCopyContext) -> dict:
+def explain(ctx: SignalCopyContext, odds_format: str = "american") -> dict:
     """Render a signal into {title, body, footer, fields} from approved templates."""
     if ctx.kind == "middle":
         legs = {leg["selection"]: leg for leg in ctx.legs}
         over, under = legs.get("over", {}), legs.get("under", {})
         win = ", ".join(str(n) for n in (ctx.window or []))
+        o_odds = format_odds(over.get("decimal", 2), odds_format)
+        u_odds = format_odds(under.get("decimal", 2), odds_format)
         body = (
             f"Middle on {ctx.fixture_label}: back Over {over.get('line')} @ "
-            f"{book_label(over.get('book', ''))} {decimal_to_american(over.get('decimal', 2))} and "
+            f"{book_label(over.get('book', ''))} {o_odds} and "
             f"Under {under.get('line')} @ {book_label(under.get('book', ''))} "
-            f"{decimal_to_american(under.get('decimal', 2))}. If the final total lands on "
+            f"{u_odds}. If the final total lands on "
             f"{win}, BOTH win (+{ctx.edge_pct:.1f}%) - otherwise it's a small, known cost."
         )
         return {
@@ -234,7 +241,7 @@ def explain(ctx: SignalCopyContext) -> dict:
     if ctx.kind == "arb":
         legs_txt = " · ".join(
             f"{selection_label(ctx.market_type, ctx.line, leg['selection'], ctx.home, ctx.away)} "
-            f"@ {book_label(leg['book'])} {decimal_to_american(leg['decimal'])} "
+            f"@ {book_label(leg['book'])} {format_odds(leg['decimal'], odds_format)} "
             f"(stake {leg['stake_frac'] * 100:.0f}%)"
             for leg in ctx.legs
         )
@@ -252,8 +259,8 @@ def explain(ctx: SignalCopyContext) -> dict:
 
     # ---- EV / promo (boost) - both are a single-book price vs a fair line ----
     pick = selection_label(ctx.market_type, ctx.line, ctx.selection, ctx.home, ctx.away)
-    odds_am = decimal_to_american(ctx.offered_decimal)
-    fair_am = decimal_to_american(1 / ctx.fair_prob) if ctx.fair_prob > 0 else "n/a"
+    odds_am = format_odds(ctx.offered_decimal, odds_format)
+    fair_am = format_odds(1 / ctx.fair_prob, odds_format) if ctx.fair_prob > 0 else "n/a"
     pool = {"promo": _PROMO_TEMPLATES, "value": _VALUE_TEMPLATES}.get(ctx.kind, _EV_TEMPLATES)
     body = (
         _variant(pool, ctx.dedup_hash)

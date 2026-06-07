@@ -18,6 +18,22 @@
       </div>
     </section>
 
+    <!-- Odds format -->
+    <section>
+      <div class="sect">{{ $t('settings.odds_title') }}</div>
+      <p class="hint">{{ $t('settings.odds_hint') }}</p>
+      <div class="chips">
+        <button
+          v-for="f in (['american', 'decimal'] as const)" :key="f"
+          class="chip" :class="{ on: oddsFormat === f }"
+          type="button" @click="setOdds(f)"
+        >
+          <span class="tick" aria-hidden="true">{{ oddsFormat === f ? '✓' : '+' }}</span>
+          {{ $t('settings.odds_' + f) }}
+        </button>
+      </div>
+    </section>
+
     <!-- Books -->
     <section>
       <div class="sect">{{ $t('settings.books_title') }}</div>
@@ -94,12 +110,14 @@ const { t, locale } = useI18n()
 const LANG_NAMES: Record<string, string> = { en: 'English', es: 'Español' }
 const langName = (l: string) => LANG_NAMES[l] ?? l
 function setLang(l: Locale) { setLocale(l) }
+function setOdds(f: 'american' | 'decimal') { oddsFormat.value = f; saved.value = false }
 
 const books = ref<Book[]>([])
 const leagues = ref<League[]>([])
 const selectedBooks = ref<Set<string>>(new Set())
 const selectedLeagues = ref<Set<number>>(new Set())
 const minEdge = ref<number>(0)
+const oddsFormat = ref<'american' | 'decimal'>('american')
 const loaded = ref(false)
 const saving = ref(false)
 const saved = ref(false)
@@ -126,6 +144,7 @@ async function load() {
     selectedBooks.value = new Set(p.books)
     selectedLeagues.value = new Set(p.leagues)
     minEdge.value = p.min_edge ?? 0
+    oddsFormat.value = p.odds_format ?? 'american'
     loaded.value = true
   } catch (e: any) { error.value = e.message }
 }
@@ -140,6 +159,7 @@ async function save() {
         books: [...selectedBooks.value],
         leagues: [...selectedLeagues.value],
         min_edge: Number(minEdge.value) || 0,
+        odds_format: oddsFormat.value,
       }),
     })
     const data = await res.json().catch(() => ({}))

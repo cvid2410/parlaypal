@@ -8,6 +8,10 @@
   "settings": {
     "language": "Idioma",
     "language_hint": "Elige el idioma de la interfaz de la app.",
+    "odds_title": "Formato de cuotas",
+    "odds_hint": "Cómo se muestran las cuotas en la app.",
+    "odds_american": "Americano (+150)",
+    "odds_decimal": "Decimal (2.50)",
     "books_title": "Tus casas de apuestas",
     "books_hint": "Elige las casas donde apuestas. Solo te mostraremos jugadas que realmente puedes colocar, y para un arbitraje solo lo verás si tienes la casa de cada parte.",
     "books_note": "Deja todo sin marcar para ver todas las casas.",

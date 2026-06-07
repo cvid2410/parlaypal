@@ -48,6 +48,7 @@ async def list_signals(
     # so a brand-new user still sees the full feed.
     sub = await db.get(Subscription, user.id)
     user_books = set(sub.books) if sub else set()
+    odds_fmt = sub.odds_format if sub else "american"
 
     # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
     # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated - they're
@@ -97,14 +98,14 @@ async def list_signals(
             "locked": not paid,
         }
         if paid:
-            copy = explain(ctx)
+            copy = explain(ctx, odds_fmt)
             card.update(
                 {
                     "title": copy["title"],
                     "body": copy["body"],
                     "footer": copy["footer"],
                     # Structured "Your bet" inputs (book/pick/min-odds/stake, or per-leg split).
-                    "ticket": action_ticket(ctx, user.bankroll),
+                    "ticket": action_ticket(ctx, user.bankroll, odds_fmt),
                     **copy["fields"],
                 }
             )

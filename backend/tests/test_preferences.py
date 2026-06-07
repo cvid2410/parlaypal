@@ -60,7 +60,7 @@ async def test_get_defaults_when_no_subscription(user):
     async with _client() as c:
         r = await c.get("/api/me/preferences", headers={"Authorization": f"Bearer {user['token']}"})
     assert r.status_code == 200
-    assert r.json() == {"leagues": [], "books": [], "min_edge": 0.0}
+    assert r.json() == {"leagues": [], "books": [], "min_edge": 0.0, "odds_format": "american"}
 
 
 async def test_put_upserts_and_indexes(user):

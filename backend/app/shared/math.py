@@ -18,6 +18,15 @@ def decimal_to_american(dec: float) -> str:
     return str(int(round(-100 / (dec - 1))))
 
 
+def format_odds(dec: float, odds_format: str = "american") -> str:
+    """Render decimal odds in the user's preferred display format. American is the US default;
+    decimal is what LatAm / Europe read (the i18n odds-format preference). Math stays in
+    decimal everywhere - this is display only."""
+    if odds_format == "decimal":
+        return f"{dec:.2f}"
+    return decimal_to_american(dec)
+
+
 def no_vig_prob(dec_a: float, dec_b: float) -> float:
     """Devig a 2-way market → true probability of side A.
 
