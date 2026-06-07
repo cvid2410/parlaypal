@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "signals": "Señales",
+    "scores": "Resultados",
+    "ask": "Preguntar",
+    "leagues": "Ligas"
+  },
+  "settings": {
+    "language": "Idioma",
+    "language_hint": "Elige el idioma de la interfaz de la app.",
+    "books_title": "Tus casas de apuestas",
+    "books_hint": "Elige las casas donde apuestas. Solo te mostraremos jugadas que realmente puedes colocar, y para un arbitraje solo lo verás si tienes la casa de cada parte.",
+    "books_note": "Deja todo sin marcar para ver todas las casas.",
+    "leagues_title": "Ligas",
+    "leagues_hint": "Limita tu feed y tus alertas a las ligas que te interesan.",
+    "leagues_note": "Deja todo sin marcar para ver todas las ligas.",
+    "soft": "blanda",
+    "min_edge_title": "Ventaja mínima",
+    "min_edge_hint": "Oculta todo lo que esté por debajo de esto. El % de EV, el % de ganancia de arbitraje y el margen del middle se miden igual.",
+    "save": "Guardar preferencias",
+    "saving": "Guardando...",
+    "saved": "Guardado",
+    "load_error": "No se pudieron cargar las preferencias",
+    "foot": "Los filtros se aplican a tu feed en vivo y a tus alertas. Para entretenimiento, no es asesoría financiera - 1-800-GAMBLER."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "signals": "Signals",
+    "scores": "Scores",
+    "ask": "Ask",
+    "leagues": "Leagues"
+  },
+  "settings": {
+    "language": "Language",
+    "language_hint": "Choose the language for the app interface.",
+    "books_title": "Your sportsbooks",
+    "books_hint": "Pick the books you bet at. We'll only show plays you can actually place, and for an arbitrage you only see it if you hold every leg's book.",
+    "books_note": "Leave all unticked to see every book.",
+    "leagues_title": "Leagues",
+    "leagues_hint": "Limit your feed and alerts to the leagues you care about.",
+    "leagues_note": "Leave all unticked to see every league.",
+    "soft": "soft",
+    "min_edge_title": "Minimum edge",
+    "min_edge_hint": "Hide anything below this. EV %, arb profit %, and middle upside are all measured the same way.",
+    "save": "Save preferences",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "load_error": "Failed to load preferences",
+    "foot": "Filters apply to your live feed and your alerts. For entertainment, not financial advice - 1-800-GAMBLER."
+  }
+}

@@ -5,7 +5,7 @@
       <div class="brand"><span class="mark" aria-hidden="true" /><span class="wm">Parlay<span class="g">Pal</span></span></div>
       <nav class="nav" aria-label="Primary">
         <RouterLink v-for="t in tabs" :key="t.name" :to="t.path" class="navitem">
-          <span class="ic" v-html="t.icon" aria-hidden="true" /> {{ t.label }}
+          <span class="ic" v-html="t.icon" aria-hidden="true" /> {{ $t('nav.' + t.name) }}
         </RouterLink>
       </nav>
       <div class="spacer" />
@@ -57,7 +57,7 @@
     <!-- bottom nav (mobile) -->
     <nav class="mobnav" aria-label="Primary">
       <RouterLink v-for="t in tabs" :key="t.name" :to="t.path">
-        <span class="ic" v-html="t.icon" aria-hidden="true" />{{ t.label }}
+        <span class="ic" v-html="t.icon" aria-hidden="true" />{{ $t('nav.' + t.name) }}
       </RouterLink>
     </nav>
 

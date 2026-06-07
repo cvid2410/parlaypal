@@ -2,11 +2,26 @@
   <div class="settings">
     <p v-if="error" class="err">{{ error }}</p>
 
+    <!-- Language -->
+    <section>
+      <div class="sect">{{ $t('settings.language') }}</div>
+      <p class="hint">{{ $t('settings.language_hint') }}</p>
+      <div class="chips">
+        <button
+          v-for="lng in SUPPORTED" :key="lng"
+          class="chip" :class="{ on: locale === lng }"
+          type="button" @click="setLang(lng)"
+        >
+          <span class="tick" aria-hidden="true">{{ locale === lng ? '✓' : '+' }}</span>
+          {{ langName(lng) }}
+        </button>
+      </div>
+    </section>
+
     <!-- Books -->
     <section>
-      <div class="sect">Your sportsbooks</div>
-      <p class="hint">Pick the books you bet at. We’ll only show plays you can actually place -
-        and for an arbitrage you only see it if you hold <em>every</em> leg’s book.</p>
+      <div class="sect">{{ $t('settings.books_title') }}</div>
+      <p class="hint">{{ $t('settings.books_hint') }}</p>
       <div class="chips">
         <button
           v-for="b in books" :key="b.key"
@@ -21,13 +36,13 @@
           {{ b.name }}
         </button>
       </div>
-      <p class="note">Leave all unticked to see every book.</p>
+      <p class="note">{{ $t('settings.books_note') }}</p>
     </section>
 
     <!-- Leagues -->
     <section>
-      <div class="sect">Leagues</div>
-      <p class="hint">Limit your feed and alerts to the leagues you care about.</p>
+      <div class="sect">{{ $t('settings.leagues_title') }}</div>
+      <p class="hint">{{ $t('settings.leagues_hint') }}</p>
       <div class="chips">
         <button
           v-for="l in leagues" :key="l.id"
@@ -35,17 +50,16 @@
           type="button" @click="toggle(selectedLeagues, l.id)"
         >
           <span class="tick" aria-hidden="true">{{ selectedLeagues.has(l.id) ? '✓' : '+' }}</span>
-          {{ l.name }}<span v-if="l.is_soft" class="soft">soft</span>
+          {{ l.name }}<span v-if="l.is_soft" class="soft">{{ $t('settings.soft') }}</span>
         </button>
       </div>
-      <p class="note">Leave all unticked to see every league.</p>
+      <p class="note">{{ $t('settings.leagues_note') }}</p>
     </section>
 
     <!-- Min edge -->
     <section>
-      <div class="sect">Minimum edge</div>
-      <p class="hint">Hide anything below this. EV %, arb profit %, and middle upside are all
-        measured the same way.</p>
+      <div class="sect">{{ $t('settings.min_edge_title') }}</div>
+      <p class="hint">{{ $t('settings.min_edge_hint') }}</p>
       <div class="edge">
         <input v-model.number="minEdge" type="number" min="0" step="0.5" inputmode="decimal" />
         <span class="pct">%</span>
@@ -54,26 +68,32 @@
 
     <div class="bar">
       <button class="save" type="button" :disabled="saving || !loaded" @click="save">
-        {{ saving ? 'Saving…' : 'Save preferences' }}
+        {{ saving ? $t('settings.saving') : $t('settings.save') }}
       </button>
-      <span v-if="saved" class="ok">Saved ✓</span>
+      <span v-if="saved" class="ok">{{ $t('settings.saved') }} ✓</span>
     </div>
 
-    <p class="foot">Filters apply to your live feed and your alerts. For entertainment,
-      not financial advice - 1-800-GAMBLER.</p>
+    <p class="foot">{{ $t('settings.foot') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { SUPPORTED, setLocale, type Locale } from '../i18n'
 
 interface Book { key: string; name: string; promo?: string; url?: string; category?: string }
 interface League { id: number; name: string; is_soft: boolean }
 
 const auth = useAuthStore()
 const router = useRouter()
+const { t, locale } = useI18n()
+
+const LANG_NAMES: Record<string, string> = { en: 'English', es: 'Español' }
+const langName = (l: string) => LANG_NAMES[l] ?? l
+function setLang(l: Locale) { setLocale(l) }
 
 const books = ref<Book[]>([])
 const leagues = ref<League[]>([])
@@ -99,7 +119,7 @@ async function load() {
       auth.authFetch('/me/preferences'),
     ])
     if ([cfg, lgs, prefs].some((r) => r.status === 401)) { router.push('/login'); return }
-    if (!cfg.ok || !lgs.ok || !prefs.ok) throw new Error('Failed to load preferences')
+    if (!cfg.ok || !lgs.ok || !prefs.ok) throw new Error(t('settings.load_error'))
     books.value = (await cfg.json()).books
     leagues.value = (await lgs.json()).leagues
     const p = await prefs.json()
