@@ -47,6 +47,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { dateLong, kickoffLong } from '../lib/datetime'
 
 interface Game { opponent: string; opponent_logo: string | null; home_away: string; league: string; kickoff: string; status: string; minute: number | null; team_score: number | null; opp_score: number | null }
 interface TeamData { team: { name: string | null; logo: string | null }; past: Game[]; upcoming: Game[] }
@@ -62,7 +63,7 @@ const last = ref(10)
 const next = ref(10)
 
 function ko(iso: string) {
-  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return kickoffLong(iso)
 }
 function result(g: Game) {
   if (g.team_score == null || g.opp_score == null) return ''
@@ -71,7 +72,7 @@ function result(g: Game) {
   return 'draw'
 }
 function scoreText(g: Game) {
-  if (g.team_score == null || g.opp_score == null) return new Date(g.kickoff).toLocaleDateString()
+  if (g.team_score == null || g.opp_score == null) return dateLong(g.kickoff)
   return `${g.team_score}-${g.opp_score}`
 }
 

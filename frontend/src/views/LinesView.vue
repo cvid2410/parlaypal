@@ -48,6 +48,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { kickoffLong } from '../lib/datetime'
 
 interface Book { book: string; odds: string }
 interface Sel { selection: string; label: string; best_book: string; best_odds: string; books: Book[] }
@@ -62,7 +63,7 @@ const data = ref<Board | null>(null)
 const error = ref('')
 
 function kickoff(iso: string) {
-  return new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  return kickoffLong(iso)
 }
 function marketName(m: M) {
   if (m.type === 'h2h') return t('lines.market_h2h')

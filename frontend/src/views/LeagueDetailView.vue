@@ -72,6 +72,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { kickoffLong } from '../lib/datetime'
 
 interface Row { rank: number; team: string; af_team_id: number | null; logo: string | null; points: number; played: number; win: number; draw: number; lose: number; gd: number; form: string | null }
 interface Standings { league: string; country: string; available: boolean; season?: number; groups: { group: string; rows: Row[] }[] }
@@ -87,7 +88,7 @@ const fixtures = ref<Fx[]>([])
 const error = ref('')
 
 function ko(iso: string) {
-  return new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  return kickoffLong(iso)
 }
 
 async function load() {
