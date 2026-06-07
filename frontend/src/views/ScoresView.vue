@@ -51,7 +51,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-interface M { league_id: number; league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string }
+interface M { league_id: number; league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string; venue: string | null; venue_city: string | null }
 interface Scores { live: M[]; upcoming: M[]; finished: M[]; off: M[] }
 
 const auth = useAuthStore()
@@ -85,6 +85,9 @@ const Match = (props: { m: M; label: string }) => {
     h('div', { class: 'meta' }, [h('span', `${m.league} · ${m.country}`), h('span', { class: 'm' }, label)]),
     team(m.home, m.home_score, w(m.home_score, m.away_score), m.home_logo),
     team(m.away, m.away_score, w(m.away_score, m.home_score), m.away_logo),
+    m.venue
+      ? h('div', { class: 'venue' }, `\u{1F4CD} ${m.venue}${m.venue_city ? ' · ' + m.venue_city : ''}`)
+      : null,
   ])
 }
 
@@ -118,6 +121,7 @@ onMounted(() => {
 :deep(.match + .match) { border-top: 1px solid var(--hair); }
 :deep(.match .meta) { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--txt-3); margin-bottom: 11px; font-weight: 500; }
 :deep(.match .meta .m) { font-family: 'Spline Sans Mono', monospace; color: var(--green); }
+:deep(.match .venue) { font-size: 11px; color: var(--txt-3); margin-top: 9px; }
 :deep(.trow) { display: flex; align-items: center; gap: 11px; padding: 4px 0; }
 :deep(.trow .dt) { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); display: inline-block; }
 :deep(.trow .crest) { width: 18px; height: 18px; object-fit: contain; }

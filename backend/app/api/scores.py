@@ -57,6 +57,10 @@ async def scores(
             "note": OFF.get(short),  # human label for off matches; None otherwise
             "minute": f["fixture"]["status"].get("elapsed"),
             "kickoff": f["fixture"]["date"],
+            # Stadium (esp. for the World Cup - neutral venues, altitude, host city). Already in
+            # the AF fixture payload; we just surface it.
+            "venue": (f["fixture"].get("venue") or {}).get("name"),
+            "venue_city": (f["fixture"].get("venue") or {}).get("city"),
         }
         {"live": live, "finished": finished, "off": off}.get(st, upcoming).append(item)
 
