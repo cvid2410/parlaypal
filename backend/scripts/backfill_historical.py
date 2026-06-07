@@ -238,6 +238,13 @@ async def main() -> None:
     )
     ap.add_argument("--markets", default=MARKETS, help=f"comma markets (default {MARKETS})")
     ap.add_argument(
+        "--books",
+        default="",
+        help="comma bookmaker keys to fetch (default: soft books + Pinnacle). Use this to "
+        "backfill a specific subset, e.g. the sharp exchanges for a CLV reference. Cost is "
+        "10 x markets x ceil(len(books)/10).",
+    )
+    ap.add_argument(
         "--match-day",
         action="store_true",
         help="discover kickoffs then sample only around games (recommended)",
@@ -308,7 +315,7 @@ async def main() -> None:
         if league is None:
             ap.error(f"league '{args.sport_key}' not seeded — add it to seed_leagues and re-run")
 
-        books = _combined_books()
+        books = args.books.strip() or _combined_books()
         last_price: dict[tuple, float] = {}
         ensured: set[date] = set()
         seen_ts: set[datetime] = set()
