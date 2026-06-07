@@ -97,7 +97,9 @@ const Match = (props: { m: M; label: string }) => {
 
 async function load() {
   try {
-    const res = await auth.authFetch('/scores')
+    // Send the browser's timezone so "today" is the user's local day, not UTC.
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    const res = await auth.authFetch(`/scores?tz=${encodeURIComponent(tz)}`)
     if (res.status === 401) { router.push('/login'); return }
     if (!res.ok) throw new Error(t('scores.load_error'))
     data.value = await res.json()

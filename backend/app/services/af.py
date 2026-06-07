@@ -4,6 +4,7 @@ and the Scores tab (no duplicate API spend)."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -19,9 +20,11 @@ LIVE = {"1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"}
 OFF = {"CANC": "Cancelled", "PST": "Postponed", "ABD": "Abandoned"}
 
 
-async def fixtures_by_date(date_str: str) -> list[dict]:
-    """Raw API-Football fixtures for a UTC date. Cached: today briefly, past dates long."""
-    key = f"afraw:{date_str}"
+async def fixtures_by_date(date_str: str, tz: str = "UTC") -> list[dict]:
+    """Raw API-Football fixtures for a calendar date in `tz` (IANA). Cached per date+tz: today
+    briefly, past dates long. tz lets the Scores tab use the USER's local day, not UTC - so a
+    game on a different UTC day doesn't show up under the wrong local 'today'."""
+    key = f"afraw:{date_str}:{tz}"
     cached = await get_cached(key)
     if cached is not None:
         return cached
@@ -31,11 +34,14 @@ async def fixtures_by_date(date_str: str) -> list[dict]:
         resp = await client.get(
             f"{AF_BASE}/fixtures",
             headers={"x-apisports-key": settings.api_football_key},
-            params={"date": date_str, "timezone": "UTC"},
+            params={"date": date_str, "timezone": tz},
         )
         resp.raise_for_status()
         raw = resp.json().get("response", [])
-    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    try:
+        today = datetime.now(ZoneInfo(tz)).strftime("%Y-%m-%d")
+    except Exception:
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
     # Don't pin an empty payload: a 200-with-[] is almost always a transient upstream blip
     # (a real past date with football is never empty), and caching it for a day would hide
     # those fixtures from the results resolver so their signals never get graded. Short TTL

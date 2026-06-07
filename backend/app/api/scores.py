@@ -6,7 +6,8 @@ No edge here (scores aren't an edge), so this is a free-tier surface.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 
 @router.get("")
 async def scores(
+    tz: str = "UTC",
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -32,8 +34,15 @@ async def scores(
         .scalars()
         .all()
     }
-    today = datetime.now(UTC).strftime("%Y-%m-%d")
-    raw = await fixtures_by_date(today)
+    # "Today" is the USER's local day, not UTC - otherwise a US user (UTC-5..-8) sees games
+    # from the wrong calendar day in their feed (a past/next-day game under "Today"). The client
+    # sends its IANA timezone; fall back to UTC if it's missing/invalid.
+    try:
+        zone = ZoneInfo(tz)
+    except Exception:
+        zone, tz = ZoneInfo("UTC"), "UTC"
+    today = datetime.now(zone).strftime("%Y-%m-%d")
+    raw = await fixtures_by_date(today, tz)
 
     live, upcoming, finished, off = [], [], [], []
     for f in raw:
