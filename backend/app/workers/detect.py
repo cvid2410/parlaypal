@@ -51,11 +51,19 @@ async def _alert_allowed(r, scope: str, bucket: int) -> bool:
     return True
 
 
+def _validity_key(kind: str, selection: str, book: str) -> tuple:
+    """Identity for 'is this exact edge still present'. Arb/middle are market-level (one per
+    market, defined by their legs); single bets (ev/value) are keyed by selection + book."""
+    if kind in ("arb", "middle"):
+        return (kind,)
+    return (kind, selection, book)
+
+
 async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
     started = time.perf_counter()
     r = get_redis()
     Session = get_sessionmaker()
-    stats = {"ev": 0, "arb": 0, "value": 0}
+    stats = {"ev": 0, "arb": 0, "value": 0, "expired": 0}
 
     async with Session() as session:
         market = (
@@ -95,6 +103,31 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
             min_consensus_books=settings.min_consensus_books,
         )
 
+        # Event-driven invalidation (real-time-ish removal, like OddsJam): a live signal on this
+        # market whose edge is no longer in the current opportunities is no longer true - the line
+        # moved and the price/edge is gone. Expire it now instead of letting it sit out the
+        # 30-min TTL. Arbs get pulled the moment a leg moves; single bets when the offering book's
+        # price falls below the edge threshold. (Middles are invalidated by detect_middles.)
+        valid_keys = {_validity_key(o.kind, o.selection, o.book) for o in opps}
+        live_now = (
+            (
+                await session.execute(
+                    select(Signal).where(
+                        Signal.fixture_id == fixture_id,
+                        Signal.market_id == market_id,
+                        Signal.status == "live",
+                        Signal.kind.in_(("ev", "value", "arb")),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for sig in live_now:
+            if _validity_key(sig.kind, sig.selection, sig.book) not in valid_keys:
+                sig.status = "expired"
+                stats["expired"] += 1
+
         new_signals: list[Signal] = []
         for opp in opps:
             if not await _alert_allowed(r, opp.scope, opp.bucket):
@@ -121,16 +154,18 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
         arq = ctx.get("redis") if isinstance(ctx, dict) else None
         if new_signals:
             session.add_all(new_signals)
+        # Commit if we created new signals OR expired stale ones (the invalidation above).
+        if new_signals or stats["expired"]:
             await session.commit()
-            for sig in new_signals:
-                emit(
-                    "signal.accepted",
-                    signal_id=sig.id,
-                    kind=sig.kind,
-                    edge_pct=round(sig.edge_pct, 3),
-                )
-                if arq is not None:
-                    await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
+        for sig in new_signals:
+            emit(
+                "signal.accepted",
+                signal_id=sig.id,
+                kind=sig.kind,
+                edge_pct=round(sig.edge_pct, 3),
+            )
+            if arq is not None:
+                await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
 
         # A totals move can create a cross-market middle - hand off to the middle detector.
         if market.type == "total" and arq is not None:
@@ -144,6 +179,7 @@ async def detect_market(ctx: dict, fixture_id: str, market_id: int) -> dict:
         ev=stats["ev"],
         arb=stats["arb"],
         value=stats["value"],
+        expired=stats["expired"],
         lag_ms=round(lag_ms, 1),
     )
     return stats
