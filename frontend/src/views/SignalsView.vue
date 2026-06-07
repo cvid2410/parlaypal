@@ -120,7 +120,7 @@ function ago(sec: number) {
   const m = Math.floor(sec / 60)
   return m < 60 ? `${m} min ago` : `${Math.floor(m / 60)}h ago`
 }
-const priced = (s: Signal) => s.kind === 'ev' || s.kind === 'promo'
+const priced = (s: Signal) => s.kind === 'ev' || s.kind === 'promo' || s.kind === 'value'
 function kindLabel(s: Signal) {
   return ({ arb: 'Arbitrage', middle: 'Middle', promo: 'Boost' } as Record<string, string>)[s.kind] || 'Value bet'
 }
@@ -130,7 +130,7 @@ function pickLabel(s: Signal) {
   return s.pick || s.title || ''
 }
 function metricLabel(s: Signal) {
-  return ({ arb: 'locked profit', middle: 'middle upside', promo: 'boost edge' } as Record<string, string>)[s.kind] || 'your edge'
+  return ({ arb: 'locked profit', middle: 'middle upside', promo: 'boost edge', value: 'off-market edge' } as Record<string, string>)[s.kind] || 'your edge'
 }
 
 async function load() {
@@ -177,12 +177,14 @@ onMounted(async () => {
 .sig.arb { --accent: var(--hair-2); }
 .sig.middle { --accent: #5cb3ff; }
 .sig.promo { --accent: #ffc94d; }
+.sig.value { --accent: #4fd1c5; }
 .top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 15px; }
 .kind { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 9px; border-radius: 100px; }
 .kind.ev { background: var(--green-dim); color: var(--green); }
 .kind.arb { background: var(--surface-2); color: var(--txt); border: 1px solid var(--hair-2); }
 .kind.middle { background: #0c2536; color: #5cb3ff; }
 .kind.promo { background: #3a2f08; color: #ffc94d; }
+.kind.value { background: #0c2b29; color: #4fd1c5; }
 .lg { font-size: 12px; color: var(--txt-3); }
 .reups { font-size: 9.5px; font-weight: 700; color: var(--green); border: 1px solid var(--green-dim); padding: 2px 6px; border-radius: 100px; }
 .ago { margin-left: auto; font-family: 'Spline Sans Mono', monospace; font-size: 12px; color: var(--txt-3); }
