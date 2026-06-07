@@ -27,7 +27,7 @@ log = logging.getLogger("middles")
 async def detect_middles(ctx: dict, fixture_id: str) -> dict:
     r = get_redis()
     Session = get_sessionmaker()
-    stats = {"middle": 0}
+    stats = {"middle": 0, "expired": 0}
 
     raw_mids = await r.smembers(f"fxtotals:{fixture_id}")
     mids = [int(m) for m in raw_mids]
@@ -55,6 +55,7 @@ async def detect_middles(ctx: dict, fixture_id: str) -> dict:
                 if line not in target or dec > target[line][1]:
                     target[line] = (book, dec)
 
+        valid_sels: set[str] = set()
         new_signals: list[Signal] = []
         for lo, (ob, od) in best_over.items():
             for lu, (ub, ud) in best_under.items():
@@ -63,6 +64,7 @@ async def detect_middles(ctx: dict, fixture_id: str) -> dict:
                 m = find_middle(od, lo, ud, lu)
                 if m is None or m["hold"] > settings.middle_max_hold:
                     continue
+                valid_sels.add(f"O{lo}/U{lu}")  # this O/U line pair is currently a valid middle
                 scope = f"middle:{fixture_id}:{lo}:{lu}"
                 bucket = _bucket(m["middle_pnl_pct"])
                 if not await _alert_allowed(r, scope, bucket):
@@ -106,19 +108,41 @@ async def detect_middles(ctx: dict, fixture_id: str) -> dict:
                 )
                 stats["middle"] += 1
 
+        # Event-driven invalidation (like detect_market): expire any live middle on this fixture
+        # whose O/U line pair is no longer a valid middle - a totals line moved and the gap
+        # closed, so it's no longer true. Keyed by the line-pair selection (O{lo}/U{lu}).
+        live_middles = (
+            (
+                await session.execute(
+                    select(Signal).where(
+                        Signal.fixture_id == fixture_id,
+                        Signal.kind == "middle",
+                        Signal.status == "live",
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for sig in live_middles:
+            if sig.selection not in valid_sels:
+                sig.status = "expired"
+                stats["expired"] += 1
+
         if new_signals:
             session.add_all(new_signals)
+        if new_signals or stats["expired"]:
             await session.commit()
-            arq = ctx.get("redis") if isinstance(ctx, dict) else None
-            for sig in new_signals:
-                emit(
-                    "signal.accepted",
-                    signal_id=sig.id,
-                    kind="middle",
-                    edge_pct=round(sig.edge_pct, 3),
-                )
-                if arq is not None:
-                    await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
+        arq = ctx.get("redis") if isinstance(ctx, dict) else None
+        for sig in new_signals:
+            emit(
+                "signal.accepted",
+                signal_id=sig.id,
+                kind="middle",
+                edge_pct=round(sig.edge_pct, 3),
+            )
+            if arq is not None:
+                await arq.enqueue_job("route_signal", sig.id, _job_id=f"route:{sig.id}")
 
-    emit("detect.middles", fixture_id=fixture_id, middle=stats["middle"])
+    emit("detect.middles", fixture_id=fixture_id, middle=stats["middle"], expired=stats["expired"])
     return stats
