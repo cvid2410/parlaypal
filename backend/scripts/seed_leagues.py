@@ -1,4 +1,4 @@
-"""Curation layer over the league set — the deliberate judgment calls the mechanical scripts
+"""Curation layer over the league set - the deliberate judgment calls the mechanical scripts
 can't make. Run it LAST in the league-setup chain:
 
     python -m scripts.sync_odds_api_leagues   # breadth: create every Odds API league (uncertified)
@@ -6,14 +6,14 @@ can't make. Run it LAST in the league-setup chain:
     python -m scripts.seed_leagues            # curation: this file
 
 This file owns ONLY the exceptions, and is the single source of truth for each:
-  * EV_CERTIFIED — leagues whose +EV reaches users. A league is certified only after the
+  * EV_CERTIFIED - leagues whose +EV reaches users. A league is certified only after the
     CLV backtest gate passes (NON-NEGOTIABLE #2). Authoritative: anything NOT in this set is
     forced ev_certified=False, so certification is fully reproducible from here and removing
     a key un-certifies it. (scripts.certify_league is for quick experiments; this is durable.)
-  * SHARP_OVERRIDE — leagues where sync's "domestic = soft" heuristic is wrong; force them
+  * SHARP_OVERRIDE - leagues where sync's "domestic = soft" heuristic is wrong; force them
     sharp (arb + best-price + scores only, no soft-book +EV edge).
-  * INGEST_DISABLED — leagues we deliberately don't poll for odds.
-  * NON_FEED — scores-only leagues The Odds API doesn't carry, so sync never creates them.
+  * INGEST_DISABLED - leagues we deliberately don't poll for odds.
+  * NON_FEED - scores-only leagues The Odds API doesn't carry, so sync never creates them.
 
 It does NOT create feed leagues (sync_odds_api_leagues does) or set af ids (match_af_ids does).
 """
@@ -32,7 +32,7 @@ EV_CERTIFIED: set[str] = {
     "soccer_sweden_superettan",
 }
 
-# sync marks every domestic league soft, but the big-5 are sharp *domestic* leagues — too
+# sync marks every domestic league soft, but the big-5 are sharp *domestic* leagues - too
 # liquid for any soft-book +EV edge (arb + best-price + scores only). The heuristic can't
 # tell them from a soft league (their keys carry no cup/tournament token), so pin them here.
 SHARP_OVERRIDE: set[str] = {
@@ -45,11 +45,11 @@ SHARP_OVERRIDE: set[str] = {
 
 # Leagues we deliberately don't poll for odds.
 INGEST_DISABLED: set[str] = {
-    "soccer_friendlies_international",  # no odds feed — scores-only
+    "soccer_friendlies_international",  # no odds feed - scores-only
 }
 
 # Scores-only leagues The Odds API doesn't carry, so sync can't create them.
-# (name, country, sport_key, af_league_id) — is_soft is moot (no odds), ingest stays off.
+# (name, country, sport_key, af_league_id) - is_soft is moot (no odds), ingest stays off.
 NON_FEED: list[tuple[str, str, str, int]] = [
     ("Friendlies", "World", "soccer_friendlies_international", 10),
 ]
@@ -87,7 +87,7 @@ async def main() -> None:
         for sport_key, lg in by_key.items():
             want_cert = sport_key in EV_CERTIFIED
             if want_cert and not lg.is_soft:  # can't have a soft-book +EV edge on a sharp league
-                print(f"WARNING: {lg.name} is is_soft=False — refusing to certify +EV.")
+                print(f"WARNING: {lg.name} is is_soft=False - refusing to certify +EV.")
                 want_cert = False
             if lg.ev_certified != want_cert:
                 lg.ev_certified = want_cert

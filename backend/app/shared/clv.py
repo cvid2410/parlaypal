@@ -15,7 +15,7 @@ from sqlalchemy import Integer, cast, func, select
 from app.models.core import Fixture, League
 from app.models.signals import Signal, SignalGrade
 
-# A league must beat closing on a meaningful sample — AND we must be statistically confident
+# A league must beat closing on a meaningful sample - AND we must be statistically confident
 # the *true* beat-rate clears the bar, not just the point estimate. A high observed beat-rate
 # on few signals (e.g. 21/36 = 58%) has a wide confidence interval that can sit below 52%;
 # certifying on the point estimate would greenlight underpowered leagues and users would bet

@@ -52,7 +52,7 @@ async def index_subscription(
 async def deindex_subscription(r, user_id: int, leagues: list[int], books: list[str]) -> None:
     """Remove a user from the given league/book routing sets. Call with the user's OLD
     leagues/books before re-indexing on a preferences change, so a book/league they dropped
-    stops routing to them (index_subscription only adds — it can't know what to remove)."""
+    stops routing to them (index_subscription only adds - it can't know what to remove)."""
     pipe = r.pipeline()
     for lid in leagues:
         pipe.srem(_league_key(lid), user_id)
@@ -64,7 +64,7 @@ async def deindex_subscription(r, user_id: int, leagues: list[int], books: list[
 async def eligible_users(r, league_id: int, books: list[str]) -> set[int]:
     """User ids that should see this signal: subscribed to the league AND to EVERY book the
     signal requires. Single-book signals (ev, promo) require the one offering book; cross-book
-    signals (arb, middle) require all leg books — a user missing any leg can't execute the play
+    signals (arb, middle) require all leg books - a user missing any leg can't execute the play
     (you can't lock an arb without every leg), so they don't get it. Intersecting league∩books
     keeps this off the full user table (NON-NEGOTIABLE #5). Empty `books` (shouldn't happen)
     falls back to league-only so a signal is never silently dropped to nobody."""

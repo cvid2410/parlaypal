@@ -81,6 +81,6 @@ async def test_boost_emits_promo_when_plus_ev(world):
 
 
 async def test_junk_boost_not_emitted(world):
-    # Boost home to only -200 (1.5 dec) — below fair → not +EV → skipped.
+    # Boost home to only -200 (1.5 dec) - below fair → not +EV → skipped.
     out = await inject_boost(world["fid"], "h2h", None, "home", "fanduel", -200)
     assert out["emitted"] is False

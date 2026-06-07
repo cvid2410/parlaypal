@@ -13,7 +13,7 @@ from app.services.cache import get_cached, set_cached
 AF_BASE = "https://v3.football.api-sports.io"
 FINISHED = {"FT", "AET", "PEN", "AWD", "WO"}
 LIVE = {"1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP"}
-# Matches that won't be played — these must NOT fall through to "scheduled" (which would
+# Matches that won't be played - these must NOT fall through to "scheduled" (which would
 # park a cancelled game in the Upcoming column with a future-looking kickoff time). The
 # value is the human label shown on the Scores tab.
 OFF = {"CANC": "Cancelled", "PST": "Postponed", "ABD": "Abandoned"}
@@ -84,7 +84,7 @@ async def current_season(af_league_id: int) -> int | None:
 
 async def team_fixtures(af_team_id: int, last_n: int = 10, next_n: int = 10) -> dict:
     """A team's recent + upcoming fixtures across all competitions. Two cached calls:
-    past (`last` N — stable, longer TTL) and upcoming (`next` M — shorter TTL). Returns the
+    past (`last` N - stable, longer TTL) and upcoming (`next` M - shorter TTL). Returns the
     raw API-Football fixture lists under {"past": [...], "upcoming": [...]}."""
     out: dict[str, list[dict]] = {"past": [], "upcoming": []}
     if not settings.api_football_key:
@@ -111,7 +111,7 @@ async def team_fixtures(af_team_id: int, last_n: int = 10, next_n: int = 10) -> 
 
 
 async def league_fixtures(af_league_id: int, next_n: int = 20) -> list[dict]:
-    """A league's next N fixtures (full schedule, every team) from API-Football — independent
+    """A league's next N fixtures (full schedule, every team) from API-Football - independent
     of whether we price them. Cached short (the schedule shifts as games kick off)."""
     if not settings.api_football_key:
         return []
@@ -132,7 +132,7 @@ async def league_fixtures(af_league_id: int, next_n: int = 20) -> list[dict]:
 
 
 async def standings(af_league_id: int, season: int) -> list[dict]:
-    """League table groups. Returns [{group, rows:[...]}] — one entry per table
+    """League table groups. Returns [{group, rows:[...]}] - one entry per table
     (most leagues have one; MLS-style leagues have a group per conference)."""
     key = f"afstand:{af_league_id}:{season}"
     cached = await get_cached(key)
@@ -169,6 +169,6 @@ async def standings(af_league_id: int, season: int) -> list[dict]:
             ]
             groups.append({"group": table[0].get("group") if table else "", "rows": rows})
     # As with fixtures_by_date: a transient empty standings response shouldn't pin "no table"
-    # for 10 minutes — cache empties briefly so the next request recovers.
+    # for 10 minutes - cache empties briefly so the next request recovers.
     await set_cached(key, groups, ttl=600 if groups else 60)
     return groups

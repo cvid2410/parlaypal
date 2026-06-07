@@ -1,6 +1,6 @@
 <template>
   <div class="ld">
-    <RouterLink to="/leagues" class="back">← All leagues</RouterLink>
+    <RouterLink to="/leagues" class="back">← {{ $t('common.all_leagues') }}</RouterLink>
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
@@ -10,7 +10,7 @@
       </div>
 
       <template v-if="fixtures.length">
-        <div class="sect">Upcoming</div>
+        <div class="sect">{{ $t('common.upcoming') }}</div>
         <div class="fxlist">
           <div v-for="(fx, i) in fixtures" :key="i" class="fxrow">
             <span class="t">
@@ -23,21 +23,21 @@
               <template v-else><img v-if="fx.away_logo" :src="fx.away_logo" class="crest" alt="" />{{ fx.away }}</template>
             </span>
             <span class="ko">{{ ko(fx.kickoff) }}</span>
-            <RouterLink v-if="fx.fixture_id" :to="`/lines/${fx.fixture_id}`" class="odds">Odds ›</RouterLink>
-            <span v-else class="odds dis">—</span>
+            <RouterLink v-if="fx.fixture_id" :to="`/lines/${fx.fixture_id}`" class="odds">{{ $t('ld.odds') }}</RouterLink>
+            <span v-else class="odds dis">-</span>
           </div>
         </div>
       </template>
 
-      <div v-if="data.available || data.groups.length" class="sect">Table</div>
-      <p v-if="!data.available" class="empty">Standings aren't available for this league yet.</p>
+      <div v-if="data.available || data.groups.length" class="sect">{{ $t('ld.table') }}</div>
+      <p v-if="!data.available" class="empty">{{ $t('ld.no_standings') }}</p>
 
       <div v-for="(g, gi) in data.groups" :key="gi" class="table">
         <div v-if="g.group && data.groups.length > 1" class="gname">{{ g.group }}</div>
         <div class="thead">
-          <span class="r">#</span><span class="t">Team</span>
-          <span class="n">P</span><span class="n hide-s">W</span><span class="n hide-s">D</span><span class="n hide-s">L</span>
-          <span class="n">GD</span><span class="n pts">Pts</span>
+          <span class="r">#</span><span class="t">{{ $t('ld.team_col') }}</span>
+          <span class="n">{{ $t('ld.col_p') }}</span><span class="n hide-s">{{ $t('ld.col_w') }}</span><span class="n hide-s">{{ $t('ld.col_d') }}</span><span class="n hide-s">{{ $t('ld.col_l') }}</span>
+          <span class="n">{{ $t('ld.col_gd') }}</span><span class="n pts">{{ $t('ld.col_pts') }}</span>
         </div>
         <div v-for="row in g.rows" :key="row.rank" class="trow" :class="{ top: row.rank <= 4 }">
           <span class="r">{{ row.rank }}</span>
@@ -69,8 +69,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { kickoffLong } from '../lib/datetime'
 
 interface Row { rank: number; team: string; af_team_id: number | null; logo: string | null; points: number; played: number; win: number; draw: number; lose: number; gd: number; form: string | null }
 interface Standings { league: string; country: string; available: boolean; season?: number; groups: { group: string; rows: Row[] }[] }
@@ -79,13 +81,14 @@ interface Fx { home: string; home_logo: string | null; home_af_id: number | null
 
 const auth = useAuthStore()
 const route = useRoute()
+const { t } = useI18n()
 const router = useRouter()
 const data = ref<Standings | null>(null)
 const fixtures = ref<Fx[]>([])
 const error = ref('')
 
 function ko(iso: string) {
-  return new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  return kickoffLong(iso)
 }
 
 async function load() {
@@ -95,7 +98,7 @@ async function load() {
       auth.authFetch(`/leagues/${route.params.id}/schedule`),
     ])
     if (st.status === 401) { router.push('/login'); return }
-    if (!st.ok) throw new Error('Failed to load standings')
+    if (!st.ok) throw new Error(t('ld.load_error'))
     data.value = await st.json()
     if (fx.ok) fixtures.value = (await fx.json()).fixtures
   } catch (e: any) { error.value = e.message }

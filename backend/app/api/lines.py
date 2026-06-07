@@ -1,7 +1,7 @@
 """Line-shopping / odds board.
 
 For any fixture we're tracking, show the best available price per market+selection across
-books (and the full per-book breakdown). No edge claim — just "where's the best number" —
+books (and the full per-book breakdown). No edge claim - just "where's the best number" -
 so it works on every league, including big-5 + the World Cup where there's no signal.
 """
 
@@ -17,13 +17,13 @@ from sqlalchemy.orm import aliased
 
 from app.api.auth import get_current_user
 from app.models.core import Fixture, League, Market, Team
-from app.models.users import User
+from app.models.users import Subscription, User
 from app.services.af import league_fixtures as af_league_fixtures
 from app.services.af import status_of
 from app.services.cache import get_redis
 from app.shared.copy import book_label, selection_label
 from app.shared.db import get_db
-from app.shared.math import decimal_to_american
+from app.shared.math import format_odds
 from app.shared.normalize import norm_team
 
 router = APIRouter(tags=["lines"])
@@ -36,6 +36,8 @@ async def lines(
     fx = await db.get(Fixture, fixture_id)
     if fx is None:
         raise HTTPException(status_code=404, detail="Fixture not found")
+    sub = await db.get(Subscription, user.id)
+    odds_fmt = sub.odds_format if sub else "american"
     league = await db.get(League, fx.league_id)
     home = await db.get(Team, fx.home_id)
     away = await db.get(Team, fx.away_id)
@@ -71,9 +73,9 @@ async def lines(
                     "selection": sel,
                     "label": selection_label(m.type, m.line, sel, home.name, away.name),
                     "best_book": book_label(best_book),
-                    "best_odds": decimal_to_american(best_dec),
+                    "best_odds": format_odds(best_dec, odds_fmt),
                     "books": [
-                        {"book": book_label(b), "odds": decimal_to_american(d)} for b, d in books
+                        {"book": book_label(b), "odds": format_odds(d, odds_fmt)} for b, d in books
                     ],
                 }
             )

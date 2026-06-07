@@ -1,4 +1,4 @@
-"""GET /api/leagues — league list + live signal counts. Requires Postgres + Redis."""
+"""GET /api/leagues - league list + live signal counts. Requires Postgres + Redis."""
 
 import datetime as dt
 import uuid

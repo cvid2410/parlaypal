@@ -1,7 +1,7 @@
 """Odds boosts / promos (kind='promo').
 
 A boost is a book-subsidized price that can be genuinely +EV even on a sharp market. The
-Odds API doesn't carry boosts, so there's no auto-source yet — this is the path + a manual
+Odds API doesn't carry boosts, so there's no auto-source yet - this is the path + a manual
 injection entry point (a feed or admin UI plugs in here later). Given a boosted price we
 compute the fair probability from current hot state (devig Pinnacle, else book consensus)
 and emit a promo signal when it's +EV.
@@ -31,15 +31,15 @@ def _fair_from_hotstate(
 ) -> dict[str, float]:
     """Fair prob per selection: devig the sharp reference if present, else the book consensus.
 
-    Uses the league's `sharp_ref_book` and the configured devig `method` — the SAME fair line
-    EV/arb and the CLV gate use — so a promo's edge isn't measured against a different (or
+    Uses the league's `sharp_ref_book` and the configured devig `method` - the SAME fair line
+    EV/arb and the CLV gate use - so a promo's edge isn't measured against a different (or
     absent) reference than everything else in the pipeline.
     """
     sharp = by_book.get(sharp_book)
     if sharp and len(sharp) >= 2:
         return devig(sharp, method)
-    # Consensus fallback: the (still vigged) consensus decimal per selection — the harmonic
-    # mean of decimals == 1 / mean implied prob — then devig with the same method, rather than
+    # Consensus fallback: the (still vigged) consensus decimal per selection - the harmonic
+    # mean of decimals == 1 / mean implied prob - then devig with the same method, rather than
     # hand-rolling a proportional normalisation that silently pins the method to multiplicative.
     dec_by_sel: dict[str, list[float]] = defaultdict(list)
     for sels in by_book.values():

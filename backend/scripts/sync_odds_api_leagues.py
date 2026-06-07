@@ -3,13 +3,13 @@
 Adds every soccer league the feed carries that isn't seeded yet, so our coverage == the
 feed's coverage (re-run whenever The Odds API adds leagues). Design rules:
 
-  * New leagues come in **ev_certified=False** — +EV reaches users only after the CLV gate
+  * New leagues come in **ev_certified=False** - +EV reaches users only after the CLV gate
     passes (NON-NEGOTIABLE #2). This script never certifies anything.
   * **is_soft heuristic:** a domestic league is a soft +EV target; continental/international
     tournaments and cups are sharp (arb + best-price + scores only, no soft-book edge).
-  * **Outright/futures-only entries are skipped** (has_outrights=True) — our detection is
+  * **Outright/futures-only entries are skipped** (has_outrights=True) - our detection is
     match-based (h2h/totals); a futures market would be a dead row.
-  * **af_league_id=None** for new rows — the API-Football id (Scores/Standings) is a manual
+  * **af_league_id=None** for new rows - the API-Football id (Scores/Standings) is a manual
     follow-up; odds ingestion + arb work without it.
   * Existing rows are left fully untouched (names, af ids, is_soft, ev_certified preserved).
 
@@ -140,7 +140,7 @@ async def main() -> None:
         new = [s for s in sorted(soccer, key=lambda x: x["key"]) if s["key"] not in have]
 
         if not new:
-            print(f"Up to date — all {len(soccer)} match-market soccer leagues already seeded.")
+            print(f"Up to date - all {len(soccer)} match-market soccer leagues already seeded.")
             return
 
         print(f"{len(new)} new league(s) to add (of {len(soccer)} match-market soccer leagues):\n")

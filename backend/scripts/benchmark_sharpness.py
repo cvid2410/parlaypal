@@ -14,7 +14,7 @@ Operationalised per league on backtested h2h (1X2) data we already have:
     significantly sharper ⇒ Pinnacle moves informatively here ⇒ SHARP. Also report movement
     toward the winner (close_p[winner] - open_p[winner]) and absolute Brier for context.
 
-Verdict: SHARP (t>1.65, n>=30) · NOT-SHARP (t<-1.65) · INDETERMINATE (otherwise / thin) — and
+Verdict: SHARP (t>1.65, n>=30) · NOT-SHARP (t<-1.65) · INDETERMINATE (otherwise / thin) - and
 INDETERMINATE ≡ no-serve (can't distinguish a sharp open from no money ever arriving).
 
 Run from backend/:  python -m scripts.benchmark_sharpness
@@ -71,7 +71,7 @@ async def main() -> None:
             print("no scored soft fixtures")
             return
 
-        # All Pinnacle h2h snapshots for those fixtures (batched IN-lists, no SQL sort — we
+        # All Pinnacle h2h snapshots for those fixtures (batched IN-lists, no SQL sort - we
         # sort per fixture in Python; a global ORDER BY over the firehose exhausts /dev/shm).
         fids = list(fx_meta)
         rows = []

@@ -3,7 +3,7 @@
 Walks a date grid for one league and reuses the LIVE ingestor's canonical mapping and the
 same meaningful-move change-gate, writing OddsSnapshot rows stamped at their *historical*
 timestamp. This feeds the detection replay + the CLV gate (NON-NEGOTIABLE #2) WITHOUT
-waiting weeks to accumulate live history — qualify a soft league before it ships.
+waiting weeks to accumulate live history - qualify a soft league before it ships.
 
 Cost: historical calls bill 10x (10 x markets x regions). One call returns the whole
 league at that timestamp, so cost scales with grid points, not fixtures. The real spend is
@@ -24,7 +24,7 @@ Run from backend/:
   # uniform
   python -m scripts.backfill_historical --sport-key soccer_mexico_ligamx \
       --start 2026-03-01 --end 2026-04-15 --stride-min 30
-  # match-day (recommended) — discover games daily, sample 6h before each kickoff
+  # match-day (recommended) - discover games daily, sample 6h before each kickoff
   python -m scripts.backfill_historical --sport-key soccer_mexico_ligamx \
       --start 2026-03-01 --end 2026-04-15 --match-day --stride-min 20 --pre-hours 6
   # estimate first, spending nothing:
@@ -191,7 +191,7 @@ async def _discover(client, sport_key, books, markets, start, end, stride_hours)
             payload, headers = await _fetch_historical(client, sport_key, books, markets, when)
         except httpx.HTTPStatusError as exc:
             log.warning(
-                "  discover [%s] HTTP %s — skipped",
+                "  discover [%s] HTTP %s - skipped",
                 when.strftime("%Y-%m-%d %H:%M"),
                 exc.response.status_code,
             )
@@ -237,6 +237,13 @@ async def main() -> None:
         help="minutes between snapshots (coarse = cheaper; default 30)",
     )
     ap.add_argument("--markets", default=MARKETS, help=f"comma markets (default {MARKETS})")
+    ap.add_argument(
+        "--books",
+        default="",
+        help="comma bookmaker keys to fetch (default: soft books + Pinnacle). Use this to "
+        "backfill a specific subset, e.g. the sharp exchanges for a CLV reference. Cost is "
+        "10 x markets x ceil(len(books)/10).",
+    )
     ap.add_argument(
         "--match-day",
         action="store_true",
@@ -306,9 +313,9 @@ async def main() -> None:
             await session.execute(select(League).where(League.sport_key == args.sport_key))
         ).scalar_one_or_none()
         if league is None:
-            ap.error(f"league '{args.sport_key}' not seeded — add it to seed_leagues and re-run")
+            ap.error(f"league '{args.sport_key}' not seeded - add it to seed_leagues and re-run")
 
-        books = _combined_books()
+        books = args.books.strip() or _combined_books()
         last_price: dict[tuple, float] = {}
         ensured: set[date] = set()
         seen_ts: set[datetime] = set()
@@ -348,12 +355,12 @@ async def main() -> None:
                     except httpx.HTTPStatusError as exc:
                         errors += 1
                         log.warning(
-                            "  [%s] HTTP %s — skipped",
+                            "  [%s] HTTP %s - skipped",
                             rt.strftime("%Y-%m-%d %H:%M"),
                             exc.response.status_code,
                         )
                         if errors >= 5 and calls == 0:
-                            ap.error("first 5 calls all failed — check key/plan/coverage; aborting")
+                            ap.error("first 5 calls all failed - check key/plan/coverage; aborting")
                         continue
                     calls += 1
 

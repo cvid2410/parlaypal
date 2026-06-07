@@ -24,9 +24,9 @@ async def list_leagues(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    # Count only fresh live signals — the same window AND the same user-facing gate the
+    # Count only fresh live signals - the same window AND the same user-facing gate the
     # Signals feed uses, so the two screens agree (no counting uncertified +EV the feed
-    # hides — NON-NEGOTIABLE #2; and an old 'live' row for an upcoming game isn't "live now").
+    # hides - NON-NEGOTIABLE #2; and an old 'live' row for an upcoming game isn't "live now").
     cutoff = datetime.now(UTC) - timedelta(seconds=settings.signal_ttl_seconds)
     live_counts = (
         select(Fixture.league_id, func.count(Signal.id).label("c"))

@@ -1,4 +1,4 @@
-"""status_of must bucket API-Football status codes correctly — in particular, matches that
+"""status_of must bucket API-Football status codes correctly - in particular, matches that
 won't be played (CANC/PST/ABD) must NOT fall through to 'scheduled', which would park a
 cancelled game in the Scores 'Upcoming' column with a future-looking kickoff time."""
 

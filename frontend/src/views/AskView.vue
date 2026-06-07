@@ -2,28 +2,28 @@
   <div class="ask">
     <div class="inner">
       <div class="chat">
-        <div class="msg a">Hey 👋 I'm your soccer guy - soon you'll be able to ask me about any match, team, or table across every league we cover.</div>
-        <div class="msg a">I'll answer from our own scores, fixtures and standings. I'll never give you a pick - that's what <b>Signals</b> is for.</div>
+        <div class="msg a">{{ $t('ask.msg1') }}</div>
+        <div class="msg a">{{ $t('ask.msg2_a') }}<b>{{ $t('nav.signals') }}</b>{{ $t('ask.msg2_b') }}</div>
       </div>
 
       <div class="soon">
         <div class="ic" aria-hidden="true">💬</div>
-        <div class="t">Ask is coming soon</div>
-        <p>A free conversational companion over our data. In the meantime, check live <RouterLink to="/scores">Scores</RouterLink> and the <RouterLink to="/leagues">Leagues</RouterLink> we cover.</p>
+        <div class="t">{{ $t('ask.soon_title') }}</div>
+        <p>{{ $t('ask.soon_a') }}<RouterLink to="/scores">{{ $t('nav.scores') }}</RouterLink>{{ $t('ask.soon_mid') }}<RouterLink to="/leagues">{{ $t('nav.leagues') }}</RouterLink>{{ $t('ask.soon_b') }}</p>
       </div>
 
       <div class="examples">
-        <span class="lbl">You'll be able to ask</span>
+        <span class="lbl">{{ $t('ask.examples_label') }}</span>
         <div class="chips">
-          <span class="chip">La Liga standings</span>
-          <span class="chip">Any live scores?</span>
-          <span class="chip">Motagua next game</span>
+          <span class="chip">{{ $t('ask.ex1') }}</span>
+          <span class="chip">{{ $t('ask.ex2') }}</span>
+          <span class="chip">{{ $t('ask.ex3') }}</span>
         </div>
       </div>
 
       <!-- disabled preview of the composer, to make the page feel like the real thing -->
       <div class="composer" aria-hidden="true">
-        <span class="ph">Ask anything about soccer…</span>
+        <span class="ph">{{ $t('ask.placeholder') }}</span>
         <span class="send">→</span>
       </div>
     </div>

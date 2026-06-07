@@ -2,7 +2,7 @@
 
 We only resolve fixtures that (a) have at least one of our signals (don't spend API calls
 otherwise), (b) have kicked off, and (c) aren't scored yet. Results are matched by
-(normalized home, normalized away) on the kickoff date — one API-Football call per date
+(normalized home, normalized away) on the kickoff date - one API-Football call per date
 covers every league that day, so no per-league id/season mapping is needed. Long-unmatched
 fixtures land in review_queue for manual aliasing.
 """

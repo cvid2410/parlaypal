@@ -3,17 +3,17 @@
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
-      <p v-if="allEmpty" class="empty">No fixtures in your leagues today.</p>
+      <p v-if="allEmpty" class="empty">{{ $t('scores.empty') }}</p>
       <div v-else class="cols">
         <!-- left: what's happening / happened -->
         <div class="col">
           <div class="panel">
-            <div class="ph"><span class="d" aria-hidden="true" /> Live now</div>
-            <div v-if="!data.live.length" class="pe">No live matches in your leagues.</div>
-            <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : 'LIVE'" />
+            <div class="ph"><span class="d" aria-hidden="true" /> {{ $t('scores.live_now') }}</div>
+            <div v-if="!data.live.length" class="pe">{{ $t('scores.no_live') }}</div>
+            <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : $t('scores.live_label')" />
           </div>
           <div v-if="data.finished.length" class="panel">
-            <div class="ph">Finished today</div>
+            <div class="ph">{{ $t('scores.finished_today') }}</div>
             <Match v-for="(m, i) in data.finished" :key="'f' + i" :m="m" label="FT" />
           </div>
         </div>
@@ -21,13 +21,13 @@
         <!-- right: what's next / off -->
         <div class="col">
           <div class="panel">
-            <div class="ph">Today · upcoming</div>
-            <div v-if="!data.upcoming.length" class="pe">Nothing left to kick off today.</div>
+            <div class="ph">{{ $t('scores.today_upcoming') }}</div>
+            <div v-if="!data.upcoming.length" class="pe">{{ $t('scores.nothing_upcoming') }}</div>
             <Match v-for="(m, i) in data.upcoming" :key="'u' + i" :m="m" :label="time(m.kickoff)" />
           </div>
           <div v-if="data.off && data.off.length" class="panel off">
-            <div class="ph">Cancelled · postponed</div>
-            <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || 'Off').toUpperCase()" />
+            <div class="ph">{{ $t('scores.cancelled') }}</div>
+            <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || $t('scores.off_label')).toUpperCase()" />
           </div>
         </div>
       </div>
@@ -47,14 +47,17 @@
 
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { timeShort } from '../lib/datetime'
 
-interface M { league_id: number; league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string }
+interface M { league_id: number; league: string; country: string; home: string; away: string; home_logo: string | null; away_logo: string | null; home_score: number | null; away_score: number | null; status: string; note: string | null; minute: number | null; kickoff: string; venue: string | null; venue_city: string | null }
 interface Scores { live: M[]; upcoming: M[]; finished: M[]; off: M[] }
 
 const auth = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const data = ref<Scores | null>(null)
 const error = ref('')
 
@@ -64,7 +67,7 @@ const allEmpty = computed(() => {
 })
 
 function time(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return timeShort(iso)
 }
 
 const Match = (props: { m: M; label: string }) => {
@@ -80,9 +83,15 @@ const Match = (props: { m: M; label: string }) => {
       crest(logo), h('span', { class: 'n' }, name), h('span', { class: 'sc' }, sc(score)),
     ])
   return h('div', { class: 'match', onClick: () => router.push(`/leagues/${m.league_id}`), title: `Open ${m.league}` }, [
-    h('div', { class: 'meta' }, [h('span', `${m.league} · ${m.country}`), h('span', { class: 'm' }, label)]),
+    h('div', { class: 'meta' }, [
+      h('span', `${m.league} · ${m.country}`),
+      h('span', { class: ['m', m.status === 'live' ? 'live' : ''] }, label),
+    ]),
     team(m.home, m.home_score, w(m.home_score, m.away_score), m.home_logo),
     team(m.away, m.away_score, w(m.away_score, m.home_score), m.away_logo),
+    m.venue
+      ? h('div', { class: 'venue' }, `\u{1F4CD} ${m.venue}${m.venue_city ? ' · ' + m.venue_city : ''}`)
+      : null,
   ])
 }
 
@@ -90,7 +99,7 @@ async function load() {
   try {
     const res = await auth.authFetch('/scores')
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load scores')
+    if (!res.ok) throw new Error(t('scores.load_error'))
     data.value = await res.json()
   } catch (e: any) { error.value = e.message }
 }
@@ -116,6 +125,10 @@ onMounted(() => {
 :deep(.match + .match) { border-top: 1px solid var(--hair); }
 :deep(.match .meta) { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--txt-3); margin-bottom: 11px; font-weight: 500; }
 :deep(.match .meta .m) { font-family: 'Spline Sans Mono', monospace; color: var(--green); }
+:deep(.match .meta .m.live) { color: #fff; background: #e0245e; padding: 2px 9px; border-radius: 100px; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+:deep(.match .meta .m.live)::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: livepulse 1.2s infinite; }
+@keyframes livepulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+:deep(.match .venue) { font-size: 11px; color: var(--txt-3); margin-top: 9px; }
 :deep(.trow) { display: flex; align-items: center; gap: 11px; padding: 4px 0; }
 :deep(.trow .dt) { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); display: inline-block; }
 :deep(.trow .crest) { width: 18px; height: 18px; object-fit: contain; }

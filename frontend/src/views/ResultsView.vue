@@ -1,6 +1,6 @@
 <template>
   <div class="trk">
-    <div class="sect-title">Results · verified track record</div>
+    <div class="sect-title">{{ $t('results.sect_title') }}</div>
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
@@ -24,20 +24,20 @@
 
       <!-- stat boxes -->
       <div class="row3">
-        <div class="box"><div class="v">{{ data.settled }}</div><div class="l">bets</div></div>
+        <div class="box"><div class="v">{{ data.settled }}</div><div class="l">{{ $t('results.bets') }}</div></div>
         <div class="box"><div class="v" :class="pnlClass">{{ data.roi_pct == null ? '-' : data.roi_pct + '%' }}</div><div class="l">ROI</div></div>
-        <div class="box"><div class="v">{{ data.win_rate == null ? '-' : data.win_rate + '%' }}</div><div class="l">win rate</div></div>
+        <div class="box"><div class="v">{{ data.win_rate == null ? '-' : data.win_rate + '%' }}</div><div class="l">{{ $t('results.win_rate') }}</div></div>
       </div>
 
       <!-- CLV -->
       <div class="clv" v-if="data.clv_beat_pct != null">
-        <div class="h"><span>You beat the closing line</span><b>{{ data.clv_beat_pct }}%</b></div>
+        <div class="h"><span>{{ $t('results.clv_label') }}</span><b>{{ data.clv_beat_pct }}%</b></div>
         <div class="bar"><i :style="{ width: data.clv_beat_pct + '%' }" /></div>
-        <div class="note">The number that matters. Beat the closing price and profit follows - even on weeks you lose bets. ({{ data.clv_sample }} graded)</div>
+        <div class="note">{{ $t('results.clv_note', { sample: data.clv_sample }) }}</div>
       </div>
 
       <!-- recent -->
-      <div class="sect" v-if="data.recent.length">Recent</div>
+      <div class="sect" v-if="data.recent.length">{{ $t('results.recent') }}</div>
       <div v-for="(h, i) in data.recent" :key="i" class="hi">
         <div class="mk" :class="h.result === 'win' ? 'w' : 'l'">{{ h.result === 'win' ? 'W' : h.result === 'loss' ? 'L' : 'P' }}</div>
         <div class="t">{{ h.pick }}<small>{{ h.league }}</small></div>
@@ -45,11 +45,11 @@
       </div>
 
       <p v-if="data.settled === 0" class="pending">
-        <template v-if="data.clv_beat_pct != null">Win/loss & ROI fill in as games finish - CLV is graded the moment the line closes.</template>
-        <template v-else>No graded signals yet. Results appear here as picks settle.</template>
+        <template v-if="data.clv_beat_pct != null">{{ $t('results.note_clv') }}</template>
+        <template v-else>{{ $t('results.note_empty') }}</template>
       </p>
 
-      <p class="foot">Verified at a flat 1-unit stake · {{ unitNote }}. For entertainment - 1-800-GAMBLER.</p>
+      <p class="foot">{{ $t('results.foot_a') }}{{ unitNote }}{{ $t('results.foot_b') }}</p>
     </template>
 
     <div v-else aria-hidden="true">
@@ -68,6 +68,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -80,6 +81,7 @@ interface Results {
 
 const auth = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const data = ref<Results | null>(null)
 const error = ref('')
 
@@ -122,7 +124,7 @@ async function load() {
   try {
     const res = await auth.authFetch('/results')
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load results')
+    if (!res.ok) throw new Error(t('results.load_error'))
     data.value = await res.json()
   } catch (e: any) { error.value = e.message }
 }

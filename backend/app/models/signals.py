@@ -1,4 +1,4 @@
-"""signals + signal_grades — the detection output and its later CLV/result grading."""
+"""signals + signal_grades - the detection output and its later CLV/result grading."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 <template>
   <div class="lgs">
-    <div class="sect">{{ data ? `${data.count} covered · ${data.live_total} signals live now` : 'Leagues' }}</div>
+    <div class="sect">{{ data ? $t('leagues.summary', { count: data.count, live: data.live_total }) : $t('nav.leagues') }}</div>
     <p v-if="error" class="err">{{ error }}</p>
 
     <div v-if="!data && !error" class="list" aria-hidden="true">
@@ -16,21 +16,22 @@
     <div class="list">
       <RouterLink v-for="lg in data?.leagues || []" :key="lg.id" :to="`/leagues/${lg.id}`" class="lgrow">
         <div class="info">
-          <b>{{ lg.name }} <span v-if="lg.is_soft" class="soft">soft</span></b>
-          <small>{{ lg.country }}{{ lg.is_soft ? ' · books lag here' : ' · sharp lines, no edge' }}</small>
+          <b>{{ lg.name }} <span v-if="lg.is_soft" class="soft">{{ $t('leagues.soft') }}</span></b>
+          <small>{{ lg.country }} · {{ lg.is_soft ? $t('leagues.soft_sub') : $t('leagues.sharp_sub') }}</small>
         </div>
         <span class="c" :class="{ z: lg.live_signals === 0 }">{{ lg.live_signals }}</span>
         <span class="chev">›</span>
       </RouterLink>
     </div>
 
-    <p v-if="data && data.leagues.length === 0" class="empty">No leagues configured.</p>
-    <p class="foot">Soft = books lag, the edge lives here. Sharp leagues are scores-only. 1-800-GAMBLER.</p>
+    <p v-if="data && data.leagues.length === 0" class="empty">{{ $t('leagues.empty') }}</p>
+    <p class="foot">{{ $t('leagues.foot') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -39,6 +40,7 @@ interface Leagues { count: number; live_total: number; leagues: L[] }
 
 const auth = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const data = ref<Leagues | null>(null)
 const error = ref('')
 
@@ -46,7 +48,7 @@ async function load() {
   try {
     const res = await auth.authFetch('/leagues')
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load leagues')
+    if (!res.ok) throw new Error(t('leagues.load_error'))
     data.value = await res.json()
   } catch (e: any) { error.value = e.message }
 }

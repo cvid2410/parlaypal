@@ -1,7 +1,7 @@
 """Tier-gated signals feed for the Signals tab.
 
 Paid tiers (bettor/sharp) see live signals in full, rendered through the compliant copy
-engine. Free tier sees the same activity as *locked teasers* — league/fixture/kind only,
+engine. Free tier sees the same activity as *locked teasers* - league/fixture/kind only,
 with the pick, book, and odds redacted so no edge leaks (CLAUDE.md: scores aren't an edge,
 but picks are). Upgrading flips the same cards to full detail.
 """
@@ -48,9 +48,10 @@ async def list_signals(
     # so a brand-new user still sees the full feed.
     sub = await db.get(Subscription, user.id)
     user_books = set(sub.books) if sub else set()
+    odds_fmt = sub.odds_format if sub else "american"
 
     # +EV launch gate (NON-NEGOTIABLE #2): EV is stored for every soft league but only shown
-    # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated — they're
+    # (not even as a teaser) on CLV-certified leagues. Arb/middle/promo aren't gated - they're
     # mechanical. The same clause gates the Leagues badge so the two screens agree.
     conditions = [Signal.status == "live", Signal.created_at >= cutoff, user_facing_clause()]
     if sub and sub.leagues:
@@ -74,7 +75,7 @@ async def list_signals(
     )
 
     # Book filter (NON-NEGOTIABLE #5 intent on the read side): only show plays the user can
-    # actually place — for an arb that means holding every leg's book.
+    # actually place - for an arb that means holding every leg's book.
     sigs = [s for s in candidates if actionable_on(s, user_books)][:FEED_LIMIT]
 
     cards = []
@@ -94,24 +95,30 @@ async def list_signals(
             "away_logo": ctx.away_logo,
             "created_at": sig.created_at.isoformat(),
             "age_seconds": age,
+            # The game's kickoff (not the signal age) - shown on the card so a bettor knows when
+            # the match is. Safe on locked teasers too; game time isn't an edge.
+            "kickoff": ctx.kickoff,
             "locked": not paid,
         }
         if paid:
-            copy = explain(ctx)
+            copy = explain(ctx, odds_fmt)
             card.update(
                 {
                     "title": copy["title"],
                     "body": copy["body"],
                     "footer": copy["footer"],
                     # Structured "Your bet" inputs (book/pick/min-odds/stake, or per-leg split).
-                    "ticket": action_ticket(ctx, user.bankroll),
+                    "ticket": action_ticket(ctx, user.bankroll, odds_fmt),
                     **copy["fields"],
                 }
             )
             # Unified headline metric (ev edge / arb profit / middle upside all live in edge_pct).
             card["edge_pct"] = round(sig.edge_pct, 2)
+            # Off-market value: surface the consensus depth as a trust signal ("vs N books").
+            if sig.kind == "value":
+                card["consensus_books"] = (sig.meta or {}).get("n_books")
         else:
-            # Redacted teaser — show that an edge exists, not what it is.
+            # Redacted teaser - show that an edge exists, not what it is.
             label = {"arb": "arbitrage", "middle": "middle", "promo": "boost"}.get(
                 sig.kind, "value bet"
             )

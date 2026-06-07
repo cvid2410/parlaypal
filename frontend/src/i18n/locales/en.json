@@ -1,0 +1,217 @@
+{
+  "nav": {
+    "signals": "Signals",
+    "scores": "Scores",
+    "ask": "Ask",
+    "leagues": "Leagues"
+  },
+  "titles": {
+    "signals": {
+      "title": "Signals",
+      "sub": "Live mispriced markets across soccer"
+    },
+    "scores": {
+      "title": "Scores",
+      "sub": "Live, today, and tables - every league"
+    },
+    "ask": {
+      "title": "Ask",
+      "sub": "Anything about soccer - scores, fixtures, standings"
+    },
+    "leagues": {
+      "title": "Leagues",
+      "sub": "We hunt where the lines are soft"
+    },
+    "league": {
+      "title": "Standings",
+      "sub": "League table, live from the season"
+    },
+    "lines": {
+      "title": "Compare odds",
+      "sub": "Best available price across every book"
+    },
+    "results": {
+      "title": "Results",
+      "sub": "Your record against the closing line"
+    },
+    "settings": {
+      "title": "Settings",
+      "sub": "Your books, leagues, and minimum edge"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "retry": "Retry",
+    "back": "Back",
+    "upgrade": "Upgrade",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "upcoming": "Upcoming",
+    "all_leagues": "All leagues"
+  },
+  "leagues": {
+    "summary": "{count} covered · {live} signals live now",
+    "soft": "soft",
+    "soft_sub": "books lag here",
+    "sharp_sub": "sharp lines, no edge",
+    "empty": "No leagues configured.",
+    "foot": "Soft = books lag, the edge lives here. Sharp leagues are scores-only. 1-800-GAMBLER.",
+    "load_error": "Failed to load leagues"
+  },
+  "settings": {
+    "language": "Language",
+    "language_hint": "Choose the language for the app interface.",
+    "odds_title": "Odds format",
+    "odds_hint": "How odds are displayed across the app.",
+    "odds_american": "American (+150)",
+    "odds_decimal": "Decimal (2.50)",
+    "books_title": "Your sportsbooks",
+    "books_hint": "Pick the books you bet at. We'll only show plays you can actually place, and for an arbitrage you only see it if you hold every leg's book.",
+    "books_note": "Leave all unticked to see every book.",
+    "leagues_title": "Leagues",
+    "leagues_hint": "Limit your feed and alerts to the leagues you care about.",
+    "leagues_note": "Leave all unticked to see every league.",
+    "soft": "soft",
+    "min_edge_title": "Minimum edge",
+    "min_edge_hint": "Hide anything below this. EV %, arb profit %, and middle upside are all measured the same way.",
+    "save": "Save preferences",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "load_error": "Failed to load preferences",
+    "foot": "Filters apply to your live feed and your alerts. For entertainment, not financial advice - 1-800-GAMBLER."
+  },
+  "lines": {
+    "vs": "vs",
+    "empty": "No live prices for this fixture right now.",
+    "market_h2h": "Match result",
+    "market_total": "Total goals · {line}",
+    "foot": "Best available price across the books we track · for entertainment · 1-800-GAMBLER.",
+    "load_error": "Failed to load prices"
+  },
+  "auth": {
+    "hero_pre": "Every edge in soccer, ",
+    "hero_em": "first",
+    "tag": "Live value bets, arbs and best prices across every league - including the soft ones the big tools don't even cover.",
+    "rg": "21+ · For entertainment, not financial advice · 1-800-GAMBLER",
+    "welcome": "Welcome back",
+    "create": "Create your account",
+    "sub_login": "Log in to see live signals.",
+    "sub_signup": "Free to start - live scores and locked signal teasers.",
+    "email": "Email",
+    "password": "Password",
+    "pw_placeholder": "8+ characters",
+    "login_btn": "Log in",
+    "signup_btn": "Sign up free",
+    "no_account": "Don't have an account?",
+    "have_account": "Already have one?",
+    "signup_link": "Sign up",
+    "login_link": "Log in",
+    "mob_rg": "21+ · 1-800-GAMBLER"
+  },
+  "ask": {
+    "msg1": "Hey 👋 I'm your soccer guy - soon you'll be able to ask me about any match, team, or table across every league we cover.",
+    "msg2_a": "I'll answer from our own scores, fixtures and standings. I'll never give you a pick - that's what ",
+    "msg2_b": " is for.",
+    "soon_title": "Ask is coming soon",
+    "soon_a": "A free conversational companion over our data. In the meantime, check live ",
+    "soon_mid": " and the ",
+    "soon_b": " we cover.",
+    "examples_label": "You'll be able to ask",
+    "ex1": "La Liga standings",
+    "ex2": "Any live scores?",
+    "ex3": "Motagua next game",
+    "placeholder": "Ask anything about soccer…"
+  },
+  "results": {
+    "sect_title": "Results · verified track record",
+    "bets": "bets",
+    "win_rate": "win rate",
+    "clv_label": "You beat the closing line",
+    "clv_note": "The number that matters. Beat the closing price and profit follows - even on weeks you lose bets. ({sample} graded)",
+    "recent": "Recent",
+    "note_clv": "Win/loss & ROI fill in as games finish - CLV is graded the moment the line closes.",
+    "note_empty": "No graded signals yet. Results appear here as picks settle.",
+    "foot_a": "Verified at a flat 1-unit stake · ",
+    "foot_b": ". For entertainment - 1-800-GAMBLER.",
+    "load_error": "Failed to load results"
+  },
+  "signals": {
+    "header_paid": "Live signals · soft leagues",
+    "header_free": "Locked on Free · upgrade to see picks",
+    "refresh": "Refresh",
+    "empty": "No live signals right now. Lines are efficient at the moment - check back soon.",
+    "reup": "re-alerted as the edge improved",
+    "locked_pick": "Locked pick",
+    "your_bet": "Your bet",
+    "stake": "stake",
+    "fair_price": "fair price",
+    "compare": "Compare prices across books",
+    "lock_t": "Live signal - unlock the pick & odds",
+    "unlock": "Unlock with Pro",
+    "just_now": "just now",
+    "min_ago": "{m} min ago",
+    "h_ago": "{h}h ago",
+    "kind_arb": "Arbitrage",
+    "kind_middle": "Middle",
+    "kind_boost": "Boost",
+    "kind_value": "Value bet",
+    "pick_arb": "Win either way",
+    "pick_middle": "Middle",
+    "metric_vs_books": "vs {n} books",
+    "metric_offmarket": "off-market edge",
+    "metric_arb": "locked profit",
+    "metric_middle": "middle upside",
+    "metric_boost": "boost edge",
+    "metric_default": "your edge",
+    "load_error": "Failed to load signals",
+    "foot": "For entertainment, not financial advice. Bet responsibly - 1-800-GAMBLER."
+  },
+  "scores": {
+    "empty": "No fixtures in your leagues today.",
+    "live_now": "Live now",
+    "no_live": "No live matches in your leagues.",
+    "live_label": "LIVE",
+    "finished_today": "Finished today",
+    "today_upcoming": "Today · upcoming",
+    "nothing_upcoming": "Nothing left to kick off today.",
+    "cancelled": "Cancelled · postponed",
+    "off_label": "Off",
+    "load_error": "Failed to load scores"
+  },
+  "ld": {
+    "odds": "Odds ›",
+    "table": "Table",
+    "no_standings": "Standings aren't available for this league yet.",
+    "team_col": "Team",
+    "col_p": "P",
+    "col_w": "W",
+    "col_d": "D",
+    "col_l": "L",
+    "col_gd": "GD",
+    "col_pts": "Pts",
+    "load_error": "Failed to load standings"
+  },
+  "team": {
+    "fallback": "Team",
+    "no_upcoming": "No upcoming games scheduled.",
+    "more_upcoming": "Load more upcoming",
+    "previous": "Previous",
+    "no_past": "No recent games.",
+    "more_past": "Load more previous",
+    "load_error": "Failed to load team"
+  },
+  "upgrade": {
+    "title": "Unlock the edge",
+    "lead_a": "Free shows you scores. ",
+    "lead_b": " shows you where the money is - live, the moment a line goes soft.",
+    "vmath": "Most Bettor members clear the $29 in their first week",
+    "per_mo": "/mo",
+    "bettor_desc": "All value bets live · every soft league · stake calculator · filter by your books",
+    "popular": "Most popular",
+    "sharp_desc": "Everything + live in-play · corners & cards models · instant push · custom alerts",
+    "later": "Maybe later",
+    "devnote_stripe": "Secure checkout via Stripe · cancel anytime.",
+    "devnote_dev": "Dev build: flips your tier instantly (no Stripe key set).",
+    "err_checkout": "Checkout is unavailable right now."
+  }
+}

@@ -16,7 +16,7 @@ def get_redis() -> redis.Redis:
 
 
 async def get_cached(key: str) -> Any:
-    # Deserialised JSON — the shape depends on the key, so callers annotate their own return.
+    # Deserialised JSON - the shape depends on the key, so callers annotate their own return.
     r = get_redis()
     raw = await r.get(key)
     return json.loads(raw) if raw else None

@@ -1,0 +1,217 @@
+{
+  "nav": {
+    "signals": "Señales",
+    "scores": "Marcadores",
+    "ask": "Preguntar",
+    "leagues": "Ligas"
+  },
+  "titles": {
+    "signals": {
+      "title": "Señales",
+      "sub": "Mercados mal valorados en vivo en el fútbol"
+    },
+    "scores": {
+      "title": "Marcadores",
+      "sub": "En vivo, hoy y tablas - todas las ligas"
+    },
+    "ask": {
+      "title": "Preguntar",
+      "sub": "Lo que sea sobre fútbol - resultados, partidos, posiciones"
+    },
+    "leagues": {
+      "title": "Ligas",
+      "sub": "Cazamos donde las líneas son blandas"
+    },
+    "league": {
+      "title": "Posiciones",
+      "sub": "Tabla de la liga, en vivo de la temporada"
+    },
+    "lines": {
+      "title": "Comparar cuotas",
+      "sub": "La mejor cuota disponible en todas las casas"
+    },
+    "results": {
+      "title": "Resultados",
+      "sub": "Tu historial contra la línea de cierre"
+    },
+    "settings": {
+      "title": "Ajustes",
+      "sub": "Tus casas, ligas y ventaja mínima"
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "retry": "Reintentar",
+    "back": "Volver",
+    "upgrade": "Mejorar",
+    "privacy": "Privacidad",
+    "terms": "Términos",
+    "upcoming": "Próximos",
+    "all_leagues": "Todas las ligas"
+  },
+  "leagues": {
+    "summary": "{count} cubiertas · {live} señales en vivo ahora",
+    "soft": "blanda",
+    "soft_sub": "las casas se retrasan aquí",
+    "sharp_sub": "líneas afiladas, sin ventaja",
+    "empty": "No hay ligas configuradas.",
+    "foot": "Blanda = las casas se retrasan, aquí vive la ventaja. Las ligas afiladas son solo marcadores. 1-800-GAMBLER.",
+    "load_error": "No se pudieron cargar las ligas"
+  },
+  "settings": {
+    "language": "Idioma",
+    "language_hint": "Elige el idioma de la interfaz de la app.",
+    "odds_title": "Formato de cuotas",
+    "odds_hint": "Cómo se muestran las cuotas en la app.",
+    "odds_american": "Americano (+150)",
+    "odds_decimal": "Decimal (2.50)",
+    "books_title": "Tus casas de apuestas",
+    "books_hint": "Elige las casas donde apuestas. Solo te mostraremos jugadas que realmente puedes colocar, y para un arbitraje solo lo verás si tienes la casa de cada parte.",
+    "books_note": "Deja todo sin marcar para ver todas las casas.",
+    "leagues_title": "Ligas",
+    "leagues_hint": "Limita tu feed y tus alertas a las ligas que te interesan.",
+    "leagues_note": "Deja todo sin marcar para ver todas las ligas.",
+    "soft": "blanda",
+    "min_edge_title": "Ventaja mínima",
+    "min_edge_hint": "Oculta todo lo que esté por debajo de esto. El % de EV, el % de ganancia de arbitraje y el margen del middle se miden igual.",
+    "save": "Guardar preferencias",
+    "saving": "Guardando...",
+    "saved": "Guardado",
+    "load_error": "No se pudieron cargar las preferencias",
+    "foot": "Los filtros se aplican a tu feed en vivo y a tus alertas. Para entretenimiento, no es asesoría financiera - 1-800-GAMBLER."
+  },
+  "lines": {
+    "vs": "vs",
+    "empty": "No hay cuotas en vivo para este partido ahora mismo.",
+    "market_h2h": "Resultado del partido",
+    "market_total": "Goles totales · {line}",
+    "foot": "La mejor cuota disponible entre las casas que seguimos · para entretenimiento · 1-800-GAMBLER.",
+    "load_error": "No se pudieron cargar las cuotas"
+  },
+  "auth": {
+    "hero_pre": "Toda ventaja en el fútbol, ",
+    "hero_em": "primero",
+    "tag": "Apuestas de valor, arbitrajes y las mejores cuotas en vivo en todas las ligas - incluidas las blandas que las grandes herramientas ni cubren.",
+    "rg": "21+ · Para entretenimiento, no es asesoría financiera · 1-800-GAMBLER",
+    "welcome": "Bienvenido de nuevo",
+    "create": "Crea tu cuenta",
+    "sub_login": "Inicia sesión para ver las señales en vivo.",
+    "sub_signup": "Gratis para empezar - marcadores en vivo y adelantos de señales bloqueados.",
+    "email": "Correo",
+    "password": "Contraseña",
+    "pw_placeholder": "8+ caracteres",
+    "login_btn": "Iniciar sesión",
+    "signup_btn": "Regístrate gratis",
+    "no_account": "¿No tienes cuenta?",
+    "have_account": "¿Ya tienes una?",
+    "signup_link": "Regístrate",
+    "login_link": "Iniciar sesión",
+    "mob_rg": "21+ · 1-800-GAMBLER"
+  },
+  "ask": {
+    "msg1": "Hola 👋 soy tu experto en fútbol - pronto podrás preguntarme sobre cualquier partido, equipo o tabla de todas las ligas que cubrimos.",
+    "msg2_a": "Te responderé con nuestros propios marcadores, partidos y posiciones. Nunca te daré un pronóstico - para eso están las ",
+    "msg2_b": ".",
+    "soon_title": "Preguntar llega pronto",
+    "soon_a": "Un compañero conversacional gratuito sobre nuestros datos. Mientras tanto, mira los ",
+    "soon_mid": " en vivo y las ",
+    "soon_b": " que cubrimos.",
+    "examples_label": "Podrás preguntar",
+    "ex1": "Posiciones de La Liga",
+    "ex2": "¿Hay marcadores en vivo?",
+    "ex3": "Próximo partido de Motagua",
+    "placeholder": "Pregunta lo que sea sobre fútbol…"
+  },
+  "results": {
+    "sect_title": "Resultados · historial verificado",
+    "bets": "apuestas",
+    "win_rate": "tasa de acierto",
+    "clv_label": "Le ganaste a la línea de cierre",
+    "clv_note": "El número que importa. Gánale al precio de cierre y la ganancia llega - incluso en semanas que pierdes apuestas. ({sample} evaluadas)",
+    "recent": "Recientes",
+    "note_clv": "Ganadas/perdidas y ROI se completan al terminar los partidos - el CLV se evalúa en cuanto cierra la línea.",
+    "note_empty": "Aún no hay señales evaluadas. Los resultados aparecen aquí a medida que se liquidan los pronósticos.",
+    "foot_a": "Verificado a una apuesta fija de 1 unidad · ",
+    "foot_b": ". Para entretenimiento - 1-800-GAMBLER.",
+    "load_error": "No se pudieron cargar los resultados"
+  },
+  "signals": {
+    "header_paid": "Señales en vivo · ligas blandas",
+    "header_free": "Bloqueado en Gratis · mejora para ver los pronósticos",
+    "refresh": "Actualizar",
+    "empty": "No hay señales en vivo ahora mismo. Las líneas están eficientes - vuelve pronto.",
+    "reup": "re-alertado al mejorar la ventaja",
+    "locked_pick": "Pronóstico bloqueado",
+    "your_bet": "Tu apuesta",
+    "stake": "apuesta",
+    "fair_price": "precio justo",
+    "compare": "Comparar cuotas entre casas",
+    "lock_t": "Señal en vivo - desbloquea el pronóstico y las cuotas",
+    "unlock": "Desbloquear con Pro",
+    "just_now": "ahora mismo",
+    "min_ago": "hace {m} min",
+    "h_ago": "hace {h}h",
+    "kind_arb": "Arbitraje",
+    "kind_middle": "Middle",
+    "kind_boost": "Boost",
+    "kind_value": "Apuesta de valor",
+    "pick_arb": "Ganas igual",
+    "pick_middle": "Middle",
+    "metric_vs_books": "vs {n} casas",
+    "metric_offmarket": "ventaja fuera de mercado",
+    "metric_arb": "ganancia fija",
+    "metric_middle": "margen del middle",
+    "metric_boost": "ventaja del boost",
+    "metric_default": "tu ventaja",
+    "load_error": "No se pudieron cargar las señales",
+    "foot": "Para entretenimiento, no es asesoría financiera. Apuesta con responsabilidad - 1-800-GAMBLER."
+  },
+  "scores": {
+    "empty": "No hay partidos en tus ligas hoy.",
+    "live_now": "En vivo ahora",
+    "no_live": "No hay partidos en vivo en tus ligas.",
+    "live_label": "EN VIVO",
+    "finished_today": "Terminados hoy",
+    "today_upcoming": "Hoy · próximos",
+    "nothing_upcoming": "No queda nada por empezar hoy.",
+    "cancelled": "Cancelados · aplazados",
+    "off_label": "Susp",
+    "load_error": "No se pudieron cargar los marcadores"
+  },
+  "ld": {
+    "odds": "Cuotas ›",
+    "table": "Tabla",
+    "no_standings": "Las posiciones aún no están disponibles para esta liga.",
+    "team_col": "Equipo",
+    "col_p": "PJ",
+    "col_w": "G",
+    "col_d": "E",
+    "col_l": "P",
+    "col_gd": "DG",
+    "col_pts": "Pts",
+    "load_error": "No se pudieron cargar las posiciones"
+  },
+  "team": {
+    "fallback": "Equipo",
+    "no_upcoming": "No hay próximos partidos programados.",
+    "more_upcoming": "Cargar más próximos",
+    "previous": "Anteriores",
+    "no_past": "No hay partidos recientes.",
+    "more_past": "Cargar más anteriores",
+    "load_error": "No se pudo cargar el equipo"
+  },
+  "upgrade": {
+    "title": "Desbloquea la ventaja",
+    "lead_a": "Gratis te muestra los marcadores. ",
+    "lead_b": " te muestra dónde está el dinero - en vivo, en cuanto una línea se ablanda.",
+    "vmath": "La mayoría de los miembros Bettor recuperan los $29 en su primera semana",
+    "per_mo": "/mes",
+    "bettor_desc": "Todas las apuestas de valor en vivo · todas las ligas blandas · calculadora de apuestas · filtra por tus casas",
+    "popular": "Más popular",
+    "sharp_desc": "Todo + en juego en vivo · modelos de córners y tarjetas · push instantáneo · alertas personalizadas",
+    "later": "Quizás después",
+    "devnote_stripe": "Pago seguro con Stripe · cancela cuando quieras.",
+    "devnote_dev": "Build de desarrollo: cambia tu nivel al instante (sin clave de Stripe).",
+    "err_checkout": "El pago no está disponible ahora mismo."
+  }
+}

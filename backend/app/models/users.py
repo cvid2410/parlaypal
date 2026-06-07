@@ -43,6 +43,8 @@ class Subscription(Base):
     books: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     min_edge: Mapped[float] = mapped_column(Float, default=0.0)
     channels: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    # Display preference (i18n): "american" (US default) or "decimal" (LatAm / Europe).
+    odds_format: Mapped[str] = mapped_column(String, default="american", server_default="american")
 
 
 class AlertSent(Base):

@@ -153,7 +153,7 @@ async def test_signals_requires_auth():
 
 
 async def test_uncertified_ev_hidden_arb_shown():
-    """+EV on an UNcertified league must not appear at all (NON-NEGOTIABLE #2) — not even as
+    """+EV on an UNcertified league must not appear at all (NON-NEGOTIABLE #2) - not even as
     a teaser, since it's not a proven edge. Arb on the same league still shows (mechanical)."""
     Session = get_sessionmaker()
     tag = uuid.uuid4().hex[:8]

@@ -18,6 +18,15 @@ def decimal_to_american(dec: float) -> str:
     return str(int(round(-100 / (dec - 1))))
 
 
+def format_odds(dec: float, odds_format: str = "american") -> str:
+    """Render decimal odds in the user's preferred display format. American is the US default;
+    decimal is what LatAm / Europe read (the i18n odds-format preference). Math stays in
+    decimal everywhere - this is display only."""
+    if odds_format == "decimal":
+        return f"{dec:.2f}"
+    return decimal_to_american(dec)
+
+
 def no_vig_prob(dec_a: float, dec_b: float) -> float:
     """Devig a 2-way market → true probability of side A.
 
@@ -77,12 +86,12 @@ def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
     systematically OVER-states longshot probabilities (the favourite-longshot bias). Shin
     instead assumes a fraction `z` of the money is informed and removes vig asymmetrically,
     pulling longshot fair probs down. For a symmetric market it agrees with multiplicative;
-    the methods diverge exactly in the tails — which is where our soft-book +EV lives.
+    the methods diverge exactly in the tails - which is where our soft-book +EV lives.
 
     Recovers p_i = [sqrt(z^2 + 4(1-z)*pi_i^2/PI) - z] / (2(1-z)), with z solving the
     normalisation Sum(p_i)=1, i.e. Sum sqrt(z^2 + 4(1-z)*pi_i^2/PI) = 2 + (n-2)z. Solved by
     bisection (the function is +ve at z=0 and crosses once before z=1). Returns {} (ungradable)
-    if the root doesn't bracket — a degenerate book would otherwise drive the bisection to a
+    if the root doesn't bracket - a degenerate book would otherwise drive the bisection to a
     bound and return a plausible-but-wrong z (correct in the tails is the whole point of Shin).
     """
     pis = {sel: 1 / dec for sel, dec in odds_by_sel.items() if dec and dec > 1}
@@ -90,7 +99,7 @@ def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
     booksum = sum(pis.values())
     if n < 2 or booksum <= 0:
         return {}
-    if booksum <= 1:  # no overround (or a cross-book arb) — just normalise, no vig to model
+    if booksum <= 1:  # no overround (or a cross-book arb) - just normalise, no vig to model
         return {sel: p / booksum for sel, p in pis.items()}
 
     q = {sel: (p * p) / booksum for sel, p in pis.items()}  # pi_i^2 / PI
@@ -110,7 +119,7 @@ def shin_devig(odds_by_sel: dict[str, float]) -> dict[str, float]:
         else:
             hi = mid
     z = (lo + hi) / 2
-    if abs(constraint(z)) > 1e-6:  # didn't actually land on the root — don't trust z
+    if abs(constraint(z)) > 1e-6:  # didn't actually land on the root - don't trust z
         return {}
 
     p = {sel: ((z * z + 4 * (1 - z) * qi) ** 0.5 - z) / (2 * (1 - z)) for sel, qi in q.items()}

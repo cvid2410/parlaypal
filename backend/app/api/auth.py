@@ -1,7 +1,7 @@
 """Auth API: email+password signup/login issuing JWTs, plus the current-user dependency.
 
 Provider-ready: a future Google flow adds another route that resolves/creates a user and
-calls `create_access_token` — the token + `get_current_user` path stay identical.
+calls `create_access_token` - the token + `get_current_user` path stay identical.
 """
 
 from __future__ import annotations

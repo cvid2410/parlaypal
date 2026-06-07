@@ -55,6 +55,7 @@ async def signal_context(session, sig: Signal) -> SignalCopyContext | None:
         away=away.name,
         home_logo=home.logo,
         away_logo=away.logo,
+        kickoff=fixture.kickoff_utc.isoformat(),
         market_type=market.type,
         line=market.line,
         selection=sig.selection,

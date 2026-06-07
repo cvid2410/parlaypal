@@ -1,10 +1,10 @@
-"""Pure detection core — the devig→EV→arb logic with NO I/O.
+"""Pure detection core - the devig→EV→arb logic with NO I/O.
 
 Factored out of `workers/detect.py` so the exact same opportunity-finding runs in two
 places: the live consumer (reads Redis hot state, writes signals, routes) and the offline
 backtest replay (feeds reconstructed historical state, grades against the closing line).
 If these ever diverged, the CLV gate (NON-NEGOTIABLE #2) would validate something we don't
-actually ship — so detection lives here, and both callers depend on it.
+actually ship - so detection lives here, and both callers depend on it.
 
 Input is the per-market book→selection→decimal map; output is a list of `Opportunity`
 candidates including their dedup scope/bucket/hash. The caller owns the side effects:
@@ -40,7 +40,7 @@ class Opportunity:
 # soccer h2h missing its draw price is NOT a 2-way market, and an "arb" priced across only
 # home+away is a coin-flip dressed up as guaranteed profit (it loses both legs on a draw).
 # Likewise the sharp devig is only valid over the whole market. Unknown types fall back to
-# ">= 2 selections" — we can't assert completeness we don't know.
+# ">= 2 selections" - we can't assert completeness we don't know.
 MARKET_SELECTIONS: dict[str, frozenset[str]] = {
     "h2h": frozenset({"home", "draw", "away"}),
     "total": frozenset({"over", "under"}),
@@ -78,13 +78,14 @@ def find_opportunities(
     max_offered_odds: float = 12.0,
     max_edge_pct: float = 20.0,
     devig_method: str = "shin",
+    min_consensus_books: int = 6,
 ) -> list[Opportunity]:
     """All opportunities in one market's current prices. Order is EV (soft only) then arb,
     matching the live consumer so dedup side effects apply identically."""
     opps: list[Opportunity] = []
     sharp = by_book.get(sharp_ref_book)
 
-    # ---- +EV vs the sharp fair line (soft leagues only — sharp/big leagues have no
+    # ---- +EV vs the sharp fair line (soft leagues only - sharp/big leagues have no
     # soft-book edge; mechanical signals like arb still run for them below) ----
     if is_soft and sharp and _complete(market_type, sharp):
         fair = devig(sharp, devig_method)
@@ -95,7 +96,7 @@ def find_opportunities(
                 p = fair.get(sel)
                 if p is None:
                     continue
-                # Junk/suspended quote (e.g. decimal ~101) — not a bettable price, drop it
+                # Junk/suspended quote (e.g. decimal ~101) - not a bettable price, drop it
                 # before it manufactures a fake edge.
                 if dec > max_offered_odds:
                     continue
@@ -155,5 +156,60 @@ def find_opportunities(
                     meta={"legs": legs},
                 )
             )
+
+    # ---- off-market value (kind="value"): a book materially better than the BOOK CONSENSUS,
+    # on a SHARP, LIQUID market only. Honesty scope (the whole lesson of the EV investigation):
+    #   * `not is_soft` - on the soft long tail the multi-book consensus is NOT sharp (we PROVED
+    #     it: detect-at-open vs consensus-close showed the consensus moving AWAY from the picks,
+    #     even with the exchanges in it). Many books ≠ a trustworthy fair there. So we refuse to
+    #     claim "+EV vs market" on soft leagues - that's the exact fake edge we disproved.
+    #   * `>= min_consensus_books` - and even on a sharp league, require a deep book set so the
+    #     consensus is real, not two books.
+    # Where both hold (big/liquid games - Champions League, WC, big-5), an outlier vs the sharp
+    # crowd IS genuine +EV. Unlike kind="ev" this is ungated downstream and graded like a bet.
+    nv_by_book: dict[str, dict[str, float]] = {}
+    for book, sels in by_book.items():
+        if not _complete(market_type, sels) or any(
+            d <= 1 or d > max_offered_odds for d in sels.values()
+        ):
+            continue
+        nv = devig(sels, devig_method)
+        if _complete(market_type, nv):
+            nv_by_book[book] = nv
+    if not is_soft and len(nv_by_book) >= min_consensus_books:
+        n = len(nv_by_book)
+        sel_set = MARKET_SELECTIONS.get(market_type) or set(next(iter(nv_by_book.values())))
+        sums = {sel: sum(nv[sel] for nv in nv_by_book.values()) for sel in sel_set}
+        for book, sels in by_book.items():
+            for sel, dec in sels.items():
+                if sel not in sel_set or dec <= 1 or dec > max_offered_odds:
+                    continue
+                # consensus EXCLUDING this book, so its own outlier can't define the line it beats
+                cons = (
+                    (sums[sel] - nv_by_book[book][sel]) / (n - 1)
+                    if book in nv_by_book
+                    else sums[sel] / n
+                )
+                if cons <= 0:
+                    continue
+                edge = ev_pct(dec, cons)
+                if edge < min_edge_pct or edge > max_edge_pct:
+                    continue
+                bucket = _bucket(edge, edge_bucket_pct)
+                opps.append(
+                    Opportunity(
+                        kind="value",
+                        selection=sel,
+                        book=book,
+                        offered_odds=dec,
+                        fair_prob=cons,
+                        edge_pct=edge,
+                        kelly_frac=kelly(cons, dec, kelly_fraction),
+                        scope=f"value:{fixture_id}:{market_id}:{sel}:{book}",
+                        bucket=bucket,
+                        dedup_hash=_dedup_hash(fixture_id, market_id, "value", sel, book, bucket),
+                        meta={"reference": "consensus", "n_books": n},
+                    )
+                )
 
     return opps

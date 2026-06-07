@@ -1,4 +1,4 @@
-"""Unit tests for the team-page shaping (pure functions — no DB/AF needed)."""
+"""Unit tests for the team-page shaping (pure functions - no DB/AF needed)."""
 
 from app.api.teams import _shape, _team_header
 

@@ -1,5 +1,5 @@
 """Per-user preferences (3.4 / NON-NEGOTIABLE #5): which leagues + books a user follows and
-their minimum edge. This is the input side of the routing index — the Signals feed filters
+their minimum edge. This is the input side of the routing index - the Signals feed filters
 by `books` (you only see plays you can place), and fan-out routes pushes by all three.
 
 `PUT` writes the `subscriptions` row AND re-syncs the Redis routing index (deindex the old
@@ -27,12 +27,18 @@ class PreferencesIn(BaseModel):
     leagues: list[int] = Field(default_factory=list)
     books: list[str] = Field(default_factory=list)
     min_edge: float = 0.0
+    odds_format: str = "american"
 
 
 def _serialize(sub: Subscription | None) -> dict:
     if sub is None:
-        return {"leagues": [], "books": [], "min_edge": 0.0}
-    return {"leagues": list(sub.leagues), "books": list(sub.books), "min_edge": sub.min_edge}
+        return {"leagues": [], "books": [], "min_edge": 0.0, "odds_format": "american"}
+    return {
+        "leagues": list(sub.leagues),
+        "books": list(sub.books),
+        "min_edge": sub.min_edge,
+        "odds_format": sub.odds_format,
+    }
 
 
 @router.get("/preferences")
@@ -60,6 +66,8 @@ async def put_preferences(
             raise HTTPException(status_code=422, detail=f"Unknown book(s): {', '.join(bad_books)}")
     if body.min_edge < 0:
         raise HTTPException(status_code=422, detail="min_edge must be >= 0")
+    if body.odds_format not in ("american", "decimal"):
+        raise HTTPException(status_code=422, detail="odds_format must be american or decimal")
     if body.leagues:
         valid = set(
             (await db.execute(select(League.id).where(League.id.in_(body.leagues)))).scalars().all()
@@ -82,6 +90,7 @@ async def put_preferences(
     sub.leagues = leagues
     sub.books = books
     sub.min_edge = body.min_edge
+    sub.odds_format = body.odds_format
     await db.commit()
 
     # Re-sync the routing index: drop old membership, then add the new (NON-NEGOTIABLE #5).

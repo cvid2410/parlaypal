@@ -60,7 +60,7 @@ async def test_get_defaults_when_no_subscription(user):
     async with _client() as c:
         r = await c.get("/api/me/preferences", headers={"Authorization": f"Bearer {user['token']}"})
     assert r.status_code == 200
-    assert r.json() == {"leagues": [], "books": [], "min_edge": 0.0}
+    assert r.json() == {"leagues": [], "books": [], "min_edge": 0.0, "odds_format": "american"}
 
 
 async def test_put_upserts_and_indexes(user):
@@ -92,7 +92,7 @@ async def test_put_deindexes_dropped_books(user):
             json={"books": ["draftkings", "fanduel"], "min_edge": 0},
             headers={"Authorization": f"Bearer {token}"},
         )
-        # Drop fanduel — it must leave the routing set, not linger.
+        # Drop fanduel - it must leave the routing set, not linger.
         await c.put(
             "/api/me/preferences",
             json={"books": ["draftkings"], "min_edge": 0},

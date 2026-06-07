@@ -1,16 +1,16 @@
 <template>
   <div class="tv">
-    <a class="back" @click="router.back()">← Back</a>
+    <a class="back" @click="router.back()">← {{ $t('common.back') }}</a>
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
       <div class="thead">
         <img v-if="data.team.logo" :src="data.team.logo" class="tcrest" alt="" />
-        <h2>{{ data.team.name || 'Team' }}</h2>
+        <h2>{{ data.team.name || $t('team.fallback') }}</h2>
       </div>
 
-      <div class="sect">Upcoming</div>
-      <p v-if="!data.upcoming.length" class="empty">No upcoming games scheduled.</p>
+      <div class="sect">{{ $t('common.upcoming') }}</div>
+      <p v-if="!data.upcoming.length" class="empty">{{ $t('team.no_upcoming') }}</p>
       <div v-else class="glist">
         <div v-for="(g, i) in data.upcoming" :key="'u' + i" class="grow">
           <span class="ha" :class="g.home_away === 'H' ? 'h' : 'a'">{{ g.home_away }}</span>
@@ -19,10 +19,10 @@
           <span class="ko">{{ ko(g.kickoff) }}</span>
         </div>
       </div>
-      <button v-if="data.upcoming.length >= next" class="more" :disabled="busy" @click="moreUpcoming">Load more upcoming</button>
+      <button v-if="data.upcoming.length >= next" class="more" :disabled="busy" @click="moreUpcoming">{{ $t('team.more_upcoming') }}</button>
 
-      <div class="sect">Previous</div>
-      <p v-if="!data.past.length" class="empty">No recent games.</p>
+      <div class="sect">{{ $t('team.previous') }}</div>
+      <p v-if="!data.past.length" class="empty">{{ $t('team.no_past') }}</p>
       <div v-else class="glist">
         <div v-for="(g, i) in data.past" :key="'p' + i" class="grow">
           <span class="ha" :class="g.home_away === 'H' ? 'h' : 'a'">{{ g.home_away }}</span>
@@ -32,7 +32,7 @@
           <span class="score">{{ scoreText(g) }}</span>
         </div>
       </div>
-      <button v-if="data.past.length >= last" class="more" :disabled="busy" @click="morePast">Load more previous</button>
+      <button v-if="data.past.length >= last" class="more" :disabled="busy" @click="morePast">{{ $t('team.more_past') }}</button>
     </template>
 
     <div v-else aria-hidden="true">
@@ -44,8 +44,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { dateLong, kickoffLong } from '../lib/datetime'
 
 interface Game { opponent: string; opponent_logo: string | null; home_away: string; league: string; kickoff: string; status: string; minute: number | null; team_score: number | null; opp_score: number | null }
 interface TeamData { team: { name: string | null; logo: string | null }; past: Game[]; upcoming: Game[] }
@@ -53,6 +55,7 @@ interface TeamData { team: { name: string | null; logo: string | null }; past: G
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const data = ref<TeamData | null>(null)
 const error = ref('')
 const busy = ref(false)
@@ -60,7 +63,7 @@ const last = ref(10)
 const next = ref(10)
 
 function ko(iso: string) {
-  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return kickoffLong(iso)
 }
 function result(g: Game) {
   if (g.team_score == null || g.opp_score == null) return ''
@@ -69,7 +72,7 @@ function result(g: Game) {
   return 'draw'
 }
 function scoreText(g: Game) {
-  if (g.team_score == null || g.opp_score == null) return new Date(g.kickoff).toLocaleDateString()
+  if (g.team_score == null || g.opp_score == null) return dateLong(g.kickoff)
   return `${g.team_score}-${g.opp_score}`
 }
 
@@ -78,7 +81,7 @@ async function load() {
   try {
     const res = await auth.authFetch(`/teams/${route.params.id}?last=${last.value}&next=${next.value}`)
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load team')
+    if (!res.ok) throw new Error(t('team.load_error'))
     data.value = await res.json()
   } catch (e: any) { error.value = e.message } finally { busy.value = false }
 }
