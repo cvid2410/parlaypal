@@ -9,38 +9,38 @@
       <div class="brand"><span class="mark" aria-hidden="true" /><span class="wm">Parlay<span class="g">Pal</span></span></div>
 
       <div class="pitchbody">
-        <h1>Every edge in soccer, <span class="g">first</span>.</h1>
-        <p class="tag">Live value bets, arbs and best prices across every league - including the soft ones the big tools don't even cover.</p>
+        <h1>{{ $t('auth.hero_pre') }}<span class="g">{{ $t('auth.hero_em') }}</span>.</h1>
+        <p class="tag">{{ $t('auth.tag') }}</p>
 
         <SignalPreview class="preview" aria-hidden="true" />
       </div>
 
-      <p class="rg">21+ · For entertainment, not financial advice · 1-800-GAMBLER</p>
+      <p class="rg">{{ $t('auth.rg') }}</p>
     </aside>
 
     <!-- form panel -->
     <main class="formpane">
       <div class="card">
-        <h2>{{ mode === 'login' ? 'Welcome back' : 'Create your account' }}</h2>
-        <p class="sub">{{ mode === 'login' ? 'Log in to see live signals.' : 'Free to start - live scores and locked signal teasers.' }}</p>
+        <h2>{{ mode === 'login' ? $t('auth.welcome') : $t('auth.create') }}</h2>
+        <p class="sub">{{ mode === 'login' ? $t('auth.sub_login') : $t('auth.sub_signup') }}</p>
 
         <form @submit.prevent="submit">
-          <label>Email
+          <label>{{ $t('auth.email') }}
             <input v-model="email" type="email" placeholder="you@email.com" autocomplete="email" required />
           </label>
-          <label>Password
-            <input v-model="password" type="password" placeholder="8+ characters" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" required />
+          <label>{{ $t('auth.password') }}
+            <input v-model="password" type="password" :placeholder="$t('auth.pw_placeholder')" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" required />
           </label>
           <button class="primary" :disabled="loading" type="submit">
-            {{ loading ? '…' : (mode === 'login' ? 'Log in' : 'Sign up free') }}
+            {{ loading ? '…' : (mode === 'login' ? $t('auth.login_btn') : $t('auth.signup_btn')) }}
           </button>
         </form>
 
         <p v-if="error" class="err">{{ error }}</p>
 
         <p class="switch">
-          {{ mode === 'login' ? "Don't have an account?" : 'Already have one?' }}
-          <button type="button" class="link" @click="toggle">{{ mode === 'login' ? 'Sign up' : 'Log in' }}</button>
+          {{ mode === 'login' ? $t('auth.no_account') : $t('auth.have_account') }}
+          <button type="button" class="link" @click="toggle">{{ mode === 'login' ? $t('auth.signup_link') : $t('auth.login_link') }}</button>
         </p>
       </div>
 
@@ -49,10 +49,10 @@
       <SignalPreview class="mob-preview" aria-hidden="true" />
 
       <footer class="legal">
-        <span class="mob-rg">21+ · 1-800-GAMBLER</span>
-        <RouterLink to="/privacy">Privacy</RouterLink>
+        <span class="mob-rg">{{ $t('auth.mob_rg') }}</span>
+        <RouterLink to="/privacy">{{ $t('common.privacy') }}</RouterLink>
         <span class="sep" aria-hidden="true">·</span>
-        <RouterLink to="/terms">Terms</RouterLink>
+        <RouterLink to="/terms">{{ $t('common.terms') }}</RouterLink>
       </footer>
     </main>
     </div>

@@ -1,34 +1,36 @@
 <template>
   <div v-if="ui.showUpgrade" class="modal" @click.self="ui.closeUpgrade()">
     <div class="sheet">
-      <h3>Unlock the edge</h3>
-      <p class="lead">Free shows you scores. <b>Pro</b> shows you where the money is - live, the moment a line goes soft.</p>
-      <div class="vmath">Most Bettor members clear the $29 in their first week</div>
+      <h3>{{ $t('upgrade.title') }}</h3>
+      <p class="lead">{{ $t('upgrade.lead_a') }}<b>Pro</b>{{ $t('upgrade.lead_b') }}</p>
+      <div class="vmath">{{ $t('upgrade.vmath') }}</div>
 
       <div class="plan" @click="choose('bettor')">
-        <div class="pn">Bettor <span class="pr">$29<small>/mo</small></span></div>
-        <div class="pd">All value bets live · every soft league · stake calculator · filter by your books</div>
+        <div class="pn">Bettor <span class="pr">$29<small>{{ $t('upgrade.per_mo') }}</small></span></div>
+        <div class="pd">{{ $t('upgrade.bettor_desc') }}</div>
       </div>
       <div class="plan feat" @click="choose('sharp')">
-        <div class="feattag">Most popular</div>
-        <div class="pn">Sharp <span class="pr">$79<small>/mo</small></span></div>
-        <div class="pd">Everything + live in-play · corners &amp; cards models · instant push · custom alerts</div>
+        <div class="feattag">{{ $t('upgrade.popular') }}</div>
+        <div class="pn">Sharp <span class="pr">$79<small>{{ $t('upgrade.per_mo') }}</small></span></div>
+        <div class="pd">{{ $t('upgrade.sharp_desc') }}</div>
       </div>
 
       <p v-if="err" class="err">{{ err }}</p>
-      <button class="cl" @click="ui.closeUpgrade()">Maybe later</button>
-      <p class="devnote">{{ billing.stripe_enabled ? 'Secure checkout via Stripe · cancel anytime.' : 'Dev build: flips your tier instantly (no Stripe key set).' }}</p>
+      <button class="cl" @click="ui.closeUpgrade()">{{ $t('upgrade.later') }}</button>
+      <p class="devnote">{{ billing.stripe_enabled ? $t('upgrade.devnote_stripe') : $t('upgrade.devnote_dev') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 
 const auth = useAuthStore()
 const ui = useUiStore()
+const { t } = useI18n()
 const billing = ref<{ stripe_enabled: boolean; allow_dev_upgrade: boolean }>({ stripe_enabled: false, allow_dev_upgrade: true })
 const err = ref('')
 
@@ -44,7 +46,7 @@ async function choose(tier: string) {
   if (billing.value.stripe_enabled) {
     const res = await auth.authFetch('/billing/checkout', { method: 'POST', body: JSON.stringify({ tier }) })
     if (res.ok) { window.location.href = (await res.json()).url; return }
-    err.value = 'Checkout is unavailable right now.'
+    err.value = t('upgrade.err_checkout')
     return
   }
   await auth.upgrade(tier)

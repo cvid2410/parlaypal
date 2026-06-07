@@ -31,8 +31,8 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <h1 class="ttl">{{ title[0] }}</h1>
-          <div class="sub">{{ title[1] }}</div>
+          <h1 class="ttl">{{ titleKey ? $t('titles.' + titleKey + '.title') : 'ParlayPal' }}</h1>
+          <div class="sub">{{ titleKey ? $t('titles.' + titleKey + '.sub') : '' }}</div>
         </div>
         <div class="right">
           <div class="pulse" :style="{ opacity: auth.isPaid ? 1 : .5 }"><span class="d" aria-hidden="true" /> Live</div>
@@ -99,17 +99,13 @@ const tabs = [
   { name: 'leagues', path: '/leagues', label: 'Leagues', icon: I.leagues },
 ]
 
-const TITLES: Record<string, [string, string]> = {
-  signals: ['Signals', 'Live mispriced markets across soccer'],
-  scores: ['Scores', 'Live, today, and tables - every league'],
-  ask: ['Ask', 'Anything about soccer - scores, fixtures, standings'],
-  leagues: ['Leagues', 'We hunt where the lines are soft'],
-  league: ['Standings', 'League table, live from the season'],
-  lines: ['Compare odds', 'Best available price across every book'],
-  results: ['Results', 'Your record against the closing line'],
-  settings: ['Settings', 'Your books, leagues, and minimum edge'],
-}
-const title = computed(() => TITLES[route.name as string] || ['ParlayPal', ''])
+// Routes with a translated topbar title/subtitle (see i18n `titles.*`). Anything else
+// falls back to the brand name.
+const TITLE_KEYS = ['signals', 'scores', 'ask', 'leagues', 'league', 'lines', 'results', 'settings']
+const titleKey = computed(() => {
+  const n = route.name as string
+  return TITLE_KEYS.includes(n) ? n : null
+})
 
 const showChrome = computed(() => auth.isAuthed && !['login', 'privacy', 'terms'].includes(route.name as string))
 

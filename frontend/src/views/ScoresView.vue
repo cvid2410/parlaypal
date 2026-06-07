@@ -3,17 +3,17 @@
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
-      <p v-if="allEmpty" class="empty">No fixtures in your leagues today.</p>
+      <p v-if="allEmpty" class="empty">{{ $t('scores.empty') }}</p>
       <div v-else class="cols">
         <!-- left: what's happening / happened -->
         <div class="col">
           <div class="panel">
-            <div class="ph"><span class="d" aria-hidden="true" /> Live now</div>
-            <div v-if="!data.live.length" class="pe">No live matches in your leagues.</div>
-            <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : 'LIVE'" />
+            <div class="ph"><span class="d" aria-hidden="true" /> {{ $t('scores.live_now') }}</div>
+            <div v-if="!data.live.length" class="pe">{{ $t('scores.no_live') }}</div>
+            <Match v-for="(m, i) in data.live" :key="'l' + i" :m="m" :label="m.minute ? m.minute + `'` : $t('scores.live_label')" />
           </div>
           <div v-if="data.finished.length" class="panel">
-            <div class="ph">Finished today</div>
+            <div class="ph">{{ $t('scores.finished_today') }}</div>
             <Match v-for="(m, i) in data.finished" :key="'f' + i" :m="m" label="FT" />
           </div>
         </div>
@@ -21,13 +21,13 @@
         <!-- right: what's next / off -->
         <div class="col">
           <div class="panel">
-            <div class="ph">Today · upcoming</div>
-            <div v-if="!data.upcoming.length" class="pe">Nothing left to kick off today.</div>
+            <div class="ph">{{ $t('scores.today_upcoming') }}</div>
+            <div v-if="!data.upcoming.length" class="pe">{{ $t('scores.nothing_upcoming') }}</div>
             <Match v-for="(m, i) in data.upcoming" :key="'u' + i" :m="m" :label="time(m.kickoff)" />
           </div>
           <div v-if="data.off && data.off.length" class="panel off">
-            <div class="ph">Cancelled · postponed</div>
-            <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || 'Off').toUpperCase()" />
+            <div class="ph">{{ $t('scores.cancelled') }}</div>
+            <Match v-for="(m, i) in data.off" :key="'o' + i" :m="m" :label="(m.note || $t('scores.off_label')).toUpperCase()" />
           </div>
         </div>
       </div>
@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -55,6 +56,7 @@ interface Scores { live: M[]; upcoming: M[]; finished: M[]; off: M[] }
 
 const auth = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const data = ref<Scores | null>(null)
 const error = ref('')
 
@@ -90,7 +92,7 @@ async function load() {
   try {
     const res = await auth.authFetch('/scores')
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load scores')
+    if (!res.ok) throw new Error(t('scores.load_error'))
     data.value = await res.json()
   } catch (e: any) { error.value = e.message }
 }

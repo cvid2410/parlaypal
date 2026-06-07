@@ -2,13 +2,13 @@
   <div class="sig-screen">
     <div class="sect">
       <span v-if="auth.isPaid" class="livedot" />
-      {{ auth.isPaid ? 'Live signals · soft leagues' : 'Locked on Free · upgrade to see picks' }}
-      <button class="refresh" @click="load" :disabled="loading" title="Refresh" aria-label="Refresh signals"><span aria-hidden="true">↻</span></button>
+      {{ auth.isPaid ? $t('signals.header_paid') : $t('signals.header_free') }}
+      <button class="refresh" @click="load" :disabled="loading" :title="$t('signals.refresh')" :aria-label="$t('signals.refresh')"><span aria-hidden="true">↻</span></button>
     </div>
 
     <p v-if="error" class="err">{{ error }}</p>
     <p v-if="!loading && !error && grouped.length === 0" class="empty">
-      No live signals right now. Lines are efficient at the moment - check back soon.
+      {{ $t('signals.empty') }}
     </p>
 
     <!-- loading skeletons -->
@@ -27,11 +27,11 @@
         <div class="top">
           <span class="kind" :class="s.kind">{{ kindLabel(s) }}</span>
           <span class="lg">{{ s.league }} · {{ s.country }}</span>
-          <span v-if="s.count > 1" class="reups" title="re-alerted as the edge improved">↑ {{ s.count }}×</span>
+          <span v-if="s.count > 1" class="reups" :title="$t('signals.reup')">↑ {{ s.count }}×</span>
           <span class="ago">{{ ago(s.age_seconds) }}</span>
         </div>
 
-        <div class="pick">{{ s.locked ? 'Locked pick' : pickLabel(s) }}</div>
+        <div class="pick">{{ s.locked ? $t('signals.locked_pick') : pickLabel(s) }}</div>
         <div class="fx">
           <img v-if="s.home_logo" :src="s.home_logo" class="crest" loading="lazy" alt="" />
           <img v-if="s.away_logo" :src="s.away_logo" class="crest" loading="lazy" alt="" />
@@ -40,7 +40,7 @@
 
         <template v-if="!s.locked">
           <div v-if="s.ticket" class="ticket">
-            <div class="tk-h">Your bet</div>
+            <div class="tk-h">{{ $t('signals.your_bet') }}</div>
             <template v-if="s.ticket.type === 'single'">
               <div v-for="(r, i) in s.ticket.rows" :key="i" class="tk-row">
                 <span class="tk-k">{{ r.label }}</span><span class="tk-v">{{ r.value }}</span>
@@ -49,7 +49,7 @@
             <template v-else>
               <div v-for="(leg, i) in s.ticket.legs" :key="i" class="tk-leg">
                 <div class="tk-leg-top"><span class="tk-pick">{{ leg.pick }}</span><span class="tk-odds">{{ leg.odds }}</span></div>
-                <div class="tk-leg-sub">{{ leg.book }} · stake {{ leg.stake }}</div>
+                <div class="tk-leg-sub">{{ leg.book }} · {{ $t('signals.stake') }} {{ leg.stake }}</div>
               </div>
               <div class="tk-note">{{ s.ticket.note }}</div>
             </template>
@@ -57,27 +57,28 @@
           <div class="why">{{ s.body }}</div>
           <div class="stats">
             <div class="stat hero"><div class="v">+{{ s.edge_pct }}%</div><div class="k">{{ metricLabel(s) }}</div></div>
-            <div v-if="priced(s)" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">fair price</div></div>
-            <div v-if="priced(s)" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">stake</div></div>
+            <div v-if="priced(s)" class="stat"><div class="v">{{ s.fair_odds }}</div><div class="k">{{ $t('signals.fair_price') }}</div></div>
+            <div v-if="priced(s)" class="stat"><div class="v">{{ s.stake_pct }}%</div><div class="k">{{ $t('signals.stake') }}</div></div>
           </div>
           <RouterLink v-if="s.fixture_id" :to="`/lines/${s.fixture_id}`" class="compare">
-            <span>Compare prices across books</span><span class="arr" aria-hidden="true">→</span>
+            <span>{{ $t('signals.compare') }}</span><span class="arr" aria-hidden="true">→</span>
           </RouterLink>
         </template>
 
         <div v-else class="lockmask">
-          <div class="t">Live signal - unlock the pick &amp; odds</div>
-          <button class="u" @click="ui.openUpgrade()">Unlock with Pro</button>
+          <div class="t">{{ $t('signals.lock_t') }}</div>
+          <button class="u" @click="ui.openUpgrade()">{{ $t('signals.unlock') }}</button>
         </div>
       </div>
     </div>
 
-    <p class="foot">For entertainment, not financial advice. Bet responsibly - 1-800-GAMBLER.</p>
+    <p class="foot">{{ $t('signals.foot') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
@@ -95,6 +96,7 @@ interface TicketLeg { book: string; pick: string; odds: string; stake: string }
 interface Ticket { type: 'single' | 'multi'; rows?: TicketRow[]; legs?: TicketLeg[]; note?: string }
 
 const auth = useAuthStore()
+const { t } = useI18n()
 const ui = useUiStore()
 const router = useRouter()
 const route = useRoute()
@@ -116,22 +118,22 @@ const grouped = computed<(Signal & { count: number })[]>(() => {
 })
 
 function ago(sec: number) {
-  if (sec < 60) return 'just now'
+  if (sec < 60) return t('signals.just_now')
   const m = Math.floor(sec / 60)
-  return m < 60 ? `${m} min ago` : `${Math.floor(m / 60)}h ago`
+  return m < 60 ? t('signals.min_ago', { m }) : t('signals.h_ago', { h: Math.floor(m / 60) })
 }
 const priced = (s: Signal) => s.kind === 'ev' || s.kind === 'promo' || s.kind === 'value'
 function kindLabel(s: Signal) {
-  return ({ arb: 'Arbitrage', middle: 'Middle', promo: 'Boost' } as Record<string, string>)[s.kind] || 'Value bet'
+  return ({ arb: t('signals.kind_arb'), middle: t('signals.kind_middle'), promo: t('signals.kind_boost') } as Record<string, string>)[s.kind] || t('signals.kind_value')
 }
 function pickLabel(s: Signal) {
-  if (s.kind === 'arb') return 'Win either way'
-  if (s.kind === 'middle') return 'Middle'
+  if (s.kind === 'arb') return t('signals.pick_arb')
+  if (s.kind === 'middle') return t('signals.pick_middle')
   return s.pick || s.title || ''
 }
 function metricLabel(s: Signal) {
-  if (s.kind === 'value') return s.consensus_books ? `vs ${s.consensus_books} books` : 'off-market edge'
-  return ({ arb: 'locked profit', middle: 'middle upside', promo: 'boost edge' } as Record<string, string>)[s.kind] || 'your edge'
+  if (s.kind === 'value') return s.consensus_books ? t('signals.metric_vs_books', { n: s.consensus_books }) : t('signals.metric_offmarket')
+  return ({ arb: t('signals.metric_arb'), middle: t('signals.metric_middle'), promo: t('signals.metric_boost') } as Record<string, string>)[s.kind] || t('signals.metric_default')
 }
 
 async function load() {
@@ -140,7 +142,7 @@ async function load() {
   try {
     const res = await auth.authFetch('/signals')
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load signals')
+    if (!res.ok) throw new Error(t('signals.load_error'))
     signals.value = (await res.json()).signals
   } catch (e: any) {
     error.value = e.message

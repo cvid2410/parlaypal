@@ -1,19 +1,19 @@
 <template>
   <div class="ln">
-    <button type="button" class="back" @click="$router.back()">← Back</button>
+    <button type="button" class="back" @click="$router.back()">← {{ $t('common.back') }}</button>
     <p v-if="error" class="err">{{ error }}</p>
 
     <template v-else-if="data">
       <div class="head">
         <div class="teams">
           <img v-if="data.home_logo" :src="data.home_logo" class="crest" alt="" />
-          <span>{{ data.home }}</span><span class="vs">vs</span><span>{{ data.away }}</span>
+          <span>{{ data.home }}</span><span class="vs">{{ $t('lines.vs') }}</span><span>{{ data.away }}</span>
           <img v-if="data.away_logo" :src="data.away_logo" class="crest" alt="" />
         </div>
         <div class="meta">{{ data.league }} · {{ data.country }} · {{ kickoff(data.kickoff) }}</div>
       </div>
 
-      <p v-if="data.markets.length === 0" class="empty">No live prices for this fixture right now.</p>
+      <p v-if="data.markets.length === 0" class="empty">{{ $t('lines.empty') }}</p>
 
       <div v-for="m in data.markets" :key="m.market_id" class="market">
         <div class="mh">{{ marketName(m) }}</div>
@@ -27,7 +27,7 @@
           </div>
         </div>
       </div>
-      <p class="foot">Best available price across the books we track · for entertainment · 1-800-GAMBLER.</p>
+      <p class="foot">{{ $t('lines.foot') }}</p>
     </template>
     <div v-else aria-hidden="true">
       <div class="sk" style="width: 280px; height: 26px; margin: 16px 0 8px" />
@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -56,6 +57,7 @@ interface Board { league: string; country: string; home: string; away: string; h
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const data = ref<Board | null>(null)
 const error = ref('')
 
@@ -63,8 +65,8 @@ function kickoff(iso: string) {
   return new Date(iso).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 }
 function marketName(m: M) {
-  if (m.type === 'h2h') return 'Match result'
-  if (m.type === 'total') return `Total goals · ${m.line}`
+  if (m.type === 'h2h') return t('lines.market_h2h')
+  if (m.type === 'total') return t('lines.market_total', { line: m.line })
   return m.type
 }
 
@@ -72,7 +74,7 @@ async function load() {
   try {
     const res = await auth.authFetch(`/lines/${route.params.id}`)
     if (res.status === 401) { router.push('/login'); return }
-    if (!res.ok) throw new Error('Failed to load prices')
+    if (!res.ok) throw new Error(t('lines.load_error'))
     data.value = await res.json()
   } catch (e: any) { error.value = e.message }
 }
